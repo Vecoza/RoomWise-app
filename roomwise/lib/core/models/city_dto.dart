@@ -35,7 +35,7 @@ class CityDto {
       id: json['id'] as int,
       name: json['name'] as String,
 
-      countryName: json['countryName'] as String? ?? 'Bosnia & Herzegovina',
+      countryName: json['countryName'] as String? ?? 'Bosnia i Herzegovina',
     );
   }
 }

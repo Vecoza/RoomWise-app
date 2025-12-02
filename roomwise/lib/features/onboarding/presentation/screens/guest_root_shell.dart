@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:roomwise/features/booking/presentation/screens/guest_bookings_screen.dart';
 import 'package:roomwise/features/onboarding/presentation/screens/guest_landing_screen.dart';
 import 'package:roomwise/features/profile/presentation/screens/guest_settings_screen.dart';
 import 'package:roomwise/features/wishlist/presentation/screens/guest_wishlist_screen.dart';
@@ -18,7 +19,7 @@ class _GuestRootShellState extends State<GuestRootShell> {
 
   late final List<Widget> _pages = [
     const GuestLandingScreen(),
-    const _BookingsPlaceholder(),
+    const GuestBookingsScreen(),
     GuestWishlistScreen(key: _wishlistKey),
     const GuestSettingsScreen(),
   ];
@@ -52,20 +53,6 @@ class _GuestRootShellState extends State<GuestRootShell> {
             label: 'Profile',
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _BookingsPlaceholder extends StatelessWidget {
-  const _BookingsPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Text(
-        'Your bookings will appear here.',
-        style: TextStyle(fontSize: 14),
       ),
     );
   }
