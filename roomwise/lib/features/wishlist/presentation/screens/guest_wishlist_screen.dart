@@ -4,9 +4,11 @@ import 'package:provider/provider.dart';
 import 'package:roomwise/core/api/roomwise_api_client.dart';
 import 'package:roomwise/core/auth/auth_state.dart';
 import 'package:roomwise/core/models/hotel_search_item_dto.dart';
+import 'package:roomwise/core/models/wishlist_item_dto.dart';
 import 'package:roomwise/features/auth/presentation/screens/guest_register_screen.dart';
 import 'package:roomwise/features/onboarding/presentation/screens/guest_login_screen.dart';
 import 'package:roomwise/features/guest_hotel/presentation/screens/guest_hotel_preview_screen.dart';
+import 'package:roomwise/features/wishlist/wishlist_sync.dart';
 
 class GuestWishlistScreen extends StatefulWidget {
   const GuestWishlistScreen({super.key});
@@ -21,11 +23,39 @@ class GuestWishlistScreenState extends State<GuestWishlistScreen> {
 
   bool _loading = true;
   String? _error;
-  List<HotelSearchItemDto> _items = [];
+  List<WishlistItemDto> _items = [];
+  WishlistSync? _wishlistSync;
+  int _lastWishlistVersion = 0;
 
   @override
   void initState() {
     super.initState();
+    _loadWishlist();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final sync = context.read<WishlistSync>();
+    if (_wishlistSync != sync) {
+      _wishlistSync?.removeListener(_handleWishlistChanged);
+      _wishlistSync = sync;
+      _lastWishlistVersion = sync.version;
+      _wishlistSync?.addListener(_handleWishlistChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    _wishlistSync?.removeListener(_handleWishlistChanged);
+    super.dispose();
+  }
+
+  void _handleWishlistChanged() {
+    final sync = _wishlistSync;
+    if (!mounted || sync == null) return;
+    if (sync.version == _lastWishlistVersion) return;
+    _lastWishlistVersion = sync.version;
     _loadWishlist();
   }
 
@@ -90,14 +120,16 @@ class GuestWishlistScreenState extends State<GuestWishlistScreen> {
 
   Future<void> reload() => _loadWishlist();
 
-  Future<void> _removeFromWishlist(HotelSearchItemDto hotel) async {
+  Future<void> _removeFromWishlist(WishlistItemDto item) async {
     try {
       final api = context.read<RoomWiseApiClient>();
-      await api.removeFromWishlist(hotel.id);
+      await api.removeFromWishlist(item.hotelId);
 
       if (!mounted) return;
       setState(() {
-        _items.removeWhere((h) => h.id == hotel.id);
+        _items.removeWhere(
+          (h) => h.id == item.id || h.hotelId == item.hotelId,
+        );
       });
 
       ScaffoldMessenger.of(
@@ -235,7 +267,8 @@ class GuestWishlistScreenState extends State<GuestWishlistScreen> {
         itemCount: _items.length,
         separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
-          final hotel = _items[index];
+          final item = _items[index];
+          final hotel = item.hotel;
           return _WishlistHotelCard(
             hotel: hotel,
             onOpen: () {
@@ -244,9 +277,13 @@ class GuestWishlistScreenState extends State<GuestWishlistScreen> {
                 MaterialPageRoute(
                   builder: (_) => GuestHotelPreviewScreen(hotelId: hotel.id),
                 ),
-              );
+              ).then((changed) {
+                if (changed == true) {
+                  _loadWishlist();
+                }
+              });
             },
-            onRemove: () => _removeFromWishlist(hotel),
+            onRemove: () => _removeFromWishlist(item),
           );
         },
       );
@@ -282,7 +319,7 @@ class _WishlistHotelCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -383,19 +420,27 @@ class _WishlistHotelCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   // rating
-                  Column(
-                    children: [
-                      const Icon(Icons.star, size: 16, color: Colors.amber),
-                      const SizedBox(height: 2),
-                      Text(
-                        hotel.rating.toStringAsFixed(1),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                  if (hotel.reviewCount > 0)
+                    Column(
+                      children: [
+                        const Icon(Icons.star, size: 16, color: Colors.amber),
+                        const SizedBox(height: 2),
+                        Text(
+                          hotel.rating.toStringAsFixed(1),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                        Text(
+                          '(${hotel.reviewCount})',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.black54,
+                          ),
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),

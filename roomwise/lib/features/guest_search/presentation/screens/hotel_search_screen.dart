@@ -7,8 +7,15 @@ import 'package:roomwise/features/guest_hotel/presentation/screens/guest_hotel_p
 
 class HotelSearchScreen extends StatefulWidget {
   final CityDto city;
+  final DateTimeRange? dateRange;
+  final int? guests;
 
-  const HotelSearchScreen({super.key, required this.city});
+  const HotelSearchScreen({
+    super.key,
+    required this.city,
+    this.dateRange,
+    this.guests,
+  });
 
   @override
   State<HotelSearchScreen> createState() => _HotelSearchScreenState();
@@ -33,7 +40,51 @@ class _HotelSearchScreenState extends State<HotelSearchScreen> {
 
     try {
       final api = context.read<RoomWiseApiClient>();
-      final result = await api.searchHotelsByCity(cityId: widget.city.id);
+      List<HotelSearchItemDto> result = [];
+
+      // Prefer advanced search when dates are selected so we respect availability.
+      if (widget.dateRange != null) {
+        final range = widget.dateRange!;
+        final guests = (widget.guests ?? 1).clamp(1, 10);
+        try {
+          result = await api.searchHotelsAdvanced(
+            checkIn: range.start,
+            checkOut: range.end,
+            guests: guests,
+            cityId: widget.city.id,
+          );
+        } catch (e) {
+          debugPrint('Advanced city search failed, falling back: $e');
+        }
+      }
+
+      // Basic city search fallback
+      if (result.isEmpty) {
+        try {
+          result = await api.searchHotelsByCity(
+            cityId: widget.city.id,
+          );
+        } catch (e) {
+          debugPrint('City search fallback failed: $e');
+        }
+      }
+
+      // Final fallback: filter hot deals by city name (best-effort)
+      if (result.isEmpty) {
+        try {
+          final deals = await api.getHotDeals();
+          final target = widget.city.name.toLowerCase().trim();
+          result = deals
+              .where(
+                (h) =>
+                    h.city.toLowerCase().trim() == target ||
+                    h.name.toLowerCase().contains(target),
+              )
+              .toList();
+        } catch (e) {
+          debugPrint('Hot deals fallback failed: $e');
+        }
+      }
 
       setState(() {
         _hotels = result;
@@ -113,7 +164,7 @@ class _HotelListTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: Colors.black.withOpacity(0.03),
               blurRadius: 6,
               offset: const Offset(0, 3),
             ),
@@ -185,23 +236,32 @@ class _HotelListTile extends StatelessWidget {
                             color: Color(0xFFFF7A3C),
                           ),
                         ),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.star,
-                              size: 14,
-                              color: Colors.amber,
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              hotel.rating.toStringAsFixed(1),
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
+                        if (hotel.reviewCount > 0)
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.star,
+                                size: 14,
+                                color: Colors.amber,
                               ),
-                            ),
-                          ],
-                        ),
+                              const SizedBox(width: 3),
+                              Text(
+                                hotel.rating.toStringAsFixed(1),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '(${hotel.reviewCount})',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
                       ],
                     ),
                   ],

@@ -1,23 +1,25 @@
 class ReviewCreateRequestDto {
   final int hotelId;
+  final int reservationId;
   final int rating; // 1-5
   final String? title;
   final String? body;
-  final String? userId; // optional; backend can infer from token
 
   ReviewCreateRequestDto({
     required this.hotelId,
+    required this.reservationId,
     required this.rating,
     this.title,
     this.body,
-    this.userId,
   });
 
   Map<String, dynamic> toJson() => {
     'hotelId': hotelId,
+    'reservationId': reservationId,
     'rating': rating,
-    'title': title,
-    'body': body,
-    'userId': userId,
+    if (title != null) 'title': title,
+    if (body != null) 'body': body,
+    // Some backends expect "comment" instead of "body"
+    if (body != null) 'comment': body,
   };
 }

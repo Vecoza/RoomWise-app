@@ -6,6 +6,8 @@ import 'package:roomwise/features/onboarding/onboarding_prefs.dart';
 import 'package:roomwise/features/onboarding/presentation/screens/guest_root_shell.dart';
 import 'package:roomwise/features/onboarding/presentation/screens/onboarding_screen_1.dart';
 import 'package:roomwise/features/onboarding/presentation/screens/guest_landing_screen.dart';
+import 'package:roomwise/features/wishlist/wishlist_sync.dart';
+import 'package:roomwise/features/notifications/domain/notification_controller.dart';
 
 void main() {
   runApp(const RoomWiseRoot());
@@ -22,6 +24,19 @@ class RoomWiseRoot extends StatelessWidget {
         ChangeNotifierProvider<AuthState>(
           create: (context) =>
               AuthState(Provider.of<RoomWiseApiClient>(context, listen: false)),
+        ),
+        ChangeNotifierProvider<WishlistSync>(create: (_) => WishlistSync()),
+        ChangeNotifierProxyProvider<AuthState, NotificationController>(
+          create: (context) => NotificationController(
+            api: Provider.of<RoomWiseApiClient>(context, listen: false),
+          ),
+          update: (context, auth, controller) {
+            controller ??= NotificationController(
+              api: Provider.of<RoomWiseApiClient>(context, listen: false),
+            );
+            controller.handleAuthChanged(auth);
+            return controller;
+          },
         ),
       ],
       child: const RoomWiseApp(),

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:roomwise/core/services/onboarding_service.dart';
 import 'package:roomwise/features/onboarding/onboarding_prefs.dart';
-import 'package:roomwise/features/onboarding/presentation/screens/guest_landing_screen.dart';
 import 'package:roomwise/features/onboarding/presentation/screens/guest_root_shell.dart';
 
 class OnboardingScreen3 extends StatelessWidget {
@@ -53,7 +51,7 @@ class OnboardingScreen3 extends StatelessWidget {
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const GuestLandingScreen(),
+                            builder: (_) => const GuestRootShell(),
                           ),
                         );
                       },

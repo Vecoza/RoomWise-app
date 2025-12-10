@@ -2,10 +2,12 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:roomwise/core/api/roomwise_api_client.dart';
+import 'package:roomwise/core/auth/auth_state.dart';
 import 'package:roomwise/core/models/addon_dto.dart';
 import 'package:roomwise/core/models/available_room_type_dto.dart';
 import 'package:roomwise/core/models/hotel_details_dto.dart';
 import 'package:roomwise/core/models/reservation_dto.dart';
+import 'package:roomwise/features/onboarding/presentation/screens/guest_login_screen.dart';
 import 'package:roomwise/features/guest_reservation/presentation/screens/guest_payment_screen.dart';
 import 'package:roomwise/features/guest_reservation/presentation/screens/guest_reservation_preview';
 
@@ -77,8 +79,29 @@ class _GuestReservationDetailsScreenState
     });
   }
 
+  Future<bool> _ensureLoggedIn() async {
+    final auth = context.read<AuthState>();
+    if (auth.isLoggedIn) return true;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please log in to reserve a room.'),
+      ),
+    );
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const GuestLoginScreen()),
+    );
+
+    return context.mounted && context.read<AuthState>().isLoggedIn;
+  }
+
   /// Main CTA: create reservation, then branch to payment / preview.
   Future<void> _onContinuePressed() async {
+    final canProceed = await _ensureLoggedIn();
+    if (!canProceed) return;
+
     setState(() {
       _submitting = true;
       _error = null;

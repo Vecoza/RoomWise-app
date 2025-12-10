@@ -75,32 +75,7 @@ class GuestBookingPastScreen extends StatelessWidget {
             ),
           ),
 
-          // Bottom – Leave a review
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-            ).copyWith(bottom: 16),
-            child: SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryGreen,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                onPressed: () {
-                  _openReviewBottomSheet(context, booking);
-                },
-                child: const Text(
-                  'Leave a review',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-          ),
+          // Bottom review button removed (reviews initiated from booking cards).
         ],
       ),
     );

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:roomwise/core/services/onboarding_service.dart';
 import 'package:roomwise/features/onboarding/onboarding_prefs.dart';
-import 'package:roomwise/features/onboarding/presentation/screens/guest_landing_screen.dart';
 import 'package:roomwise/features/onboarding/presentation/screens/guest_root_shell.dart';
 
 import 'package:roomwise/features/onboarding/presentation/screens/onboarding_screen_3.dart';

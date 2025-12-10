@@ -491,35 +491,6 @@ class _BookingCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (type == BookingType.past) ...[
-                      const SizedBox(height: 6),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () async {
-                            final changed = await showModalBottomSheet<bool>(
-                              context: context,
-                              isScrollControlled: true,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(16),
-                                ),
-                              ),
-                              builder: (_) =>
-                                  _LeaveReviewSheet(booking: booking),
-                            );
-
-                            if (changed == true && onChanged != null) {
-                              onChanged!();
-                            }
-                          },
-                          child: const Text(
-                            'Leave a review',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                        ),
-                      ),
-                    ],
                     if (type == BookingType.past && !booking.hasReview) ...[
                       const SizedBox(height: 6),
                       Align(
@@ -641,10 +612,18 @@ class _LeaveReviewSheetState extends State<_LeaveReviewSheet> {
 
     try {
       final api = context.read<RoomWiseApiClient>();
+      final hotelId = widget.booking.hotelId;
+      if (hotelId == null) {
+        setState(() {
+          _error = 'Hotel information is missing for this booking.';
+        });
+        return;
+      }
 
       await api.createReview(
         ReviewCreateRequestDto(
-          hotelId: widget.booking.hotelId ?? widget.booking.id,
+          hotelId: hotelId,
+          reservationId: widget.booking.id,
           rating: _rating,
           body: _commentCtrl.text.trim().isEmpty
               ? null
@@ -658,6 +637,29 @@ class _LeaveReviewSheetState extends State<_LeaveReviewSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Review submitted. Thank you!')),
       );
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      String msg;
+
+      if (data is Map<String, dynamic>) {
+        msg = data['message']?.toString() ??
+            data['error']?.toString() ??
+            e.message ??
+            'Failed to submit review. Please try again.';
+      } else if (data is String) {
+        msg = data;
+      } else {
+        msg = e.message ?? 'Failed to submit review. Please try again.';
+      }
+
+      debugPrint(
+        'Review submit error: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _error = msg;
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() {

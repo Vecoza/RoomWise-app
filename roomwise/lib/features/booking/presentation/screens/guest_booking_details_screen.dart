@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:roomwise/core/api/roomwise_api_client.dart';
@@ -178,19 +179,41 @@ class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
       final api = context.read<RoomWiseApiClient>();
       await api.createReview(
         ReviewCreateRequestDto(
-          hotelId: widget.reservation.hotelId ?? widget.reservation.id,
+          hotelId: widget.reservation.hotelId!, // must come from backend
+          reservationId: widget.reservation.id,
           rating: rating,
-          title: null,
           body: comment.isEmpty ? null : comment,
-          userId: null,
         ),
       );
-
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Review submitted. Thank you!')),
       );
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      String msg;
+
+      if (data is Map<String, dynamic>) {
+        msg =
+            data['message']?.toString() ??
+            data['error']?.toString() ??
+            e.message ??
+            'Failed to submit review. Please try again.';
+      } else if (data is String) {
+        msg = data;
+      } else {
+        msg = e.message ?? 'Failed to submit review. Please try again.';
+      }
+
+      debugPrint(
+        'Review submit error: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _error = msg;
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() {

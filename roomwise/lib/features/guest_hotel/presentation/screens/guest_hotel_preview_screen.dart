@@ -2,9 +2,14 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:roomwise/core/api/roomwise_api_client.dart';
+import 'package:roomwise/core/auth/auth_state.dart';
 import 'package:roomwise/core/models/hotel_details_dto.dart';
 import 'package:roomwise/core/models/available_room_type_dto.dart';
+import 'package:roomwise/core/models/hotel_image_dto.dart';
+import 'package:roomwise/core/models/review_response_dto.dart';
 import 'package:roomwise/features/guest_reservation/presentation/screens/guest_reservation_details_screen.dart';
+import 'package:roomwise/features/onboarding/presentation/screens/guest_login_screen.dart';
+import 'package:roomwise/features/wishlist/wishlist_sync.dart';
 
 class GuestHotelPreviewScreen extends StatefulWidget {
   final int hotelId;
@@ -30,6 +35,15 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
   bool _loading = true;
   String? _error;
   HotelDetailsDto? _hotel;
+  bool _wishlistUpdating = false;
+  bool _wishlistChanged = false;
+  bool? _isWishlisted;
+  int _currentImageIndex = 0;
+  final List<ReviewResponseDto> _reviews = [];
+  bool _reviewsLoading = false;
+  String? _reviewsError;
+  int _reviewsPage = 1;
+  bool _reviewsHasMore = true;
 
   @override
   void initState() {
@@ -58,6 +72,8 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
         _hotel = details;
         _loading = false;
       });
+      await _loadReviews(reset: true);
+      await _syncWishlistStatus();
     } on DioException catch (e) {
       debugPrint('Hotel details load failed: $e');
       if (!mounted) return;
@@ -72,6 +88,31 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
         _error = 'Failed to load hotel details.';
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _syncWishlistStatus() async {
+    final auth = context.read<AuthState>();
+    if (!auth.isLoggedIn) {
+      if (_isWishlisted != false && mounted) {
+        setState(() {
+          _isWishlisted = false;
+        });
+      }
+      return;
+    }
+
+    try {
+      final api = context.read<RoomWiseApiClient>();
+      final wishlist = await api.getWishlist();
+      if (!mounted) return;
+      final isSaved = wishlist.any(
+        (item) =>
+            item.hotelId == widget.hotelId || item.hotel.id == widget.hotelId,
+      );
+      setState(() => _isWishlisted = isSaved);
+    } catch (e) {
+      debugPrint('Wishlist status check failed: $e');
     }
   }
 
@@ -101,6 +142,167 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
     );
   }
 
+  Future<void> _toggleWishlist() async {
+    if (_wishlistUpdating) return;
+
+    final auth = context.read<AuthState>();
+    if (!auth.isLoggedIn) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to update wishlist.')),
+      );
+
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const GuestLoginScreen()),
+      );
+
+      if (!mounted) return;
+      await _syncWishlistStatus();
+      if (context.read<AuthState>().isLoggedIn) {
+        return _toggleWishlist();
+      }
+      return;
+    }
+
+    setState(() => _wishlistUpdating = true);
+
+    final api = context.read<RoomWiseApiClient>();
+    final currentlyWishlisted = _isWishlisted ?? false;
+
+    try {
+      if (currentlyWishlisted) {
+        await api.removeFromWishlist(widget.hotelId);
+      } else {
+        await api.addToWishlist(widget.hotelId);
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _isWishlisted = !currentlyWishlisted;
+        _wishlistChanged = true;
+      });
+
+      context.read<WishlistSync>().notifyChanged();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            currentlyWishlisted ? 'Removed from wishlist' : 'Added to wishlist',
+          ),
+        ),
+      );
+    } on DioException catch (e) {
+      debugPrint('Wishlist update failed: $e');
+      if (!mounted) return;
+
+      final code = e.response?.statusCode;
+      if (code == 401 || code == 403) {
+        await auth.logout();
+        if (!mounted) return;
+        setState(() => _isWishlisted = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please log in to update wishlist.')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update wishlist')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Wishlist update failed (non-Dio): $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to update wishlist')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _wishlistUpdating = false);
+      }
+    }
+  }
+
+  Future<bool> _handleWillPop() async {
+    Navigator.of(context).pop(_wishlistChanged);
+    return false;
+  }
+
+  Future<void> _loadReviews({bool reset = false}) async {
+    final hotel = _hotel;
+    if (hotel == null) return;
+
+    if (reset) {
+      setState(() {
+        _reviews.clear();
+        _reviewsPage = 1;
+        _reviewsHasMore = true;
+        _reviewsError = null;
+      });
+    }
+
+    if (_reviewsLoading || !_reviewsHasMore) return;
+
+    setState(() {
+      _reviewsLoading = true;
+      _reviewsError = null;
+    });
+
+    try {
+      final api = context.read<RoomWiseApiClient>();
+      final res = await api.getHotelReviews(
+        hotelId: hotel.id,
+        page: _reviewsPage,
+        pageSize: 10,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _reviews.addAll(res.items);
+        final total = res.totalCount ?? _reviews.length;
+        _reviewsHasMore = _reviews.length < total;
+        if (_reviewsHasMore) {
+          _reviewsPage += 1;
+        }
+        _reviewsLoading = false;
+        _reviewsError = null;
+      });
+    } catch (e) {
+      debugPrint('Load reviews failed: $e');
+      if (!mounted) return;
+      setState(() {
+        _reviewsLoading = false;
+        _reviewsError = 'Failed to load reviews';
+      });
+    }
+  }
+
+  Widget _buildWishlistButton() {
+    final saved = _isWishlisted ?? false;
+
+    return CircleAvatar(
+      radius: 20,
+      backgroundColor: Colors.black.withOpacity(0.45),
+      child: _wishlistUpdating
+          ? const SizedBox(
+              height: 16,
+              width: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            )
+          : IconButton(
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              icon: Icon(
+                saved ? Icons.favorite : Icons.favorite_border,
+                color: saved ? Colors.redAccent : Colors.white,
+              ),
+              onPressed: _toggleWishlist,
+            ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     Widget body;
@@ -124,21 +326,197 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
       body = _buildContent(_hotel!);
     }
 
-    return Scaffold(
-      appBar: AppBar(title: Text(_hotel?.name ?? 'Hotel')),
-      body: RefreshIndicator(onRefresh: _loadDetails, child: body),
+    return WillPopScope(
+      onWillPop: _handleWillPop,
+      child: Scaffold(
+        appBar: AppBar(
+          leading: BackButton(
+            onPressed: () => Navigator.of(context).pop(_wishlistChanged),
+          ),
+          title: Text(_hotel?.name ?? 'Hotel'),
+        ),
+        body: RefreshIndicator(onRefresh: _loadDetails, child: body),
+      ),
+    );
+  }
+
+  List<HotelImageDto> _galleryImages(HotelDetailsDto hotel) {
+    if (hotel.images.isNotEmpty) return hotel.images;
+    if (hotel.galleryUrls.isNotEmpty) {
+      return hotel.galleryUrls
+          .asMap()
+          .entries
+          .map(
+            (e) => HotelImageDto(
+              id: e.key,
+              hotelId: hotel.id,
+              url: e.value,
+              sortOrder: e.key,
+            ),
+          )
+          .toList();
+    }
+    return [];
+  }
+
+  Widget _buildImageGallery(HotelDetailsDto hotel) {
+    final images = _galleryImages(hotel);
+    if (images.isEmpty) {
+      return AspectRatio(
+        aspectRatio: 16 / 9,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Center(
+            child: Icon(Icons.image_not_supported_outlined, size: 48),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: () => _openFullScreenGallery(hotel),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: SizedBox(
+              height: 220,
+              child: PageView.builder(
+                itemCount: images.length,
+                onPageChanged: (index) {
+                  setState(() => _currentImageIndex = index);
+                },
+                itemBuilder: (context, index) {
+                  final img = images[index];
+                  return Hero(
+                    tag: 'hotel-${hotel.id}-image-$index',
+                    child: Image.network(
+                      img.url,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: progress.expectedTotalBytes != null
+                                ? progress.cumulativeBytesLoaded /
+                                      progress.expectedTotalBytes!
+                                : null,
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey.shade200,
+                          child: const Center(
+                            child: Icon(Icons.broken_image_outlined),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(images.length, (index) {
+            final isActive = index == _currentImageIndex;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              height: 4,
+              width: isActive ? 20 : 8,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                color: isActive ? _accentOrange : Colors.grey.shade300,
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+
+  void _openFullScreenGallery(HotelDetailsDto hotel) {
+    final images = _galleryImages(hotel);
+    if (images.isEmpty) return;
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (context) {
+        int pageIndex = _currentImageIndex;
+        final controller = PageController(
+          initialPage: _currentImageIndex,
+          viewportFraction: 1,
+        );
+        return StatefulBuilder(
+          builder: (context, setLocal) {
+            return GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              child: Scaffold(
+                backgroundColor: Colors.black,
+                body: SafeArea(
+                  child: Stack(
+                    children: [
+                      PageView.builder(
+                        controller: controller,
+                        itemCount: images.length,
+                        onPageChanged: (i) => setLocal(() => pageIndex = i),
+                        itemBuilder: (context, index) {
+                          final img = images[index];
+                          return Center(
+                            child: Hero(
+                              tag: 'hotel-${hotel.id}-image-$index',
+                              child: InteractiveViewer(
+                                child: Image.network(
+                                  img.url,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 16,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: Text(
+                            '${pageIndex + 1} / ${images.length}',
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
   Widget _buildContent(HotelDetailsDto hotel) {
-    final rooms = hotel.availableRoomTypes ?? const <AvailableRoomTypeDto>[];
-    final heroImage = hotel.heroImageUrl?.isNotEmpty == true
-        ? hotel.heroImageUrl
-        : null;
-    final fallbackGallery = hotel.galleryUrls.isNotEmpty
-        ? hotel.galleryUrls.first
-        : null;
-    final mainImageUrl = heroImage ?? fallbackGallery;
+    final rooms = hotel.availableRoomTypes;
     final currency = hotel.currency.isNotEmpty ? hotel.currency : 'EUR';
 
     return SingleChildScrollView(
@@ -146,20 +524,15 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Hero image
-          if (mainImageUrl != null)
-            AspectRatio(
-              aspectRatio: 16 / 9,
-              child: Image.network(mainImageUrl, fit: BoxFit.cover),
-            )
-          else
-            Container(
-              height: 200,
-              color: Colors.grey.shade200,
-              child: const Center(
-                child: Icon(Icons.hotel, size: 48, color: Colors.grey),
-              ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Stack(
+              children: [
+                _buildImageGallery(hotel),
+                Positioned(top: 10, right: 10, child: _buildWishlistButton()),
+              ],
             ),
+          ),
 
           Padding(
             padding: const EdgeInsets.all(16),
@@ -180,35 +553,52 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    if (hotel.rating != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                    Builder(
+                      builder: (context) {
+                        final reviewAvg = _reviewsAverage();
+                        if (reviewAvg <= 0) return const SizedBox.shrink();
+                        return Row(
                           children: [
-                            const Icon(
-                              Icons.star,
-                              size: 16,
-                              color: Colors.amber,
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.star,
+                                    size: 16,
+                                    color: Colors.amber,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    reviewAvg.toStringAsFixed(1),
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: 8),
                             Text(
-                              hotel.rating!.toStringAsFixed(1),
+                              '${_reviews.length} review${_reviews.length == 1 ? '' : 's'}',
                               style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                                color: Colors.black54,
                               ),
                             ),
                           ],
-                        ),
-                      ),
+                        );
+                      },
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -294,6 +684,8 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
                   const SizedBox(height: 16),
                 ],
 
+                _buildReviewsSection(hotel),
+
                 // Rooms list
                 const Text(
                   'Rooms',
@@ -326,6 +718,130 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildReviewsSection(HotelDetailsDto hotel) {
+    final hasAnyReviews = _reviews.isNotEmpty;
+    final avg = _reviewsAverage();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Reviews',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        if (_reviewsLoading && _reviews.isEmpty)
+          const Center(child: CircularProgressIndicator())
+        else if (_reviewsError != null)
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _reviewsError!,
+                  style: const TextStyle(color: Colors.redAccent),
+                ),
+              ),
+              TextButton(onPressed: () => _loadReviews(reset: true), child: const Text('Retry')),
+            ],
+          )
+        else if (_reviews.isEmpty)
+          const Text(
+            'No reviews yet.',
+            style: TextStyle(fontSize: 13, color: Colors.black54),
+          )
+        else
+          Column(
+            children: [
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _reviews.length,
+                separatorBuilder: (_, __) => const Divider(height: 12),
+                itemBuilder: (context, index) {
+                  final r = _reviews[index];
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          _buildStars(r.rating),
+                          const SizedBox(width: 8),
+                          Text(
+                            _formatDate(r.createdAt),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (r.title?.isNotEmpty == true) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          r.title!,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                      if (r.body?.isNotEmpty == true) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          r.body!,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ],
+                    ],
+                  );
+                },
+              ),
+              if (_reviewsHasMore)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: OutlinedButton(
+                    onPressed: _reviewsLoading ? null : _loadReviews,
+                    child: _reviewsLoading
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Load more'),
+                  ),
+                ),
+            ],
+          ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildStars(int rating) {
+    return Row(
+      children: List.generate(5, (index) {
+        return Icon(
+          index < rating ? Icons.star : Icons.star_border,
+          size: 16,
+          color: Colors.amber,
+        );
+      }),
+    );
+  }
+
+  double _reviewsAverage() {
+    if (_reviews.isEmpty) return 0;
+    final total = _reviews.fold<int>(0, (sum, r) => sum + r.rating);
+    return total / _reviews.length;
+  }
+
+  String _formatDate(DateTime dt) {
+    final d = dt.day.toString().padLeft(2, '0');
+    final m = dt.month.toString().padLeft(2, '0');
+    final y = dt.year.toString();
+    return '$d.$m.$y';
   }
 }
 

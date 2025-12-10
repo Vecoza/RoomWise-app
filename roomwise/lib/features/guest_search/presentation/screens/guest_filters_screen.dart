@@ -146,6 +146,23 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
     });
   }
 
+  void _resetFilters({bool closeAndReturn = false}) {
+    _selectedAddonIds.clear();
+    _selectedFacilityIds.clear();
+
+    setState(() {
+      _selectedCityId = null;
+      _priceRange = const RangeValues(0, 500);
+      _minRating = 0;
+      _dateRange = widget.baseDateRange;
+      _guests = widget.baseGuests ?? 2;
+    });
+
+    if (closeAndReturn) {
+      _onApply();
+    }
+  }
+
   void _onApply() {
     final guests = _dateRange == null ? null : _guests;
     final filters = GuestSearchFilters(
@@ -176,7 +193,7 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
             if (_warning != null)
               Container(
                 width: double.infinity,
-                color: Colors.orange.withValues(alpha: 0.12),
+                color: Colors.orange.withOpacity(0.12),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 10,
@@ -212,29 +229,54 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
+                    color: Colors.black.withOpacity(0.05),
                     blurRadius: 8,
                     offset: const Offset(0, -2),
                   ),
                 ],
               ),
-              child: SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryGreen,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.grey.shade800,
+                        side: BorderSide(color: Colors.grey.shade300),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      onPressed: _resetFilters,
+                      child: const Text(
+                        'Reset',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
-                  onPressed: _onApply,
-                  child: const Text(
-                    'Apply filters',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _primaryGreen,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      onPressed: _onApply,
+                      child: const Text(
+                        'Apply filters',
+                        style:
+                            TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
           ],

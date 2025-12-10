@@ -95,6 +95,8 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         }
       }
 
+      hotels = _applyClientSort(hotels);
+
       if (!mounted) return;
       setState(() {
         _results = hotels;
@@ -134,18 +136,19 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   }
 
   List<HotelSearchItemDto> _applyClientSort(List<HotelSearchItemDto> list) {
+    final sorted = List<HotelSearchItemDto>.from(list);
     switch (_sortOption) {
       case 'priceAsc':
-        list.sort((a, b) => a.fromPrice.compareTo(b.fromPrice));
+        sorted.sort((a, b) => a.fromPrice.compareTo(b.fromPrice));
         break;
       case 'priceDesc':
-        list.sort((a, b) => b.fromPrice.compareTo(a.fromPrice));
+        sorted.sort((a, b) => b.fromPrice.compareTo(a.fromPrice));
         break;
       case 'ratingDesc':
-        list.sort((a, b) => b.rating.compareTo(a.rating));
+        sorted.sort((a, b) => b.rating.compareTo(a.rating));
         break;
     }
-    return list;
+    return sorted;
   }
 
   GuestSearchFilters _normalizeFilters(GuestSearchFilters? filters) {
@@ -294,7 +297,6 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       appBar: AppBar(
         title: const Text('Search results'),
         actions: [
-          // 🔍 Filters button restored
           IconButton(icon: const Icon(Icons.tune), onPressed: _openFilters),
           PopupMenuButton<String>(
             onSelected: (value) {
@@ -396,7 +398,7 @@ class _HotelResultCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -455,32 +457,41 @@ class _HotelResultCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'From €${hotel.fromPrice.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: _accentOrange,
-                        ),
-                      ),
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Icon(Icons.star, size: 14, color: Colors.amber),
-                          const SizedBox(width: 4),
                           Text(
-                            hotel.rating.toStringAsFixed(1),
+                            'From €${hotel.fromPrice.toStringAsFixed(0)}',
                             style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 13,
                               fontWeight: FontWeight.w600,
+                              color: _accentOrange,
                             ),
                           ),
+                          if (hotel.reviewCount > 0)
+                            Row(
+                              children: [
+                                const Icon(Icons.star, size: 14, color: Colors.amber),
+                                const SizedBox(width: 4),
+                                Text(
+                                  hotel.rating.toStringAsFixed(1),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '(${hotel.reviewCount})',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
                         ],
                       ),
-                    ],
-                  ),
                 ],
               ),
             ),

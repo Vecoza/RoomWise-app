@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:roomwise/core/services/onboarding_service.dart';
 import 'package:roomwise/features/onboarding/onboarding_prefs.dart';
-import 'package:roomwise/features/onboarding/presentation/screens/guest_landing_screen.dart';
 import 'package:roomwise/features/onboarding/presentation/screens/guest_root_shell.dart';
 
 import 'package:roomwise/features/onboarding/presentation/screens/onboarding_screen_2.dart';
@@ -44,7 +42,7 @@ class OnboardingScreen1 extends StatelessWidget {
                             end: Alignment.bottomCenter,
                             colors: [
                               Colors.transparent,
-                              Colors.black.withValues(alpha: 0.3),
+                              Colors.black.withOpacity(0.3),
                             ],
                           ),
                         ),
@@ -116,7 +114,7 @@ class OnboardingScreen1 extends StatelessWidget {
                         children: [
                           const TextSpan(text: 'Explore your hotel only with '),
                           TextSpan(
-                            text: 'with us!',
+                            text: 'us!',
                             style: TextStyle(
                               color: _accentOrange,
                               fontWeight: FontWeight.w700,

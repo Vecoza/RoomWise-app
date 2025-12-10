@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:roomwise/core/models/addon_dto.dart';
@@ -6,10 +8,18 @@ import 'package:roomwise/core/models/guest_booking_list_item_dto.dart';
 import 'package:roomwise/core/models/payment_dto.dart';
 import 'package:roomwise/core/models/reservation_dto.dart';
 import 'package:roomwise/core/models/review_dto.dart';
+import 'package:roomwise/core/models/me_profile_dto.dart';
+import 'package:roomwise/core/models/loyalty_summary_dto.dart';
+import 'package:roomwise/core/models/wishlist_item_dto.dart';
+import 'package:roomwise/core/models/notification_dto.dart';
+import 'package:roomwise/core/models/paged_result.dart';
+import 'package:roomwise/core/models/loyalty_dtos.dart';
+import 'package:roomwise/core/models/review_response_dto.dart';
+import 'package:roomwise/core/models/tag_dto.dart';
 import 'api_config.dart';
 import '../models/city_dto.dart';
 import '../models/hotel_search_item_dto.dart';
-import '../models/hotel_details_dto.dart'; // we’ll create this in Step 3
+import '../models/hotel_details_dto.dart';
 import '../models/auth_dto.dart';
 
 class RoomWiseApiClient {
@@ -55,6 +65,41 @@ class RoomWiseApiClient {
   // ---- HOT DEALS  ----
   Future<List<HotelSearchItemDto>> getHotDeals() async {
     final response = await _dio.get('/Hotels/hot-deals');
+    // debugPrint('Hot deals raw response: ${response.data}');
+    final data = _extractList(response.data);
+    return data
+        .map(
+          (json) => HotelSearchItemDto.fromJson(json as Map<String, dynamic>),
+        )
+        .toList();
+  }
+
+  // ---- TAGS CATEGORIES ----
+  Future<List<TagDto>> getTags() async {
+    final response = await _dio.get(
+      '/Tags',
+      queryParameters: {'RetrieveAll': true, 'IncludeTotalCount': false},
+    );
+    final data = _extractList(response.data);
+    return data
+        .map((json) => TagDto.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<HotelSearchItemDto>> getHotelsByTag(
+    int tagId, {
+    String? tagName,
+  }) async {
+    final response = await _dio.get(
+      '/Hotels/search',
+      queryParameters: {
+        'TagId': tagId,
+        if (tagName != null && tagName.isNotEmpty) 'TagName': tagName,
+        'RetrieveAll': true,
+        'IncludeTotalCount': false,
+      },
+    );
+
     final data = _extractList(response.data);
     return data
         .map(
@@ -70,8 +115,14 @@ class RoomWiseApiClient {
     int pageSize = 20,
   }) async {
     final response = await _dio.get(
-      '/Hotels',
-      queryParameters: {'CityId': cityId, 'Page': page, 'PageSize': pageSize},
+      '/Hotels/search',
+      queryParameters: {
+        'CityId': cityId,
+        'Page': _toZeroBasedPage(page),
+        'PageSize': pageSize,
+        'RetrieveAll': true,
+        'IncludeTotalCount': false,
+      },
     );
 
     final data = _extractList(response.data);
@@ -112,17 +163,204 @@ class RoomWiseApiClient {
     return AuthResponseDto.fromJson(response.data as Map<String, dynamic>);
   }
 
+  // ---- PROFILE / ME ----
+
+  Future<MeProfileDto> getMyProfile() async {
+    // Primary path (lowercase)
+    try {
+      final response = await _dio.get('/me/profile');
+      return MeProfileDto.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      debugPrint(
+        'getMyProfile /me/profile failed: '
+        'status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+      // Some backends are case-sensitive; retry with original casing before propagating.
+      if (e.response?.statusCode == 404 || e.response?.statusCode == 500) {
+        try {
+          final fallback = await _dio.get('/Me/profile');
+          return MeProfileDto.fromJson(fallback.data as Map<String, dynamic>);
+        } on DioException catch (e2) {
+          debugPrint(
+            'getMyProfile /Me/profile failed: '
+            'status=${e2.response?.statusCode}, data=${e2.response?.data}',
+          );
+          rethrow;
+        }
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> updateMyProfile(UpdateProfileRequestDto request) async {
+    await _dio.put('/Me/profile', data: request.toJson());
+  }
+
+  Future<void> changeMyPassword(ChangePasswordRequestDto request) async {
+    await _dio.post('/Me/profile/change-password', data: request.toJson());
+  }
+
+  Future<LoyaltySummaryDto> getMyLoyaltyBalance() async {
+    final response = await _dio.get('/Loyalty/balance');
+    return LoyaltySummaryDto.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<LoyaltyBalanceDto> getLoyaltyBalance() async {
+    try {
+      final response = await _dio.get('/api/loyalty/balance');
+      return LoyaltyBalanceDto.fromJson(response.data);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404 || e.response?.statusCode == 405) {
+        final response = await _dio.get('/Loyalty/balance');
+        return LoyaltyBalanceDto.fromJson(response.data);
+      }
+      rethrow;
+    }
+  }
+
+  Future<LoyaltyHistoryPageDto> getLoyaltyHistoryPage({
+    int page = 1,
+    int pageSize = 50,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '/api/loyalty/history',
+        queryParameters: {'page': _toZeroBasedPage(page), 'pageSize': pageSize},
+      );
+      return LoyaltyHistoryPageDto.fromJson(response.data);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404 || e.response?.statusCode == 405) {
+        final response = await _dio.get(
+          '/Loyalty/history',
+          queryParameters: {
+            'Page': _toZeroBasedPage(page),
+            'PageSize': pageSize,
+          },
+        );
+        return LoyaltyHistoryPageDto.fromJson(response.data);
+      }
+      rethrow;
+    }
+  }
+
+  Future<String> uploadAvatar(File file) async {
+    final fileName = file.path.split(Platform.pathSeparator).last;
+    Future<FormData> buildFormData() async {
+      return FormData.fromMap({
+        'file': await MultipartFile.fromFile(file.path, filename: fileName),
+      });
+    }
+
+    try {
+      debugPrint('Uploading avatar → /me/profile/avatar ($fileName)');
+      final response = await _dio.post(
+        '/me/profile/avatar',
+        data: await buildFormData(),
+      );
+      debugPrint(
+        'Avatar upload success /me/profile/avatar: ${response.statusCode}',
+      );
+      return _extractAvatarUrl(response.data);
+    } on DioException catch (e) {
+      debugPrint(
+        'Avatar upload /me/profile/avatar failed: '
+        'status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+      rethrow;
+    }
+  }
+
+  Future<PagedResult<ReviewResponseDto>> getHotelReviews({
+    required int hotelId,
+    int page = 1,
+    int pageSize = 10,
+  }) async {
+    final qp = {'page': _toZeroBasedPage(page), 'pageSize': pageSize};
+    final paths = ['/hotels/$hotelId/reviews'];
+
+    DioException? lastError;
+    for (final path in paths) {
+      try {
+        final response = await _dio.get(path, queryParameters: qp);
+        final data = response.data as Map<String, dynamic>;
+        return PagedResult<ReviewResponseDto>.fromJson(
+          data,
+          (json) => ReviewResponseDto.fromJson(json),
+        );
+      } on DioException catch (e) {
+        lastError = e;
+        continue;
+      }
+    }
+    if (lastError?.response?.statusCode == 404) {
+      return PagedResult<ReviewResponseDto>(items: const [], totalCount: 0);
+    }
+    throw lastError ??
+        DioException(
+          requestOptions: RequestOptions(
+            path: '/reviews/hotel/$hotelId',
+            queryParameters: qp,
+          ),
+          error: 'Failed to load reviews',
+        );
+  }
+
+  // ---- NOTIFICATIONS ----
+
+  Future<PagedResult<NotificationDto>> getMyNotifications({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final qp = {'Page': _toZeroBasedPage(page), 'PageSize': pageSize};
+
+    try {
+      final response = await _dio.get('/Me/notifications', queryParameters: qp);
+      return _parseNotifications(response.data);
+    } on DioException catch (e) {
+      // Fallbacks for different casing / routing
+      if (e.response?.statusCode == 404 || e.response?.statusCode == 405) {
+        final response = await _dio.get(
+          '/api/me/notifications',
+          queryParameters: {
+            'page': _toZeroBasedPage(page),
+            'pageSize': pageSize,
+          },
+        );
+        return _parseNotifications(response.data);
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> markNotificationAsRead(int id) async {
+    try {
+      await _dio.post('/Me/notifications/$id/read');
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404 || e.response?.statusCode == 405) {
+        await _dio.post('/api/me/notifications/$id/read');
+        return;
+      }
+      rethrow;
+    }
+  }
+
   // ---- WISHLIST ----
 
-  Future<List<HotelSearchItemDto>> getWishlist() async {
+  Future<List<WishlistItemDto>> getWishlist() async {
     final response = await _dio.get('/Wishlist');
     final data = _extractList(response.data);
-    final hotels = <HotelSearchItemDto>[];
+    final items = <WishlistItemDto>[];
     for (final raw in data) {
-      final parsed = _parseWishlistHotel(raw);
-      if (parsed != null) hotels.add(parsed);
+      final hotel = _parseWishlistHotel(raw);
+      if (hotel == null) continue;
+      final map = raw is Map<String, dynamic>
+          ? raw
+          : (raw is Map ? Map<String, dynamic>.from(raw) : null);
+      if (map == null) continue;
+      final item = _parseWishlistItem(map, hotel);
+      if (item != null) items.add(item);
     }
-    return hotels;
+    return items;
   }
 
   Future<void> addToWishlist(int hotelId) async {
@@ -156,7 +394,7 @@ class RoomWiseApiClient {
   }) async {
     final response = await _dio.get(
       '/Hotels',
-      queryParameters: {'Page': page, 'PageSize': pageSize},
+      queryParameters: {'Page': _toZeroBasedPage(page), 'PageSize': pageSize},
     );
 
     final data = _extractList(response.data);
@@ -194,7 +432,7 @@ class RoomWiseApiClient {
       'CheckIn': checkIn.toIso8601String(),
       'CheckOut': checkOut.toIso8601String(),
       'Guests': guests,
-      'Page': page,
+      'Page': _toZeroBasedPage(page),
       'PageSize': pageSize,
     };
 
@@ -219,7 +457,10 @@ class RoomWiseApiClient {
       qp['Sort'] = sort; // "price" | "rating" | ...
     }
 
-    final response = await _dio.get('/search/hotels', queryParameters: qp);
+    final response = await _dio.get(
+      '/Hotels/search',
+      queryParameters: qp,
+    ); //here
 
     final data = _extractList(response.data);
     return data
@@ -342,23 +583,34 @@ class RoomWiseApiClient {
         .toList();
   }
 
-  Future<void> cancelReservation({
-    int? reservationId,
-    String? reservationPublicId,
-  }) async {
-    final target = reservationPublicId ?? reservationId?.toString();
-    if (target == null || target.isEmpty) {
-      throw ArgumentError('reservationId or reservationPublicId is required');
-    }
+  // Future<void> cancelReservation({
+  //   int? reservationId,
+  //   String? reservationPublicId,
+  // }) async {
+  //   final target = reservationPublicId ?? reservationId?.toString();
+  //   if (target == null || target.isEmpty) {
+  //     throw ArgumentError('reservationId or reservationPublicId is required');
+  //   }
 
+  //   try {
+  //     await _dio.post('/reservations/$target/cancel');
+  //   } on DioException catch (e) {
+  //     final code = e.response?.statusCode;
+  //     if (code == 404 && reservationPublicId != null && reservationId != null) {
+  //       await _dio.post('/reservations/${reservationId.toString()}/cancel');
+  //       return;
+  //     }
+  //     rethrow;
+  //   }
+  // }
+  Future<void> cancelReservation(int reservationId) async {
     try {
-      await _dio.post('/reservations/$target/cancel');
+      await _dio.post('/reservations/$reservationId/cancel');
     } on DioException catch (e) {
-      final code = e.response?.statusCode;
-      if (code == 404 && reservationPublicId != null && reservationId != null) {
-        await _dio.post('/reservations/${reservationId.toString()}/cancel');
-        return;
-      }
+      debugPrint(
+        'Cancel reservation error: '
+        'status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
       rethrow;
     }
   }
@@ -390,6 +642,38 @@ class RoomWiseApiClient {
     return const [];
   }
 
+  PagedResult<NotificationDto> _parseNotifications(dynamic raw) {
+    if (raw is Map<String, dynamic>) {
+      return PagedResult<NotificationDto>.fromJson(
+        raw,
+        (json) => NotificationDto.fromJson(json),
+      );
+    }
+
+    final list = _extractList(
+      raw,
+    ).whereType<Map<String, dynamic>>().map(NotificationDto.fromJson).toList();
+
+    return PagedResult<NotificationDto>(items: list, totalCount: list.length);
+  }
+
+  String _extractAvatarUrl(dynamic raw) {
+    if (raw is Map<String, dynamic>) {
+      final url =
+          raw['avatarBase64'] ??
+          raw['avatarUrl'] ??
+          raw['avatarURL'] ??
+          raw['url'] ??
+          raw['AvatarUrl'];
+      if (url is String && url.isNotEmpty) return url;
+    }
+    if (raw is String && raw.isNotEmpty) return raw;
+    throw DioException(
+      requestOptions: RequestOptions(path: '/api/me/avatar'),
+      error: 'Avatar data not returned from server',
+    );
+  }
+
   bool _shouldRetryWishlist(DioException e) {
     final code = e.response?.statusCode;
     return code == 404 || code == 405;
@@ -402,6 +686,30 @@ class RoomWiseApiClient {
       return trimmed.substring(7).trim();
     }
     return trimmed;
+  }
+
+  int _toZeroBasedPage(int page) {
+    if (page <= 0) return 0;
+    return page - 1;
+  }
+
+  WishlistItemDto? _parseWishlistItem(
+    Map<String, dynamic> raw,
+    HotelSearchItemDto hotel,
+  ) {
+    final id = _tryParseInt(raw['id']) ?? 0;
+    final hotelId = _tryParseInt(raw['hotelId']) ?? hotel.id;
+    final createdAt =
+        DateTime.tryParse(raw['createdAt']?.toString() ?? '') ??
+        DateTime.fromMillisecondsSinceEpoch(0);
+
+    return WishlistItemDto(
+      id: id,
+      userId: raw['userId']?.toString() ?? '',
+      hotelId: hotelId,
+      createdAt: createdAt,
+      hotel: hotel,
+    );
   }
 
   HotelSearchItemDto? _parseWishlistHotel(dynamic raw) {
@@ -431,5 +739,10 @@ class RoomWiseApiClient {
       debugPrint('Failed to parse wishlist hotel: $e');
       return null;
     }
+  }
+
+  int? _tryParseInt(dynamic raw) {
+    if (raw is int) return raw;
+    return int.tryParse(raw?.toString() ?? '');
   }
 }

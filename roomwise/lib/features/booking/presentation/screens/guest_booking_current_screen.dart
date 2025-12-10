@@ -105,11 +105,11 @@ class _GuestBookingCurrentScreenState extends State<GuestBookingCurrentScreen> {
                   backgroundColor: Colors.redAccent,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-          ),
-          onPressed: _isCancelling ? null : _onCancelPressed,
-          child: _isCancelling
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                onPressed: _isCancelling ? null : _onCancelPressed,
+                child: _isCancelling
                     ? const SizedBox(
                         height: 20,
                         width: 20,
@@ -155,25 +155,23 @@ class _GuestBookingCurrentScreenState extends State<GuestBookingCurrentScreen> {
 
     try {
       final api = context.read<RoomWiseApiClient>();
-      await api.cancelReservation(
-        reservationId: widget.booking.id,
-        reservationPublicId: widget.booking.publicId,
-      );
+      await api.cancelReservation(widget.booking.id);
 
       if (!mounted) return;
 
-      // Show message and return to list with "changed = true"
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Reservation has been cancelled.')),
       );
 
-      Navigator.pop(context, true); // <--- important: signals refresh
+      Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isCancelling = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to cancel reservation. ${e.toString()}'),
+          content: Text(
+            'You can\'t cancel reservation 24h before reservation ',
+          ),
         ),
       );
     }
