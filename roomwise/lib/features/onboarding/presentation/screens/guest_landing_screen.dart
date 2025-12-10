@@ -4,6 +4,7 @@ import 'package:roomwise/core/api/roomwise_api_client.dart';
 import 'package:roomwise/core/models/city_dto.dart';
 import 'package:roomwise/core/models/hotel_search_item_dto.dart';
 import 'package:roomwise/core/models/tag_dto.dart';
+import 'package:roomwise/core/search/search_state.dart';
 import 'package:roomwise/features/guest_hotel/presentation/screens/guest_hotel_preview_screen.dart';
 import 'package:roomwise/features/guest_search/domain/guest_search_filters.dart';
 import 'package:roomwise/features/guest_search/presentation/screens/guest_filters_screen.dart';
@@ -127,6 +128,12 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
       );
       return;
     }
+
+    context.read<SearchState>().update(
+      checkIn: _selectedRange!.start,
+      checkOut: _selectedRange!.end,
+      guests: _guests,
+    );
 
     Navigator.push(
       context,

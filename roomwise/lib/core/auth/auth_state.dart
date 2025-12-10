@@ -6,26 +6,48 @@ import 'package:roomwise/core/models/auth_dto.dart';
 class AuthState extends ChangeNotifier {
   final RoomWiseApiClient _api;
 
-  AuthState(this._api);
+  AuthState(this._api) {
+    _api.attachAuthState(this);
+  }
 
   static const _keyToken = 'auth_token';
   static const _keyEmail = 'auth_email';
+  static const _keyRefreshToken = 'auth_refresh_token';
+  static const _keyRefreshExpires = 'auth_refresh_expires';
 
   String? _token;
   String? _email;
+  String? _refreshToken;
+  DateTime? _refreshExpiresUtc;
 
   String? get token => _token;
   String? get email => _email;
+  String? get refreshToken => _refreshToken;
+  DateTime? get refreshExpiresUtc => _refreshExpiresUtc;
   bool get isLoggedIn => _token != null;
 
   Future<void> loadFromStorage() async {
     final prefs = await SharedPreferences.getInstance();
     final storedToken = _normalizeToken(prefs.getString(_keyToken));
     final storedEmail = prefs.getString(_keyEmail);
+    final storedRefresh = prefs.getString(_keyRefreshToken);
+    final storedRefreshExpiresString = prefs.getString(_keyRefreshExpires);
+
+    DateTime? storedRefreshExpires;
+    if (storedRefreshExpiresString != null &&
+        storedRefreshExpiresString.isNotEmpty) {
+      try {
+        storedRefreshExpires = DateTime.parse(storedRefreshExpiresString);
+      } catch (_) {
+        storedRefreshExpires = null;
+      }
+    }
 
     if (storedToken != null && storedToken.isNotEmpty) {
       _token = storedToken;
       _email = storedEmail;
+      _refreshToken = storedRefresh;
+      _refreshExpiresUtc = storedRefreshExpires;
       _api.setAuthToken(_token);
       notifyListeners();
     }
@@ -36,9 +58,16 @@ class AuthState extends ChangeNotifier {
     if (_token != null) {
       await prefs.setString(_keyToken, _token!);
       await prefs.setString(_keyEmail, _email ?? '');
+      await prefs.setString(_keyRefreshToken, _refreshToken ?? '');
+      await prefs.setString(
+        _keyRefreshExpires,
+        _refreshExpiresUtc?.toUtc().toIso8601String() ?? '',
+      );
     } else {
       await prefs.remove(_keyToken);
       await prefs.remove(_keyEmail);
+      await prefs.remove(_keyRefreshToken);
+      await prefs.remove(_keyRefreshExpires);
     }
   }
 
@@ -65,6 +94,8 @@ class AuthState extends ChangeNotifier {
     final res = await _api.loginGuest(req);
 
     _token = _normalizeToken(res.token);
+    _refreshToken = res.refreshToken;
+    _refreshExpiresUtc = res.refreshExpiresUtc.toUtc();
     _email = res.email ?? email;
 
     _api.setAuthToken(_token);
@@ -73,11 +104,43 @@ class AuthState extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    debugPrint('AuthState.logout() CALLED');
     _token = null;
     _email = null;
+    _refreshToken = null;
+    _refreshExpiresUtc = null;
     _api.setAuthToken(null);
     await _persist();
     notifyListeners();
+  }
+
+  bool get _canRefresh {
+    if (_refreshToken == null || _refreshToken!.isEmpty) return false;
+    if (_refreshExpiresUtc == null) return true;
+    return DateTime.now().toUtc().isBefore(_refreshExpiresUtc!);
+  }
+
+  Future<bool> tryRefreshToken() async {
+    if (!_canRefresh) {
+      await logout();
+      return false;
+    }
+
+    try {
+      final res = await _api.refreshToken(_refreshToken!);
+
+      _token = _normalizeToken(res.token);
+      _refreshToken = res.refreshToken;
+      _refreshExpiresUtc = res.refreshExpiresUtc.toUtc();
+
+      _api.setAuthToken(_token);
+      await _persist();
+      notifyListeners();
+      return true;
+    } catch (_) {
+      await logout();
+      return false;
+    }
   }
 
   String? _normalizeToken(String? rawToken) {

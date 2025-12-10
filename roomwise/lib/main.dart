@@ -1,31 +1,54 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:provider/provider.dart';
 import 'package:roomwise/core/api/roomwise_api_client.dart';
 import 'package:roomwise/core/auth/auth_state.dart';
+import 'package:roomwise/features/booking/sync/bookings_sync.dart';
 import 'package:roomwise/features/onboarding/onboarding_prefs.dart';
 import 'package:roomwise/features/onboarding/presentation/screens/guest_root_shell.dart';
 import 'package:roomwise/features/onboarding/presentation/screens/onboarding_screen_1.dart';
 import 'package:roomwise/features/onboarding/presentation/screens/guest_landing_screen.dart';
 import 'package:roomwise/features/wishlist/wishlist_sync.dart';
 import 'package:roomwise/features/notifications/domain/notification_controller.dart';
+import 'package:roomwise/core/search/search_state.dart';
 
-void main() {
-  runApp(const RoomWiseRoot());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  Stripe.publishableKey =
+      'pk_test_51SSHokLTIGnnOfLJWaCvyRUFWfKoggwc2MCZjKf2aHDjILirh3GFpCc3El41wB37kLvu3BFvwK0BcrDEUnTj4E60002kihvtQZ';
+
+  final api = RoomWiseApiClient();
+  final auth = AuthState(api);
+  await auth.loadFromStorage();
+
+  runApp(
+    RoomWiseRoot(
+      apiClient: api,
+      authState: auth,
+    ),
+  );
 }
 
 class RoomWiseRoot extends StatelessWidget {
-  const RoomWiseRoot({super.key});
+  final RoomWiseApiClient apiClient;
+  final AuthState authState;
+
+  const RoomWiseRoot({
+    super.key,
+    required this.apiClient,
+    required this.authState,
+  });
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider<RoomWiseApiClient>(create: (_) => RoomWiseApiClient()),
-        ChangeNotifierProvider<AuthState>(
-          create: (context) =>
-              AuthState(Provider.of<RoomWiseApiClient>(context, listen: false)),
-        ),
+        Provider<RoomWiseApiClient>.value(value: apiClient),
+        ChangeNotifierProvider<AuthState>.value(value: authState),
         ChangeNotifierProvider<WishlistSync>(create: (_) => WishlistSync()),
+        ChangeNotifierProvider(create: (_) => BookingsSync()),
+        ChangeNotifierProvider<SearchState>(create: (_) => SearchState()),
         ChangeNotifierProxyProvider<AuthState, NotificationController>(
           create: (context) => NotificationController(
             api: Provider.of<RoomWiseApiClient>(context, listen: false),

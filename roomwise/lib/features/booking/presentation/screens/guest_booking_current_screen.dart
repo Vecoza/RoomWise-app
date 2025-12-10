@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:roomwise/core/api/roomwise_api_client.dart';
 import 'package:roomwise/core/models/guest_booking_list_item_dto.dart';
+import 'package:roomwise/features/booking/sync/bookings_sync.dart';
 
 class GuestBookingCurrentScreen extends StatefulWidget {
   final GuestBookingListItemDto booking;
@@ -158,6 +159,8 @@ class _GuestBookingCurrentScreenState extends State<GuestBookingCurrentScreen> {
       await api.cancelReservation(widget.booking.id);
 
       if (!mounted) return;
+
+      context.read<BookingsSync>().markChanged();
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Reservation has been cancelled.')),

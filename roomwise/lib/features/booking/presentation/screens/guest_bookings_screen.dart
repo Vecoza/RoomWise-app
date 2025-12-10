@@ -11,6 +11,7 @@ import 'package:roomwise/features/auth/presentation/screens/guest_register_scree
 import 'package:roomwise/features/booking/presentation/screens/guest_booking_cancelled_screen.dart';
 import 'package:roomwise/features/booking/presentation/screens/guest_booking_current_screen.dart';
 import 'package:roomwise/features/booking/presentation/screens/guest_booking_past_screen.dart';
+import 'package:roomwise/features/booking/sync/bookings_sync.dart';
 import 'package:roomwise/features/onboarding/presentation/screens/guest_login_screen.dart';
 // TODO: import your detail screens when we create them
 // import 'guest_booking_current_screen.dart';
@@ -26,6 +27,7 @@ class GuestBookingsScreen extends StatefulWidget {
 
 class _GuestBookingsScreenState extends State<GuestBookingsScreen>
     with SingleTickerProviderStateMixin {
+  int _lastSyncVersion = 0;
   static const _primaryGreen = Color(0xFF05A87A);
   static const _accentOrange = Color(0xFFFF7A3C);
 
@@ -33,6 +35,7 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
 
   bool _loading = true;
   String? _error;
+  bool _hasLoadedOnce = false;
 
   List<GuestBookingListItemDto> _current = [];
   List<GuestBookingListItemDto> _past = [];
@@ -51,17 +54,42 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
     super.dispose();
   }
 
-  Future<void> _loadAll() async {
-    final auth = context.read<AuthState>();
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
 
-    if (!auth.isLoggedIn) {
-      // no bookings if not logged in
+    final sync = context.watch<BookingsSync>();
+    if (sync.version != _lastSyncVersion) {
+      _lastSyncVersion = sync.version;
+      _loadAll();
+    }
+
+    final auth = context.watch<AuthState>();
+    if (auth.isLoggedIn && !_hasLoadedOnce) {
+      _loadAll();
+    } else if (!auth.isLoggedIn) {
       setState(() {
         _loading = false;
         _error = null;
         _current = [];
         _past = [];
         _cancelled = [];
+        _hasLoadedOnce = false;
+      });
+    }
+  }
+
+  Future<void> _loadAll() async {
+    final auth = context.read<AuthState>();
+
+    if (!auth.isLoggedIn) {
+      setState(() {
+        _loading = false;
+        _error = null;
+        _current = [];
+        _past = [];
+        _cancelled = [];
+        _hasLoadedOnce = false;
       });
       return;
     }
@@ -86,6 +114,7 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
         _past = results[1];
         _cancelled = results[2];
         _loading = false;
+        _hasLoadedOnce = true;
       });
     } on DioException catch (e) {
       debugPrint('Load bookings failed: $e');
@@ -111,6 +140,19 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
         _error = 'Failed to load your bookings.';
       });
     }
+  }
+
+  Future<void> _openLogin() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => GuestLoginScreen(
+          onLoginSuccess: () async {
+            await _loadAll();
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -165,11 +207,7 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
               const SizedBox(height: 8),
               TextButton(
                 onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const GuestLoginScreen()),
-                  );
-                  await _loadAll();
+                  await _openLogin();
                 },
                 child: const Text('I already have an account'),
               ),
@@ -642,7 +680,8 @@ class _LeaveReviewSheetState extends State<_LeaveReviewSheet> {
       String msg;
 
       if (data is Map<String, dynamic>) {
-        msg = data['message']?.toString() ??
+        msg =
+            data['message']?.toString() ??
             data['error']?.toString() ??
             e.message ??
             'Failed to submit review. Please try again.';

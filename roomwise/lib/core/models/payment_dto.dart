@@ -19,10 +19,10 @@ class PaymentIntentDto {
 
   factory PaymentIntentDto.fromJson(Map<String, dynamic> json) {
     return PaymentIntentDto(
-      id: json['id'] as int? ?? 0,
-      reservationId: json['reservationId'] as int? ?? 0,
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      reservationId: (json['reservationId'] as num?)?.toInt() ?? 0,
       stripePaymentIntentId: json['stripePaymentIntentId'] as String? ?? '',
-      amount: json['amount'] as int? ?? 0,
+      amount: (json['amount'] as num?)?.toInt() ?? 0,
       currency: json['currency'] as String? ?? 'eur',
       status: json['status'] as String? ?? '',
       clientSecret: json['clientSecret'] as String? ?? '',

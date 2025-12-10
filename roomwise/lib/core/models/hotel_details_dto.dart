@@ -50,10 +50,7 @@ class HotelDetailsDto {
         const [];
 
     final addOnsJson =
-        (json['addOns'] as List?) ??
-        (hotelJson['addOns'] as List?) ??
-        (json['addons'] as List?) ??
-        const [];
+        (json['addOns'] ?? json['addons'] ?? []) as List<dynamic>;
 
     final tagsJson =
         (json['tags'] as List?) ?? (hotelJson['tags'] as List?) ?? const [];
@@ -71,12 +68,13 @@ class HotelDetailsDto {
         .where((url) => url.isNotEmpty)
         .toList();
 
-    final imageDtos = ((json['images'] as List?) ??
-            (hotelJson['images'] as List?) ??
-            const [])
-        .whereType<Map<String, dynamic>>()
-        .map(HotelImageDto.fromJson)
-        .toList();
+    final imageDtos =
+        ((json['images'] as List?) ??
+                (hotelJson['images'] as List?) ??
+                const [])
+            .whereType<Map<String, dynamic>>()
+            .map(HotelImageDto.fromJson)
+            .toList();
 
     // fallback: map string gallery to dto list if backend doesn't send objects
     final imagesFromPhotos = photos

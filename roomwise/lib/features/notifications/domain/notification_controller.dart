@@ -24,8 +24,7 @@ class NotificationController extends ChangeNotifier {
   bool get hasMore =>
       _notifications.length < _totalCount && _notifications.isNotEmpty;
 
-  int get unreadCount =>
-      _notifications.where((n) => !n.isRead).length;
+  int get unreadCount => _notifications.where((n) => !n.isRead).length;
 
   void handleAuthChanged(AuthState auth) {
     final loggedIn = auth.isLoggedIn;
@@ -90,11 +89,13 @@ class NotificationController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final PagedResult<NotificationDto> result =
-          await api.getMyNotifications(page: _page, pageSize: _pageSize);
+      final PagedResult<NotificationDto> result = await api.getMyNotifications(
+        page: _page,
+        pageSize: _pageSize,
+      );
 
-      _totalCount = result.totalCount ??
-          (_notifications.length + result.items.length);
+      _totalCount =
+          result.totalCount ?? (_notifications.length + result.items.length);
 
       _notifications.addAll(result.items);
     } finally {

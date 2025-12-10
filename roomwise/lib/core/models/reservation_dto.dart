@@ -1,3 +1,6 @@
+import 'package:roomwise/core/models/reservation_addOn_item_dto.dart';
+import 'package:roomwise/core/models/payment_dto.dart';
+
 class ReservationPreviewRequestDto {
   final int hotelId;
   final int roomTypeId;
@@ -26,6 +29,32 @@ class ReservationPreviewRequestDto {
     'addonIds': addonIds,
     'paymentMethod': paymentMethod,
   };
+}
+
+class CreateReservationWithIntentResponse {
+  final ReservationDto reservation;
+  final PaymentIntentDto payment;
+  final String clientSecret;
+
+  CreateReservationWithIntentResponse({
+    required this.reservation,
+    required this.payment,
+    required this.clientSecret,
+  });
+
+  factory CreateReservationWithIntentResponse.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return CreateReservationWithIntentResponse(
+      reservation: ReservationDto.fromJson(
+        json['reservation'] as Map<String, dynamic>,
+      ),
+      payment: PaymentIntentDto.fromJson(
+        json['payment'] as Map<String, dynamic>,
+      ),
+      clientSecret: json['clientSecret'] as String? ?? '',
+    );
+  }
 }
 
 class ReservationPreviewDto {
@@ -63,8 +92,8 @@ class CreateReservationRequestDto {
   final DateTime checkIn;
   final DateTime checkOut;
   final int guests;
-  final List<int> addonIds;
-  final String paymentMethod; // e.g. "Card" or "PayOnArrival"
+  final List<ReservationAddOnItemDto> addOns;
+  final String paymentMethod;
 
   CreateReservationRequestDto({
     required this.hotelId,
@@ -72,7 +101,7 @@ class CreateReservationRequestDto {
     required this.checkIn,
     required this.checkOut,
     required this.guests,
-    this.addonIds = const [],
+    this.addOns = const [],
     required this.paymentMethod,
   });
 
@@ -82,7 +111,7 @@ class CreateReservationRequestDto {
     'checkIn': checkIn.toIso8601String(),
     'checkOut': checkOut.toIso8601String(),
     'guests': guests,
-    'addonIds': addonIds,
+    'addOns': addOns.map((a) => a.toJson()).toList(),
     'paymentMethod': paymentMethod,
   };
 }

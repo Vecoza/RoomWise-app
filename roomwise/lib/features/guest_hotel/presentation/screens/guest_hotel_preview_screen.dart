@@ -7,6 +7,7 @@ import 'package:roomwise/core/models/hotel_details_dto.dart';
 import 'package:roomwise/core/models/available_room_type_dto.dart';
 import 'package:roomwise/core/models/hotel_image_dto.dart';
 import 'package:roomwise/core/models/review_response_dto.dart';
+import 'package:roomwise/core/search/search_state.dart';
 import 'package:roomwise/features/guest_reservation/presentation/screens/guest_reservation_details_screen.dart';
 import 'package:roomwise/features/onboarding/presentation/screens/guest_login_screen.dart';
 import 'package:roomwise/features/wishlist/wishlist_sync.dart';
@@ -120,7 +121,14 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
     final hotel = _hotel;
     if (hotel == null) return;
 
-    if (widget.dateRange == null || widget.guests == null) {
+    final search = context.read<SearchState>();
+    final dateRange = widget.dateRange ??
+        (search.hasSelection
+            ? DateTimeRange(start: search.checkIn!, end: search.checkOut!)
+            : null);
+    final guests = widget.guests ?? search.guests;
+
+    if (dateRange == null || guests == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please select dates and number of guests first.'),
@@ -135,8 +143,8 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
         builder: (_) => GuestReservationDetailsScreen(
           hotel: hotel,
           roomType: roomType,
-          dateRange: widget.dateRange!,
-          guests: widget.guests!,
+          dateRange: dateRange,
+          guests: guests,
         ),
       ),
     );

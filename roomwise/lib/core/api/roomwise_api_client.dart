@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:roomwise/core/auth/auth_state.dart';
 import 'package:roomwise/core/models/addon_dto.dart';
 import 'package:roomwise/core/models/facility_dto.dart';
 import 'package:roomwise/core/models/guest_booking_list_item_dto.dart';
@@ -37,7 +39,70 @@ class RoomWiseApiClient {
           if (_authToken != null && _authToken!.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $_authToken';
           }
+          debugPrint(
+            '[API] → ${options.method} ${options.uri} '
+            'data=${_safeDataPreview(options.data)}',
+          );
           return handler.next(options);
+        },
+        onResponse: (response, handler) {
+          debugPrint(
+            '[API] ← ${response.requestOptions.method} '
+            '${response.requestOptions.uri} '
+            'status=${response.statusCode}',
+          );
+          return handler.next(response);
+        },
+        onError: (error, handler) async {
+          final statusCode = error.response?.statusCode;
+          final path = error.requestOptions.path.toLowerCase();
+          final isAuthEndpoint = path.contains('/auth/login') ||
+              path.contains('/auth/register') ||
+              path.contains('/auth/refresh');
+
+          if (statusCode == 401 &&
+              !isAuthEndpoint &&
+              _authState != null &&
+              !_isRefreshing) {
+            _isRefreshing = true;
+            _refreshCompleter = Completer<void>();
+            final auth = _authState!;
+            final didRefresh = await auth.tryRefreshToken();
+            _refreshCompleter?.complete();
+            _refreshCompleter = null;
+            _isRefreshing = false;
+
+            if (didRefresh && auth.token != null) {
+              error.requestOptions.headers['Authorization'] =
+                  'Bearer ${auth.token}';
+              try {
+                final retryResponse = await _dio.fetch(error.requestOptions);
+                return handler.resolve(retryResponse);
+              } catch (e) {
+                return handler.reject(e as DioException);
+              }
+            }
+          } else if (_isRefreshing && _refreshCompleter != null) {
+            await _refreshCompleter!.future;
+            if (_authState?.token != null) {
+              error.requestOptions.headers['Authorization'] =
+                  'Bearer ${_authState!.token}';
+              try {
+                final retryResponse = await _dio.fetch(error.requestOptions);
+                return handler.resolve(retryResponse);
+              } catch (e) {
+                return handler.reject(e as DioException);
+              }
+            }
+          }
+
+          debugPrint(
+            '[API] ✖ ${error.requestOptions.method} '
+            '${error.requestOptions.uri} '
+            'status=${error.response?.statusCode} '
+            'message=${error.message}',
+          );
+          return handler.next(error);
         },
       ),
     );
@@ -45,9 +110,16 @@ class RoomWiseApiClient {
 
   final Dio _dio;
   String? _authToken;
+  AuthState? _authState;
+  bool _isRefreshing = false;
+  Completer<void>? _refreshCompleter;
 
   void setAuthToken(String? token) {
     _authToken = _stripBearer(token);
+  }
+
+  void attachAuthState(AuthState auth) {
+    _authState = auth;
   }
 
   // ---- CITIES ----
@@ -160,6 +232,14 @@ class RoomWiseApiClient {
 
   Future<AuthResponseDto> loginGuest(LoginRequestDto request) async {
     final response = await _dio.post('/Auth/login', data: request.toJson());
+    return AuthResponseDto.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<AuthResponseDto> refreshToken(String refreshToken) async {
+    final response = await _dio.post(
+      '/Auth/refresh',
+      data: {'refreshToken': refreshToken},
+    );
     return AuthResponseDto.fromJson(response.data as Map<String, dynamic>);
   }
 
@@ -506,6 +586,23 @@ class RoomWiseApiClient {
     return ReservationDto.fromJson(response.data as Map<String, dynamic>);
   }
 
+  Future<CreateReservationWithIntentResponse> createReservationWithIntent(
+    CreateReservationRequestDto request,
+  ) async {
+    debugPrint(
+      'CREATE RESERVATION WITH INTENT REQUEST JSON: ${request.toJson()}',
+    );
+
+    final response = await _dio.post(
+      '/reservations/with-payment-intent',
+      data: request.toJson(),
+    );
+
+    return CreateReservationWithIntentResponse.fromJson(
+      response.data as Map<String, dynamic>,
+    );
+  }
+
   // ---- PAYMENTS ----
   Future<PaymentIntentDto> createPaymentIntent({
     required int reservationId,
@@ -744,5 +841,15 @@ class RoomWiseApiClient {
   int? _tryParseInt(dynamic raw) {
     if (raw is int) return raw;
     return int.tryParse(raw?.toString() ?? '');
+  }
+
+  String _safeDataPreview(Object? data) {
+    try {
+      final str = data.toString();
+      if (str.length > 200) return '${str.substring(0, 200)}...';
+      return str;
+    } catch (_) {
+      return '<unprintable>';
+    }
   }
 }

@@ -6,7 +6,9 @@ import 'package:roomwise/core/auth/auth_state.dart';
 import 'package:roomwise/core/models/addon_dto.dart';
 import 'package:roomwise/core/models/available_room_type_dto.dart';
 import 'package:roomwise/core/models/hotel_details_dto.dart';
+import 'package:roomwise/core/models/reservation_addOn_item_dto.dart';
 import 'package:roomwise/core/models/reservation_dto.dart';
+import 'package:roomwise/features/booking/sync/bookings_sync.dart';
 import 'package:roomwise/features/onboarding/presentation/screens/guest_login_screen.dart';
 import 'package:roomwise/features/guest_reservation/presentation/screens/guest_payment_screen.dart';
 import 'package:roomwise/features/guest_reservation/presentation/screens/guest_reservation_preview';
@@ -84,9 +86,7 @@ class _GuestReservationDetailsScreenState
     if (auth.isLoggedIn) return true;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Please log in to reserve a room.'),
-      ),
+      const SnackBar(content: Text('Please log in to reserve a room.')),
     );
 
     await Navigator.push(
@@ -110,36 +110,44 @@ class _GuestReservationDetailsScreenState
     try {
       final api = context.read<RoomWiseApiClient>();
 
+      final selectedAddOnItems = _selectedAddonIds
+          .map((id) => ReservationAddOnItemDto(addOnId: id, quantity: 1))
+          .toList();
+
       final req = CreateReservationRequestDto(
         hotelId: widget.hotel.id,
         roomTypeId: widget.roomType.id,
         checkIn: widget.dateRange.start,
         checkOut: widget.dateRange.end,
         guests: widget.guests,
-        addonIds: _selectedAddonIds.toList(),
-        paymentMethod: _paymentMethod, // 'Card' or 'PayOnArrival'
+        addOns: selectedAddOnItems,
+        paymentMethod: _paymentMethod,
       );
 
       debugPrint('CREATE RESERVATION REQUEST JSON: ${req.toJson()}');
 
-      final reservation = await api.createReservation(req);
-
-      if (!mounted) return;
-
-      // If card payment → go to payment screen (card form)
       if (_paymentMethod == 'Card') {
+        final res = await api.createReservationWithIntent(req);
+        if (!mounted) return;
+        context.read<BookingsSync>().markChanged();
+
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => GuestPaymentScreen(
-              reservation: reservation,
+              reservation: res.reservation,
               hotel: widget.hotel,
               roomType: widget.roomType,
+              clientSecret: res.clientSecret,
             ),
           ),
         );
       } else {
-        // Pay at property → go directly to preview (no card form)
+        final reservation = await api.createReservation(req);
+
+        if (!mounted) return;
+        context.read<BookingsSync>().markChanged();
+
         Navigator.push(
           context,
           MaterialPageRoute(

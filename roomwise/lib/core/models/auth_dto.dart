@@ -30,15 +30,27 @@ class LoginRequestDto {
 
 class AuthResponseDto {
   final String token;
+  final String refreshToken;
+  final DateTime refreshExpiresUtc;
   final String? email;
   final List<String> roles;
 
-  AuthResponseDto({required this.token, this.email, required this.roles});
+  AuthResponseDto({
+    required this.token,
+    required this.refreshToken,
+    required this.refreshExpiresUtc,
+    this.email,
+    required this.roles,
+  });
 
   factory AuthResponseDto.fromJson(Map<String, dynamic> json) {
     return AuthResponseDto(
       token: json['token'] as String,
-      email: json['email'] as String?,
+      refreshToken: json['refreshToken'] as String,
+      refreshExpiresUtc: DateTime.parse(json['refreshExpiresUtc'] as String),
+      email:
+          json['email']
+              as String?, // your backend currently doesn't send this; safe
       roles:
           (json['roles'] as List<dynamic>?)
               ?.map((e) => e.toString())
