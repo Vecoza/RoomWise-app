@@ -131,6 +131,7 @@ class ReservationDto {
   final String? hotelName;
   final String? hotelCity;
   final String? mainImageUrl;
+  final String? roomTypeName;
 
   ReservationDto({
     required this.id,
@@ -146,6 +147,7 @@ class ReservationDto {
     this.hotelName,
     this.hotelCity,
     this.mainImageUrl,
+    this.roomTypeName,
   });
 
   factory ReservationDto.fromJson(Map<String, dynamic> json) {
@@ -182,6 +184,9 @@ class ReservationDto {
       hotelName: hotelName,
       hotelCity: hotelCity,
       mainImageUrl: mainImageUrl,
+      roomTypeName: json['roomTypeName'] as String? ??
+          json['roomType'] as String? ??
+          (json['roomTypeDto'] as Map<String, dynamic>?)?['name'] as String?,
     );
   }
 }

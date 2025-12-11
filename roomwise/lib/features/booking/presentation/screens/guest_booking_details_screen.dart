@@ -16,6 +16,13 @@ class GuestBookingDetailsScreen extends StatefulWidget {
 }
 
 class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
+  // Design tokens
+  static const _primaryGreen = Color(0xFF05A87A);
+  static const _accentOrange = Color(0xFFFF7A3C);
+  static const _bgColor = Color(0xFFF3F4F6);
+  static const _textPrimary = Color(0xFF111827);
+  static const _textMuted = Color(0xFF6B7280);
+
   bool _submittingReview = false;
   String? _error;
 
@@ -27,66 +34,184 @@ class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
   bool get _isCancelled =>
       widget.reservation.status.toLowerCase() == 'cancelled';
 
+  int get _nights => widget.reservation.checkOut
+      .difference(widget.reservation.checkIn)
+      .inDays
+      .clamp(1, 365);
+
   @override
   Widget build(BuildContext context) {
     final r = widget.reservation;
-
-    final dates = '${_fmt(r.checkIn)} – ${_fmt(r.checkOut)}';
+    final dates = '${_formatDate(r.checkIn)} – ${_formatDate(r.checkOut)}';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Booking details')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      backgroundColor: _bgColor,
+      appBar: AppBar(
+        backgroundColor: _bgColor,
+        elevation: 0,
+        centerTitle: false,
+        title: const Text(
+          'Booking details',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: _textPrimary,
+          ),
+        ),
+      ),
+      body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              r.hotelName ?? 'Hotel',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              r.hotelCity ?? '',
-              style: const TextStyle(fontSize: 13, color: Colors.grey),
-            ),
-            const SizedBox(height: 12),
-            Text(dates, style: const TextStyle(fontSize: 13)),
-            const SizedBox(height: 4),
-            Text('Guests: ${r.guests}', style: const TextStyle(fontSize: 13)),
-            const SizedBox(height: 4),
-            Text(
-              'Total: ${r.currency} ${r.total.toStringAsFixed(2)}',
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            if (r.confirmationNumber != null)
-              Text(
-                'Confirmation: ${r.confirmationNumber}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+            Expanded(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 640),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // HEADER CARD
+                        _HeaderCard(
+                          reservation: r,
+                          dates: dates,
+                          nights: _nights,
+                          isCancelled: _isCancelled,
+                        ),
+                        const SizedBox(height: 24),
+
+                        if (_error != null) ...[
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(10),
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent.withOpacity(0.06),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              _error!,
+                              style: const TextStyle(
+                                color: Colors.redAccent,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+
+                        // DETAILS CARD
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.04),
+                                blurRadius: 12,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const _SectionTitle('Reservation details'),
+                              const SizedBox(height: 8),
+                              _DetailRow(
+                                label: 'Guests',
+                                value:
+                                    '${r.guests} guest${r.guests == 1 ? '' : 's'}',
+                              ),
+                              _DetailRow(label: 'Nights', value: '$_nights'),
+                              if (r.roomTypeName != null &&
+                                  r.roomTypeName!.isNotEmpty)
+                                _DetailRow(
+                                  label: 'Room type',
+                                  value: r.roomTypeName!,
+                                ),
+                              _DetailRow(
+                                label: 'Total amount',
+                                value:
+                                    '${r.currency} ${r.total.toStringAsFixed(2)}',
+                                highlight: true,
+                              ),
+                              if (r.confirmationNumber != null) ...[
+                                const SizedBox(height: 12),
+                                const _SectionTitle('Reference'),
+                                const SizedBox(height: 4),
+                                Text(
+                                  r.confirmationNumber!,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: _textPrimary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                const Text(
+                                  'Use this confirmation number if the property requests it.',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: _textMuted,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            const SizedBox(height: 16),
-            _StatusChip(status: r.status),
+            ),
 
-            if (_error != null) ...[
-              const SizedBox(height: 12),
-              Text(_error!, style: const TextStyle(color: Colors.redAccent)),
-            ],
-
-            const Spacer(),
-
+            // BOTTOM: REVIEW BUTTON (only for completed, not cancelled)
             if (_isPast && !_isCancelled)
-              SizedBox(
+              Container(
                 width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _submittingReview ? null : _openReviewDialog,
-                  child: _submittingReview
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Leave a review'),
+                decoration: BoxDecoration(
+                  color: _bgColor,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 12,
+                      offset: const Offset(0, -4),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                child: SafeArea(
+                  top: false,
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _primaryGreen,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                      ),
+                      onPressed: _submittingReview ? null : _openReviewDialog,
+                      child: _submittingReview
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text(
+                              'Leave a review',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                    ),
+                  ),
                 ),
               ),
           ],
@@ -106,63 +231,109 @@ class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        return Padding(
+        final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+        return AnimatedPadding(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
           padding: EdgeInsets.only(
             left: 16,
             right: 16,
             top: 16,
-            bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
+            bottom: bottomInset + 16,
           ),
-          child: StatefulBuilder(
-            builder: (context, setModalState) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Rate your stay',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: List.generate(5, (index) {
-                      final star = index + 1;
-                      final selected = star <= rating;
-                      return IconButton(
-                        onPressed: () {
-                          setModalState(() => rating = star);
-                        },
-                        icon: Icon(
-                          Icons.star,
-                          color: selected ? Colors.amber : Colors.grey.shade400,
+          child: SingleChildScrollView(
+            child: StatefulBuilder(
+              builder: (context, setModalState) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
                         ),
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: controller,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Share your experience',
-                      border: OutlineInputBorder(),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 44,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        _submitReview(rating, controller.text.trim());
-                      },
-                      child: const Text('Submit review'),
+                    Text(
+                      'Rate your stay at ${widget.reservation.hotelName ?? 'this property'}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                ],
-              );
-            },
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Your feedback helps other guests and the property improve.',
+                      style: TextStyle(fontSize: 12, color: _textMuted),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: List.generate(5, (index) {
+                        final star = index + 1;
+                        final selected = star <= rating;
+                        return IconButton(
+                          padding: EdgeInsets.zero,
+                          onPressed: () {
+                            setModalState(() => rating = star);
+                          },
+                          icon: Icon(
+                            selected ? Icons.star : Icons.star_border,
+                            color: Colors.amber,
+                            size: 30,
+                          ),
+                        );
+                      }),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: controller,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        labelText: 'Share your experience (optional)',
+                        alignLabelWithHint: true,
+                        filled: true,
+                        fillColor: Colors.grey.shade100,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _primaryGreen,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _submitReview(rating, controller.text.trim());
+                        },
+                        child: const Text(
+                          'Submit review',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
         );
       },
@@ -179,12 +350,13 @@ class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
       final api = context.read<RoomWiseApiClient>();
       await api.createReview(
         ReviewCreateRequestDto(
-          hotelId: widget.reservation.hotelId!, // must come from backend
+          hotelId: widget.reservation.hotelId!, // should be present from API
           reservationId: widget.reservation.id,
           rating: rating,
           body: comment.isEmpty ? null : comment,
         ),
       );
+
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -228,42 +400,274 @@ class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
     }
   }
 
-  static String _fmt(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+  String _formatDate(DateTime d) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${d.day} ${months[d.month - 1]}';
+  }
 }
 
-class _StatusChip extends StatelessWidget {
-  final String status;
+class _HeaderCard extends StatelessWidget {
+  final ReservationDto reservation;
+  final String dates;
+  final int nights;
+  final bool isCancelled;
 
-  const _StatusChip({required this.status});
+  const _HeaderCard({
+    required this.reservation,
+    required this.dates,
+    required this.nights,
+    required this.isCancelled,
+  });
+
+  static const _accentOrange = Color(0xFFFF7A3C);
+  static const _textPrimary = Color(0xFF111827);
+  static const _textMuted = Color(0xFF6B7280);
 
   @override
   Widget build(BuildContext context) {
-    Color color;
-    switch (status.toLowerCase()) {
-      case 'cancelled':
-        color = Colors.redAccent;
-        break;
-      case 'completed':
-        color = Colors.grey;
-        break;
-      default:
-        color = Colors.green;
-    }
+    final statusColor = _statusColor(reservation.status);
+    final statusLabel = reservation.status;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(999),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
-      child: Text(
-        status,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Hotel + status
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  reservation.hotelName ?? 'Hotel',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: _textPrimary,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _statusIcon(reservation.status),
+                      size: 14,
+                      color: statusColor,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      statusLabel,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: statusColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          if (reservation.hotelCity != null &&
+              reservation.hotelCity!.isNotEmpty)
+            Row(
+              children: [
+                const Icon(
+                  Icons.location_on_outlined,
+                  size: 14,
+                  color: _textMuted,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    reservation.hotelCity!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12, color: _textMuted),
+                  ),
+                ),
+              ],
+            ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const Icon(Icons.date_range, size: 16, color: _textMuted),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '$dates · $nights night${nights == 1 ? '' : 's'}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: _textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Icon(Icons.person_outline, size: 16, color: _textMuted),
+              const SizedBox(width: 6),
+              Text(
+                '${reservation.guests} guest${reservation.guests == 1 ? '' : 's'}',
+                style: const TextStyle(fontSize: 12, color: _textPrimary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${reservation.currency} ${reservation.total.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: _accentOrange,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Total price',
+                    style: TextStyle(fontSize: 11, color: _textMuted),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Color _statusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'cancelled':
+        return Colors.redAccent;
+      case 'completed':
+      case 'past':
+        return const Color(0xFF059669);
+      case 'current':
+      case 'upcoming':
+        return const Color(0xFF2563EB);
+      default:
+        return _textMuted;
+    }
+  }
+
+  static IconData _statusIcon(String status) {
+    switch (status.toLowerCase()) {
+      case 'cancelled':
+        return Icons.cancel_outlined;
+      case 'completed':
+      case 'past':
+        return Icons.check_circle_outline;
+      default:
+        return Icons.schedule_outlined;
+    }
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String text;
+  const _SectionTitle(this.text);
+
+  static const _textPrimary = Color(0xFF111827);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+        color: _textPrimary,
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool highlight;
+
+  const _DetailRow({
+    required this.label,
+    required this.value,
+    this.highlight = false,
+  });
+
+  static const _textMuted = Color(0xFF6B7280);
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      fontSize: 13,
+      fontWeight: highlight ? FontWeight.w600 : FontWeight.w400,
+      color: highlight ? Colors.black : _textMuted,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 13, color: _textMuted)),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              overflow: TextOverflow.ellipsis,
+              style: style,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -26,7 +25,15 @@ class GuestSettingsScreen extends StatefulWidget {
 }
 
 class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
+  // DESIGN SYSTEM
   static const _primaryGreen = Color(0xFF05A87A);
+  static const _bgColor = Color(0xFFF3F4F6);
+  static const _cardColor = Colors.white;
+  static const _textPrimary = Color(0xFF111827);
+  static const _textMuted = Color(0xFF6B7280);
+  static const _borderSubtle = Color(0xFFE5E7EB);
+  static const double _cardRadius = 18;
+  static const double _cardPadding = 16;
 
   bool _loading = true;
   String? _error;
@@ -170,7 +177,6 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
         const SnackBar(content: Text('Profile updated successfully.')),
       );
 
-      // Reload to refresh any derived data (e.g. email)
       await _loadData();
       return true;
     } on DioException catch (e) {
@@ -269,20 +275,23 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
         context: context,
         builder: (context) {
           return SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.photo_library),
-                  title: const Text('Choose from gallery'),
-                  onTap: () => Navigator.pop(context, ImageSource.gallery),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.photo_camera),
-                  title: const Text('Take a photo'),
-                  onTap: () => Navigator.pop(context, ImageSource.camera),
-                ),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.photo_library),
+                    title: const Text('Choose from gallery'),
+                    onTap: () => Navigator.pop(context, ImageSource.gallery),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.photo_camera),
+                    title: const Text('Take a photo'),
+                    onTap: () => Navigator.pop(context, ImageSource.camera),
+                  ),
+                ],
+              ),
             ),
           );
         },
@@ -364,32 +373,58 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
     }
   }
 
+  // ---------- BUILD ----------
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthState>();
 
-    // NOT LOGGED IN → show CTA
-    if (!auth.isLoggedIn) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Profile')),
-        body: Padding(
-          padding: const EdgeInsets.all(20),
+    return Scaffold(
+      backgroundColor: _bgColor,
+      appBar: AppBar(
+        title: const Text('Profile'),
+        backgroundColor: _bgColor,
+        elevation: 0,
+      ),
+      body: SafeArea(
+        child: auth.isLoggedIn ? _buildLoggedIn() : _buildLoggedOut(),
+      ),
+    );
+  }
+
+  Widget _buildLoggedOut() {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.person_outline, size: 64, color: Colors.grey),
-              const SizedBox(height: 12),
-              const Text(
-                'Your personal space',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              // Card instead of raw icon – feels more "app"
+              _settingsCard(
+                child: Column(
+                  children: const [
+                    Icon(Icons.person_outline, size: 48, color: _textMuted),
+                    SizedBox(height: 12),
+                    Text(
+                      'Your personal space',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: _textPrimary,
+                      ),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      'Create an account or log in to manage your profile, loyalty points and support.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 14, color: _textMuted),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'Create an account or log in to manage your profile, loyalty points and support.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Colors.black54),
-              ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 height: 48,
@@ -397,6 +432,9 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _primaryGreen,
                     foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                   onPressed: () {
                     Navigator.push(
@@ -406,7 +444,10 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
                       ),
                     );
                   },
-                  child: const Text('Create account'),
+                  child: const Text(
+                    'Create account',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
@@ -423,242 +464,229 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
             ],
           ),
         ),
-      );
-    }
-
-    // LOGGED IN
-    return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
-      body: RefreshIndicator(
-        onRefresh: _loadData,
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-            ? Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _error!,
-                      style: const TextStyle(color: Colors.redAccent),
-                    ),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: _loadData,
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              )
-            : _buildContent(),
       ),
+    );
+  }
+
+  Widget _buildLoggedIn() {
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.redAccent),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(onPressed: _loadData, child: const Text('Retry')),
+                ],
+              ),
+            )
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 600),
+                      child: _buildContent(),
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 
   Widget _buildContent() {
     final profile = _profile!;
-    final loyalty = _loyalty;
 
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          // Header with avatar + name + email
-          Consumer<NotificationController>(
-            builder: (context, controller, _) {
-              final unread = controller.unreadCount;
-              ImageProvider? avatarImage;
-              if (_avatarFile != null) {
-                avatarImage = FileImage(_avatarFile!);
-              } else if (_avatarUrl != null && _avatarUrl!.isNotEmpty) {
-                final value = _avatarUrl!;
-                if (value.startsWith('http')) {
-                  avatarImage = NetworkImage(value);
-                } else {
-                  try {
-                    final pureBase64 =
-                        value.contains(',') ? value.split(',').last : value;
-                    final bytes = base64Decode(pureBase64);
-                    avatarImage = MemoryImage(bytes);
-                  } catch (e) {
-                    debugPrint('Failed to decode avatar base64: $e');
-                  }
-                }
-              }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildHeader(profile),
+        const SizedBox(height: 16),
+        _buildLoyaltySection(),
+        const SizedBox(height: 16),
+        _buildProfileSection(),
+        const SizedBox(height: 16),
+        _buildPasswordSection(),
+        const SizedBox(height: 16),
+        _buildSupportSection(),
+        const SizedBox(height: 24),
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: OutlinedButton.icon(
+            icon: const Icon(Icons.logout),
+            label: const Text('Log out'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.redAccent,
+              side: const BorderSide(color: Colors.redAccent),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            onPressed: _logout,
+          ),
+        ),
+      ],
+    );
+  }
 
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+  Widget _buildHeader(MeProfileDto profile) {
+    return Consumer<NotificationController>(
+      builder: (context, controller, _) {
+        final unread = controller.unreadCount;
+
+        ImageProvider? avatarImage;
+        if (_avatarFile != null) {
+          avatarImage = FileImage(_avatarFile!);
+        } else if (_avatarUrl != null && _avatarUrl!.isNotEmpty) {
+          final value = _avatarUrl!;
+          if (value.startsWith('http')) {
+            avatarImage = NetworkImage(value);
+          } else {
+            try {
+              final pureBase64 = value.contains(',')
+                  ? value.split(',').last
+                  : value;
+              final bytes = base64Decode(pureBase64);
+              avatarImage = MemoryImage(bytes);
+            } catch (e) {
+              debugPrint('Failed to decode avatar base64: $e');
+            }
+          }
+        }
+
+        final displayName = '${profile.firstName} ${profile.lastName}'.trim();
+        final fallbackName =
+            (profile.firstName?.isNotEmpty == true
+                    ? profile.firstName!
+                    : 'Guest user')
+                .trim();
+
+        return _settingsCard(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      CircleAvatar(
-                        radius: 28,
-                        backgroundColor: Colors.grey.shade300,
-                        backgroundImage: avatarImage,
-                        child: avatarImage == null
-                            ? Text(
-                                (profile.firstName?.isNotEmpty == true
-                                        ? profile.firstName![0]
-                                        : 'G')
-                                    .toUpperCase(),
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : null,
-                      ),
-                      Positioned(
-                        top: -4,
-                        right: -4,
-                        child: InkWell(
-                          onTap: _changeAvatar,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Colors.grey.shade300,
+                    backgroundImage: avatarImage,
+                    child: avatarImage == null
+                        ? Text(
+                            (profile.firstName?.isNotEmpty == true
+                                    ? profile.firstName![0]
+                                    : 'G')
+                                .toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
                               color: Colors.white,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 4,
-                                ),
-                              ],
                             ),
-                            child: const Icon(
-                              Icons.edit,
-                              size: 14,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                          )
+                        : null,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                '${profile.firstName} ${profile.lastName}'
-                                        .trim()
-                                        .isEmpty
-                                    ? 'Guest user'
-                                    : '${profile.firstName} ${profile.lastName}',
-                                style: const TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                            Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.notifications_outlined,
-                                  ),
-                                  tooltip: 'Notifications',
-                                  onPressed: _openNotifications,
-                                ),
-                                if (unread > 0)
-                                  Positioned(
-                                    right: 6,
-                                    top: 6,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
-                                      ),
-                                      decoration: const BoxDecoration(
-                                        color: Colors.red,
-                                        borderRadius: BorderRadius.all(
-                                          Radius.circular(10),
-                                        ),
-                                      ),
-                                      child: Text(
-                                        unread > 99 ? '99+' : unread.toString(),
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
+                  Positioned(
+                    bottom: -2,
+                    right: -2,
+                    child: InkWell(
+                      onTap: _changeAvatar,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 4,
                             ),
                           ],
                         ),
-                      ],
+                        child: const Icon(
+                          Icons.edit,
+                          size: 14,
+                          color: _textPrimary,
+                        ),
+                      ),
                     ),
                   ),
                 ],
-              );
-            },
-          ),
-          const SizedBox(height: 20),
-
-          // Loyalty quick link
-          _buildLoyaltySection(),
-
-          const SizedBox(height: 20),
-
-          // Profile form
-          _buildProfileSection(),
-
-          const SizedBox(height: 20),
-
-          // Change password
-          _buildPasswordSection(),
-
-          const SizedBox(height: 20),
-
-          // Support
-          _buildSupportSection(),
-
-          const SizedBox(height: 24),
-
-          // Logout
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: OutlinedButton.icon(
-              icon: const Icon(Icons.logout),
-              label: const Text('Log out'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.redAccent,
-                side: const BorderSide(color: Colors.redAccent),
               ),
-              onPressed: _logout,
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      displayName.isEmpty ? fallbackName : displayName,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: _textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Guest profile',
+                      style: const TextStyle(fontSize: 13, color: _textMuted),
+                    ),
+                  ],
+                ),
+              ),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined),
+                    tooltip: 'Notifications',
+                    onPressed: _openNotifications,
+                  ),
+                  if (unread > 0)
+                    Positioned(
+                      right: 6,
+                      top: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.all(Radius.circular(10)),
+                        ),
+                        child: Text(
+                          unread > 99 ? '99+' : unread.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   Widget _buildProfileSection() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
+    return _settingsCard(
       child: Form(
         key: _profileFormKey,
         child: Column(
@@ -666,15 +694,21 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
           children: [
             const Text(
               'Personal information',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: _textPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Edit your basic details used for bookings and communication.',
+              style: TextStyle(fontSize: 12, color: _textMuted),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _firstNameCtrl,
-              decoration: const InputDecoration(
-                labelText: 'First name',
-                border: OutlineInputBorder(),
-              ),
+              decoration: _inputDecoration('First name'),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return 'Please enter your first name.';
@@ -685,33 +719,14 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
             const SizedBox(height: 12),
             TextFormField(
               controller: _lastNameCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Last name',
-                border: OutlineInputBorder(),
-              ),
+              decoration: _inputDecoration('Last name'),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _phoneCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Phone (optional)',
-                border: OutlineInputBorder(),
-              ),
+              decoration: _inputDecoration('Phone (optional)'),
               keyboardType: TextInputType.phone,
             ),
-            const SizedBox(height: 12),
-            // TextFormField(
-            //   controller: _languageCtrl,
-            //   decoration: const InputDecoration(
-            //     labelText: 'Preferred language (e.g., en)',
-            //     border: OutlineInputBorder(),
-            //   ),
-            //   validator: (value) {
-            //     final v = value?.trim() ?? '';
-            //     if (v.isEmpty) return 'Please enter a language code (e.g., en)';
-            //     return null;
-            //   },
-            // ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
@@ -720,8 +735,11 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _primaryGreen,
                   foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
-                onPressed: _savingProfile ? null : _saveProfile,
+                onPressed: _savingProfile ? null : () => _saveProfile(),
                 child: _savingProfile
                     ? const SizedBox(
                         width: 18,
@@ -731,7 +749,10 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
                           color: Colors.white,
                         ),
                       )
-                    : const Text('Save changes'),
+                    : const Text(
+                        'Save changes',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
               ),
             ),
           ],
@@ -745,23 +766,17 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
         ? '${_loyalty!.balance} pts'
         : 'View your points';
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
+    return _settingsCard(
       child: Row(
         children: [
-          const Icon(Icons.card_giftcard, color: _primaryGreen, size: 28),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: const BoxDecoration(
+              color: Color(0xFFE0F9F1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.card_giftcard, color: _primaryGreen),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -769,12 +784,16 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
               children: [
                 const Text(
                   'Loyalty',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: _textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   balanceText,
-                  style: const TextStyle(fontSize: 13, color: Colors.black54),
+                  style: const TextStyle(fontSize: 13, color: _textMuted),
                 ),
               ],
             ),
@@ -786,19 +805,7 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
   }
 
   Widget _buildPasswordSection() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
+    return _settingsCard(
       child: Form(
         key: _passwordFormKey,
         child: Column(
@@ -806,15 +813,21 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
           children: [
             const Text(
               'Security',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: _textPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Update your password regularly to keep your account safe.',
+              style: TextStyle(fontSize: 12, color: _textMuted),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _currentPassCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Current password',
-                border: OutlineInputBorder(),
-              ),
+              decoration: _inputDecoration('Current password'),
               obscureText: true,
               validator: (value) {
                 if (value == null || value.isEmpty) {
@@ -826,10 +839,7 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
             const SizedBox(height: 12),
             TextFormField(
               controller: _newPassCtrl,
-              decoration: const InputDecoration(
-                labelText: 'New password',
-                border: OutlineInputBorder(),
-              ),
+              decoration: _inputDecoration('New password'),
               obscureText: true,
               validator: (value) {
                 if (value == null || value.length < 6) {
@@ -841,10 +851,7 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
             const SizedBox(height: 12),
             TextFormField(
               controller: _confirmPassCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Confirm new password',
-                border: OutlineInputBorder(),
-              ),
+              decoration: _inputDecoration('Confirm new password'),
               obscureText: true,
               validator: (value) {
                 if (value != _newPassCtrl.text) {
@@ -858,14 +865,24 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
               width: double.infinity,
               height: 44,
               child: OutlinedButton(
-                onPressed: _changingPassword ? null : _changePassword,
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: _primaryGreen),
+                  foregroundColor: _primaryGreen,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                onPressed: _changingPassword ? null : () => _changePassword(),
                 child: _changingPassword
                     ? const SizedBox(
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Change password'),
+                    : const Text(
+                        'Change password',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
               ),
             ),
           ],
@@ -875,29 +892,21 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
   }
 
   Widget _buildSupportSection() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
+    return _settingsCard(
       child: ListTile(
         contentPadding: EdgeInsets.zero,
-        leading: const Icon(Icons.help_outline, color: Colors.black87),
+        leading: const Icon(Icons.help_outline, color: _textPrimary),
         title: const Text(
           'Support & FAQ',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: _textPrimary,
+          ),
         ),
         subtitle: const Text(
           'Find answers and contact our support team.',
-          style: TextStyle(fontSize: 12, color: Colors.black54),
+          style: TextStyle(fontSize: 12, color: _textMuted),
         ),
         trailing: const Icon(Icons.chevron_right),
         onTap: () {
@@ -909,6 +918,48 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
           );
         },
       ),
+    );
+  }
+
+  // ---- Helpers ----
+
+  Widget _settingsCard({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(_cardPadding),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(_cardRadius),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  InputDecoration _inputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: _textMuted),
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: _borderSubtle),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: _primaryGreen, width: 1.4),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     );
   }
 }

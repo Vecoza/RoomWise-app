@@ -3,24 +3,34 @@ class AvailableRoomTypeDto {
   final String name;
   final int capacity;
   final double priceFromPerNight;
-  final double? sizeM2;
   final int roomsLeft;
   final String? description;
   final String? bedConfiguration;
   final DateTime? validFrom;
   final DateTime? validTo;
+  final double? sizeM2;
+
+  // TEST
+  final String? thumbnailUrl;
+  final List<String> imageUrls;
+  final String? bedType;
+  final bool? isSmokingAllowed;
 
   AvailableRoomTypeDto({
     required this.id,
     required this.name,
     required this.capacity,
     required this.priceFromPerNight,
-    this.sizeM2,
     this.roomsLeft = 0,
     this.description,
     this.bedConfiguration,
     this.validFrom,
     this.validTo,
+    this.sizeM2,
+    this.thumbnailUrl,
+    this.imageUrls = const [],
+    this.bedType,
+    this.isSmokingAllowed,
   });
 
   factory AvailableRoomTypeDto.fromJson(Map<String, dynamic> json) {
@@ -51,29 +61,41 @@ class AvailableRoomTypeDto {
       return fallback;
     }
 
-    int id = _readInt(['id', 'roomTypeId']);
-    double price = _readDouble([
+    final id = _readInt(['id', 'roomTypeId']);
+    final price = _readDouble([
       'priceFromPerNight',
       'nightlyPrice',
       'fromPrice',
       'basePrice',
     ]);
+    final size = _readDouble([
+      'sizeM2',
+      'roomSizeM2',
+      'roomSize',
+      'size',
+    ], fallback: 0.0);
 
     return AvailableRoomTypeDto(
       id: id,
       name: (json['name'] as String?) ?? '',
       capacity: _readInt(['capacity'], fallback: 1),
       priceFromPerNight: price,
-      sizeM2: (json['sizeM2'] as num?)?.toDouble(),
       roomsLeft: _readInt(['roomsLeft'], fallback: 0),
       description: json['description'] as String?,
       bedConfiguration: json['bedConfiguration'] as String?,
+      sizeM2: size > 0 ? size : null,
       validFrom: json['validFrom'] != null
           ? DateTime.tryParse(json['validFrom'] as String)
           : null,
       validTo: json['validTo'] != null
           ? DateTime.tryParse(json['validTo'] as String)
           : null,
+      thumbnailUrl: json['thumbnailUrl'] as String?,
+      imageUrls: (json['imageUrls'] as List<dynamic>? ?? const [])
+          .map((e) => e.toString())
+          .toList(),
+      bedType: json['bedType'] as String?,
+      isSmokingAllowed: json['isSmokingAllowed'] as bool?,
     );
   }
 }

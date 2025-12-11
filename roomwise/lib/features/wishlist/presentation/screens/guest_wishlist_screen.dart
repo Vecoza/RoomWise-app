@@ -18,8 +18,15 @@ class GuestWishlistScreen extends StatefulWidget {
 }
 
 class GuestWishlistScreenState extends State<GuestWishlistScreen> {
+  // --- DESIGN TOKENS (align with other guest screens) ---
   static const _primaryGreen = Color(0xFF05A87A);
   static const _accentOrange = Color(0xFFFF7A3C);
+  static const _bgColor = Color(0xFFF5F7FA);
+  static const _cardColor = Colors.white;
+  static const _textPrimary = Color(0xFF111827);
+  static const _textMuted = Color(0xFF6B7280);
+  static const double _cardRadius = 18;
+  static const double _cardPadding = 12;
 
   bool _loading = true;
   String? _error;
@@ -63,7 +70,6 @@ class GuestWishlistScreenState extends State<GuestWishlistScreen> {
     final auth = context.read<AuthState>();
 
     if (!auth.isLoggedIn) {
-      // no need to call API, just show login/register UI
       setState(() {
         _loading = false;
         _error = null;
@@ -127,9 +133,7 @@ class GuestWishlistScreenState extends State<GuestWishlistScreen> {
 
       if (!mounted) return;
       setState(() {
-        _items.removeWhere(
-          (h) => h.id == item.id || h.hotelId == item.hotelId,
-        );
+        _items.removeWhere((h) => h.id == item.id || h.hotelId == item.hotelId);
       });
 
       ScaffoldMessenger.of(
@@ -159,30 +163,51 @@ class GuestWishlistScreenState extends State<GuestWishlistScreen> {
     }
   }
 
+  // ---------- BUILD ----------
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthState>();
 
-    // NOT LOGGED IN → ask to login/register
-    if (!auth.isLoggedIn) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Wishlist')),
-        body: Padding(
-          padding: const EdgeInsets.all(20),
+    return Scaffold(
+      backgroundColor: _bgColor,
+      appBar: AppBar(
+        title: const Text('Wishlist'),
+        backgroundColor: _bgColor,
+        elevation: 0,
+      ),
+      body: SafeArea(
+        child: auth.isLoggedIn ? _buildLoggedIn() : _buildLoggedOut(),
+      ),
+    );
+  }
+
+  // ---------- LOGGED OUT ----------
+
+  Widget _buildLoggedOut() {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.favorite_border, size: 64, color: Colors.grey),
-              const SizedBox(height: 12),
+              const Icon(Icons.favorite_border, size: 64, color: _textMuted),
+              const SizedBox(height: 16),
               const Text(
                 'Save your favourite stays',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: _textPrimary,
+                ),
               ),
               const SizedBox(height: 8),
               const Text(
-                'Create an account or log in to start building your wishlist.',
+                'Create an account or log in to start building your wishlist and quickly find places you love.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Colors.black54),
+                style: TextStyle(fontSize: 14, color: _textMuted),
               ),
               const SizedBox(height: 24),
               SizedBox(
@@ -192,6 +217,9 @@ class GuestWishlistScreenState extends State<GuestWishlistScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _primaryGreen,
                     foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   onPressed: () {
                     Navigator.push(
@@ -201,7 +229,10 @@ class GuestWishlistScreenState extends State<GuestWishlistScreen> {
                       ),
                     );
                   },
-                  child: const Text('Create account'),
+                  child: const Text(
+                    'Create account',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
@@ -211,7 +242,6 @@ class GuestWishlistScreenState extends State<GuestWishlistScreen> {
                     context,
                     MaterialPageRoute(builder: (_) => const GuestLoginScreen()),
                   );
-                  // reload after login
                   await _loadWishlist();
                 },
                 child: const Text('I already have an account'),
@@ -219,79 +249,109 @@ class GuestWishlistScreenState extends State<GuestWishlistScreen> {
             ],
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    // LOGGED IN → show wishlist list
-    Widget body;
+  // ---------- LOGGED IN ----------
 
-    if (_loading) {
-      body = const Center(child: CircularProgressIndicator());
-    } else if (_error != null) {
-      body = Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(_error!, style: const TextStyle(color: Colors.redAccent)),
-            const SizedBox(height: 8),
-            TextButton(onPressed: _loadWishlist, child: const Text('Retry')),
-          ],
-        ),
-      );
-    } else if (_items.isEmpty) {
-      body = Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: const [
-            Icon(Icons.favorite_border, size: 64, color: Colors.grey),
-            SizedBox(height: 12),
-            Text(
-              'No favourites yet',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
-            SizedBox(height: 6),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 40),
-              child: Text(
-                'Tap the heart on a hotel to add it to your wishlist.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Colors.black54),
+  Widget _buildLoggedIn() {
+    return RefreshIndicator(
+      onRefresh: _loadWishlist,
+      child: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.redAccent),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: _loadWishlist,
+                    child: const Text('Retry'),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
-      );
-    } else {
-      body = ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: _items.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final item = _items[index];
-          final hotel = item.hotel;
-          return _WishlistHotelCard(
-            hotel: hotel,
-            onOpen: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => GuestHotelPreviewScreen(hotelId: hotel.id),
-                ),
-              ).then((changed) {
-                if (changed == true) {
-                  _loadWishlist();
-                }
-              });
-            },
-            onRemove: () => _removeFromWishlist(item),
-          );
-        },
-      );
-    }
+            )
+          : (_items.isEmpty
+                ? _buildEmptyState()
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      return ListView.separated(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                        itemCount: _items.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final item = _items[index];
+                          final hotel = item.hotel;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Wishlist')),
-      body: body,
+                          return Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 600),
+                              child: _WishlistHotelCard(
+                                hotel: hotel,
+                                onOpen: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => GuestHotelPreviewScreen(
+                                        hotelId: hotel.id,
+                                      ),
+                                    ),
+                                  ).then((changed) {
+                                    if (changed == true) {
+                                      _loadWishlist();
+                                    }
+                                  });
+                                },
+                                onRemove: () => _removeFromWishlist(item),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  )),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.favorite_border, size: 64, color: _textMuted),
+              SizedBox(height: 16),
+              Text(
+                'No favourites yet',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: _textPrimary,
+                ),
+              ),
+              SizedBox(height: 8),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  'Tap the heart on a hotel to add it to your wishlist and easily revisit it later.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: _textMuted),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -308,10 +368,13 @@ class _WishlistHotelCard extends StatelessWidget {
   });
 
   static const _accentOrange = Color(0xFFFF7A3C);
+  static const _textPrimary = Color(0xFF111827);
+  static const _textMuted = Color(0xFF6B7280);
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
+      borderRadius: BorderRadius.circular(18),
       onTap: onOpen,
       child: Container(
         decoration: BoxDecoration(
@@ -319,14 +382,15 @@ class _WishlistHotelCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
               offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Column(
           children: [
+            // image + heart
             Stack(
               children: [
                 ClipRRect(
@@ -343,34 +407,35 @@ class _WishlistHotelCard extends StatelessWidget {
                   ),
                 ),
                 Positioned(
-                  top: 8,
-                  right: 8,
-                  child: CircleAvatar(
-                    radius: 16,
-                    backgroundColor: Colors.black.withOpacity(0.4),
-                    child: IconButton(
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 32,
-                        minHeight: 32,
+                  top: 10,
+                  right: 10,
+                  child: Material(
+                    color: Colors.black.withOpacity(0.45),
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: onRemove,
+                      child: const Padding(
+                        padding: EdgeInsets.all(6),
+                        child: Icon(
+                          Icons.favorite,
+                          size: 20,
+                          color: Colors.white,
+                        ),
                       ),
-                      icon: const Icon(
-                        Icons.favorite,
-                        size: 18,
-                        color: Colors.white,
-                      ),
-                      onPressed: onRemove,
                     ),
                   ),
                 ),
               ],
             ),
 
+            // content
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // name, location, price
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -380,8 +445,9 @@ class _WishlistHotelCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 14,
+                            fontSize: 15,
                             fontWeight: FontWeight.w700,
+                            color: _textPrimary,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -390,7 +456,7 @@ class _WishlistHotelCard extends StatelessWidget {
                             const Icon(
                               Icons.location_on_outlined,
                               size: 14,
-                              color: Colors.grey,
+                              color: _textMuted,
                             ),
                             const SizedBox(width: 4),
                             Expanded(
@@ -399,8 +465,8 @@ class _WishlistHotelCard extends StatelessWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey,
+                                  fontSize: 12,
+                                  color: _textMuted,
                                 ),
                               ),
                             ),
@@ -410,8 +476,8 @@ class _WishlistHotelCard extends StatelessWidget {
                         Text(
                           'From €${hotel.fromPrice.toStringAsFixed(0)}',
                           style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
                             color: _accentOrange,
                           ),
                         ),
@@ -422,21 +488,42 @@ class _WishlistHotelCard extends StatelessWidget {
                   // rating
                   if (hotel.reviewCount > 0)
                     Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.star, size: 16, color: Colors.amber),
-                        const SizedBox(height: 2),
-                        Text(
-                          hotel.rating.toStringAsFixed(1),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF7E5),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.star,
+                                size: 14,
+                                color: Colors.amber,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                hotel.rating.toStringAsFixed(1),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: _textPrimary,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                        const SizedBox(height: 4),
                         Text(
                           '(${hotel.reviewCount})',
                           style: const TextStyle(
                             fontSize: 11,
-                            color: Colors.black54,
+                            color: _textMuted,
                           ),
                         ),
                       ],

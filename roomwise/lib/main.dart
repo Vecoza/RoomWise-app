@@ -22,12 +22,7 @@ Future<void> main() async {
   final auth = AuthState(api);
   await auth.loadFromStorage();
 
-  runApp(
-    RoomWiseRoot(
-      apiClient: api,
-      authState: auth,
-    ),
-  );
+  runApp(RoomWiseRoot(apiClient: api, authState: auth));
 }
 
 class RoomWiseRoot extends StatelessWidget {

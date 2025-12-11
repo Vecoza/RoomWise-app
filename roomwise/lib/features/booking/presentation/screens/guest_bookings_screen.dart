@@ -1,5 +1,3 @@
-// lib/features/booking/presentation/screens/guest_bookings_screen.dart
-
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -13,10 +11,6 @@ import 'package:roomwise/features/booking/presentation/screens/guest_booking_cur
 import 'package:roomwise/features/booking/presentation/screens/guest_booking_past_screen.dart';
 import 'package:roomwise/features/booking/sync/bookings_sync.dart';
 import 'package:roomwise/features/onboarding/presentation/screens/guest_login_screen.dart';
-// TODO: import your detail screens when we create them
-// import 'guest_booking_current_screen.dart';
-// import 'guest_booking_past_screen.dart';
-// import 'guest_booking_cancelled_screen.dart';
 
 class GuestBookingsScreen extends StatefulWidget {
   const GuestBookingsScreen({super.key});
@@ -28,10 +22,17 @@ class GuestBookingsScreen extends StatefulWidget {
 class _GuestBookingsScreenState extends State<GuestBookingsScreen>
     with SingleTickerProviderStateMixin {
   int _lastSyncVersion = 0;
+
+  // Design tokens
   static const _primaryGreen = Color(0xFF05A87A);
   static const _accentOrange = Color(0xFFFF7A3C);
+  static const _bgColor = Color(0xFFF3F4F6);
+  static const _cardBg = Colors.white;
+  static const _textPrimary = Color(0xFF111827);
+  static const _textMuted = Color(0xFF6B7280);
 
   late final TabController _tabController;
+  int _selectedTabIndex = 0; // used for AnimatedSwitcher
 
   bool _loading = true;
   String? _error;
@@ -45,6 +46,14 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      // update when animation finishes
+      if (!_tabController.indexIsChanging) {
+        setState(() {
+          _selectedTabIndex = _tabController.index;
+        });
+      }
+    });
     _loadAll();
   }
 
@@ -159,129 +168,426 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
   Widget build(BuildContext context) {
     final auth = context.watch<AuthState>();
 
-    // NOT LOGGED IN → show CTA (pattern like wishlist)
+    final currentCount = _current.length;
+    final pastCount = _past.length;
+    final cancelledCount = _cancelled.length;
+    final totalCount = currentCount + pastCount + cancelledCount;
+
+    // NOT LOGGED IN
     if (!auth.isLoggedIn) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Bookings')),
-        body: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.calendar_today_outlined,
-                size: 64,
-                color: Colors.grey,
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Track your stays in one place',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Create an account or log in to see your bookings, past stays and cancellations.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Colors.black54),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryGreen,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const GuestRegisterScreen(),
+        backgroundColor: _bgColor,
+        appBar: AppBar(
+          backgroundColor: _bgColor,
+          elevation: 0,
+          title: const Text('Bookings'),
+          centerTitle: false,
+        ),
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: _cardBg,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 16,
+                        offset: const Offset(0, 8),
                       ),
-                    );
-                  },
-                  child: const Text('Create account'),
+                    ],
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Colors.white, Color(0xFFEFFDF8)],
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          color: _primaryGreen.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Icon(
+                          Icons.calendar_today_outlined,
+                          size: 32,
+                          color: _primaryGreen,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      const Text(
+                        'Keep all your trips in one place',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: _textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Create an account or log in to see your upcoming stays, history and cancellations.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: _textMuted,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _primaryGreen,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const GuestRegisterScreen(),
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            'Create account',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: _openLogin,
+                        child: const Text(
+                          'I already have an account',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () async {
-                  await _openLogin();
-                },
-                child: const Text('I already have an account'),
-              ),
-            ],
+            ),
           ),
         ),
       );
     }
 
-    // LOGGED IN → show tabs
+    // LOGGED IN
     return Scaffold(
+      backgroundColor: _bgColor,
       appBar: AppBar(
-        title: const Text('Bookings'),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: _primaryGreen,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: _primaryGreen,
-          tabs: const [
-            Tab(text: 'Current'),
-            Tab(text: 'Past'),
-            Tab(text: 'Cancelled'),
+        backgroundColor: _bgColor,
+        elevation: 0,
+        centerTitle: false,
+        titleSpacing: 16,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Your trips',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: _textPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              totalCount == 0
+                  ? 'No stays yet – start exploring!'
+                  : '$totalCount total booking${totalCount == 1 ? '' : 's'}',
+              style: const TextStyle(fontSize: 12, color: _textMuted),
+            ),
+          ],
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(96),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    _SummaryChip(
+                      label: 'Current',
+                      value: currentCount.toString(),
+                      color: Colors.blue,
+                    ),
+                    const SizedBox(width: 8),
+                    _SummaryChip(
+                      label: 'Past',
+                      value: pastCount.toString(),
+                      color: Colors.green,
+                    ),
+                    const SizedBox(width: 8),
+                    _SummaryChip(
+                      label: 'Cancelled',
+                      value: cancelledCount.toString(),
+                      color: Colors.redAccent,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Custom segmented control (no ugly hover / underline)
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: _cardBg,
+                    borderRadius: BorderRadius.circular(999),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      _SegmentTab(
+                        label: 'Current',
+                        selected: _selectedTabIndex == 0,
+                        onTap: () => _tabController.animateTo(0),
+                      ),
+                      _SegmentTab(
+                        label: 'Past',
+                        selected: _selectedTabIndex == 1,
+                        onTap: () => _tabController.animateTo(1),
+                      ),
+                      _SegmentTab(
+                        label: 'Cancelled',
+                        selected: _selectedTabIndex == 2,
+                        onTap: () => _tabController.animateTo(2),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _loadAll,
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    const SizedBox(height: 80),
+                    Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            size: 56,
+                            color: Colors.redAccent,
+                          ),
+                          const SizedBox(height: 12),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 40),
+                            child: Text(
+                              _error!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.redAccent,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: _loadAll,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+              : AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 260),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) {
+                    // subtle slide + fade
+                    final offsetAnimation = Tween<Offset>(
+                      begin: const Offset(0.03, 0),
+                      end: Offset.zero,
+                    ).animate(animation);
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: offsetAnimation,
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: KeyedSubtree(
+                    key: ValueKey(_selectedTabIndex),
+                    child: _buildTabBody(),
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+
+  /// Builds the body for the currently selected tab.
+  Widget _buildTabBody() {
+    switch (_selectedTabIndex) {
+      case 0:
+        return _BookingsList(
+          bookings: _current,
+          emptyIcon: Icons.hourglass_empty,
+          emptyTitle: 'No upcoming stays',
+          emptySubtitle: 'Once you book your next trip, it will appear here.',
+          onReload: _loadAll,
+          type: BookingType.current,
+        );
+      case 1:
+        return _BookingsList(
+          bookings: _past,
+          emptyIcon: Icons.history,
+          emptyTitle: 'No past stays yet',
+          emptySubtitle: 'After your trips finish, you will see them here.',
+          onReload: _loadAll,
+          type: BookingType.past,
+        );
+      case 2:
+      default:
+        return _BookingsList(
+          bookings: _cancelled,
+          emptyIcon: Icons.cancel_outlined,
+          emptyTitle: 'No cancelled stays',
+          emptySubtitle: 'Stays you cancel will appear here for reference.',
+          onReload: _loadAll,
+          type: BookingType.cancelled,
+        );
+    }
+  }
+}
+
+class _SummaryChip extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _SummaryChip({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.04),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.18),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: color.withOpacity(0.9),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadAll,
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-            ? Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _error!,
-                      style: const TextStyle(color: Colors.redAccent),
-                    ),
-                    const SizedBox(height: 8),
-                    TextButton(onPressed: _loadAll, child: const Text('Retry')),
-                  ],
-                ),
-              )
-            : TabBarView(
-                controller: _tabController,
-                children: [
-                  _BookingsList(
-                    bookings: _current,
-                    emptyIcon: Icons.hourglass_empty,
-                    emptyTitle: 'No upcoming stays',
-                    emptySubtitle:
-                        'When you book a stay, you will see it here.',
-                    onReload: _loadAll,
-                    type: BookingType.current,
-                  ),
-                  _BookingsList(
-                    bookings: _past,
-                    emptyIcon: Icons.history,
-                    emptyTitle: 'No past stays',
-                    emptySubtitle:
-                        'After your trips finish, you will see them here.',
-                    onReload: _loadAll,
-                    type: BookingType.past,
-                  ),
-                  _BookingsList(
-                    bookings: _cancelled,
-                    emptyIcon: Icons.cancel_outlined,
-                    emptyTitle: 'No cancelled stays',
-                    emptySubtitle: 'Cancelled reservations will appear here.',
-                    onReload: _loadAll,
-                    type: BookingType.cancelled,
-                  ),
-                ],
+    );
+  }
+}
+
+/// Custom segmented tab without splash / underline.
+class _SegmentTab extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _SegmentTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  static const _primaryGreen = Color(0xFF05A87A);
+  static const _textMuted = Color(0xFF6B7280);
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          height: 40,
+          decoration: BoxDecoration(
+            color: selected ? _primaryGreen.withOpacity(0.14) : Colors.white,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Center(
+            child: AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? _primaryGreen : _textMuted,
               ),
+              child: Text(label),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -306,7 +612,8 @@ class _BookingsList extends StatelessWidget {
     required this.type,
   });
 
-  static const _accentOrange = Color(0xFFFF7A3C);
+  static const _textMuted = Color(0xFF6B7280);
+  static const _textPrimary = Color(0xFF111827);
 
   @override
   Widget build(BuildContext context) {
@@ -316,47 +623,66 @@ class _BookingsList extends StatelessWidget {
         children: [
           const SizedBox(height: 80),
           Center(
-            child: Column(
-              children: [
-                Icon(emptyIcon, size: 64, color: Colors.grey),
-                const SizedBox(height: 12),
-                Text(
-                  emptyTitle,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Column(
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: _textMuted.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Icon(emptyIcon, size: 28, color: _textMuted),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 40),
-                  child: Text(
+                  const SizedBox(height: 14),
+                  Text(
+                    emptyTitle,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: _textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
                     emptySubtitle,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 13, color: Colors.black54),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: _textMuted,
+                      height: 1.4,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: bookings.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final b = bookings[index];
-        return _BookingCard(
-          booking: b,
-          type: type,
-          onChanged: () {
-            onReload();
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 640),
+        child: ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: bookings.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            final b = bookings[index];
+            return _BookingCard(
+              booking: b,
+              type: type,
+              onChanged: () {
+                onReload();
+              },
+            );
           },
-        );
-      },
+        ),
+      ),
     );
   }
 }
@@ -373,11 +699,13 @@ class _BookingCard extends StatelessWidget {
   });
 
   static const _accentOrange = Color(0xFFFF7A3C);
+  static const _textMuted = Color(0xFF6B7280);
+  static const _textPrimary = Color(0xFF111827);
 
   @override
   Widget build(BuildContext context) {
     final dateRange =
-        '${_formatDate(booking.checkIn)} - ${_formatDate(booking.checkOut)}';
+        '${_formatDate(booking.checkIn)} – ${_formatDate(booking.checkOut)}';
 
     final statusLabel = switch (type) {
       BookingType.current => 'Upcoming',
@@ -386,183 +714,239 @@ class _BookingCard extends StatelessWidget {
     };
 
     final statusColor = switch (type) {
-      BookingType.current => Colors.blue,
-      BookingType.past => Colors.green,
+      BookingType.current => const Color(0xFF2563EB),
+      BookingType.past => const Color(0xFF059669),
       BookingType.cancelled => Colors.redAccent,
     };
 
-    return InkWell(
-      onTap: () async {
-        final result = await _openDetails(context);
-        if (result == true && onChanged != null) {
-          onChanged!();
-        }
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // Thumbnail
-            ClipRRect(
-              borderRadius: const BorderRadius.horizontal(
-                left: Radius.circular(18),
+    final nights = booking.checkOut.difference(booking.checkIn).inDays;
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () async {
+          final result = await _openDetails(context);
+          if (result == true && onChanged != null) {
+            onChanged!();
+          }
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
               ),
-              child: SizedBox(
-                width: 100,
-                height: 100,
-                child:
-                    booking.thumbnailUrl == null ||
-                        booking.thumbnailUrl!.isEmpty
-                    ? Container(color: Colors.grey.shade200)
-                    : Image.network(booking.thumbnailUrl!, fit: BoxFit.cover),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Image + status chip
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(18),
+                    ),
+                    child: AspectRatio(
+                      aspectRatio: 16 / 9,
+                      child:
+                          booking.thumbnailUrl == null ||
+                              booking.thumbnailUrl!.isEmpty
+                          ? Container(color: Colors.grey.shade200)
+                          : Image.network(
+                              booking.thumbnailUrl!,
+                              fit: BoxFit.cover,
+                            ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        statusLabel,
+                        style: TextStyle(
+                          color: statusColor,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 12),
-            // Info
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 10,
-                  horizontal: 4,
-                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Hotel name
-                    Text(
-                      booking.hotelName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            booking.hotelName,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: _textPrimary,
+                              height: 1.2,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          Icons.chevron_right,
+                          size: 18,
+                          color: Colors.grey.shade400,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    // City
+                    const SizedBox(height: 4),
                     Row(
                       children: [
                         const Icon(
                           Icons.location_on_outlined,
                           size: 14,
-                          color: Colors.grey,
+                          color: _textMuted,
                         ),
-                        const SizedBox(width: 3),
+                        const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             booking.city,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey,
+                              fontSize: 12,
+                              color: _textMuted,
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    // Date + guests
-                    Text(
-                      '$dateRange · ${booking.guests} guest${booking.guests == 1 ? '' : 's'}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    // Room + price + status
+                    const SizedBox(height: 8),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Flexible(
+                        const Icon(
+                          Icons.date_range,
+                          size: 16,
+                          color: _textMuted,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            '$dateRange · $nights night${nights == 1 ? '' : 's'}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: _textPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.person_outline,
+                          size: 16,
+                          color: _textMuted,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${booking.guests} guest${booking.guests == 1 ? '' : 's'}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: _textPrimary,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
                           child: Text(
                             booking.roomTypeName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 11,
-                              color: Colors.black54,
+                              fontSize: 12,
+                              color: _textMuted,
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${booking.currency} ${booking.total.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: _accentOrange,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          statusLabel,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: statusColor,
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (type == BookingType.past && !booking.hasReview) ...[
-                      const SizedBox(height: 6),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () async {
-                            final changed = await showModalBottomSheet<bool>(
-                              context: context,
-                              isScrollControlled: true,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(16),
-                                ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${booking.currency} ${booking.total.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: _accentOrange,
                               ),
-                              builder: (_) =>
-                                  _LeaveReviewSheet(booking: booking),
-                            );
-
-                            if (changed == true && onChanged != null) {
-                              onChanged!(); // reload bookings
-                            }
-                          },
-                          child: const Text(
-                            'Leave a review',
-                            style: TextStyle(fontSize: 12),
-                          ),
+                            ),
+                            const SizedBox(height: 2),
+                            const Text(
+                              'Total price',
+                              style: TextStyle(fontSize: 11, color: _textMuted),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
+                        const Spacer(),
+                        if (type == BookingType.past && !booking.hasReview)
+                          TextButton(
+                            onPressed: () async {
+                              final changed = await showModalBottomSheet<bool>(
+                                context: context,
+                                isScrollControlled: true,
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(18),
+                                  ),
+                                ),
+                                builder: (_) =>
+                                    _LeaveReviewSheet(booking: booking),
+                              );
+
+                              if (changed == true && onChanged != null) {
+                                onChanged!();
+                              }
+                            },
+                            child: const Text(
+                              'Leave a review',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                      ],
+                    ),
                   ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -623,6 +1007,7 @@ class _LeaveReviewSheet extends StatefulWidget {
 
 class _LeaveReviewSheetState extends State<_LeaveReviewSheet> {
   static const _primaryGreen = Color(0xFF05A87A);
+  static const _textMuted = Color(0xFF6B7280);
   final TextEditingController _commentCtrl = TextEditingController();
 
   int _rating = 0;
@@ -654,6 +1039,7 @@ class _LeaveReviewSheetState extends State<_LeaveReviewSheet> {
       if (hotelId == null) {
         setState(() {
           _error = 'Hotel information is missing for this booking.';
+          _submitting = false;
         });
         return;
       }
@@ -671,7 +1057,7 @@ class _LeaveReviewSheetState extends State<_LeaveReviewSheet> {
 
       if (!mounted) return;
 
-      Navigator.pop(context, true); // tell caller that something changed
+      Navigator.pop(context, true);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Review submitted. Thank you!')),
       );
@@ -715,97 +1101,112 @@ class _LeaveReviewSheetState extends State<_LeaveReviewSheet> {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
-    return Padding(
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
       padding: EdgeInsets.only(
         left: 16,
         right: 16,
         top: 16,
         bottom: bottomInset + 16,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
-          ),
-          Text(
-            'Rate your stay at ${widget.booking.hotelName}',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: List.generate(5, (index) {
-              final starIndex = index + 1;
-              final isFilled = starIndex <= _rating;
-              return IconButton(
-                padding: EdgeInsets.zero,
-                icon: Icon(
-                  isFilled ? Icons.star : Icons.star_border,
-                  color: Colors.amber,
-                  size: 28,
-                ),
-                onPressed: () {
-                  setState(() {
-                    _rating = starIndex;
-                  });
-                },
-              );
-            }),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _commentCtrl,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              labelText: 'Tell us more (optional)',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: 8),
             Text(
-              _error!,
-              style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+              'Rate your stay at ${widget.booking.hotelName}',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Your feedback helps other guests and the hotel improve.',
+              style: TextStyle(fontSize: 12, color: _textMuted),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: List.generate(5, (index) {
+                final starIndex = index + 1;
+                final isFilled = starIndex <= _rating;
+                return IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: Icon(
+                    isFilled ? Icons.star : Icons.star_border,
+                    color: Colors.amber,
+                    size: 30,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _rating = starIndex;
+                    });
+                  },
+                );
+              }),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _commentCtrl,
+              maxLines: 4,
+              decoration: InputDecoration(
+                labelText: 'Tell us more (optional)',
+                alignLabelWithHint: true,
+                filled: true,
+                fillColor: Colors.grey.shade100,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+              ),
+            ],
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primaryGreen,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+                onPressed: _submitting ? null : _submit,
+                child: _submitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text(
+                        'Submit review',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+              ),
             ),
           ],
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _primaryGreen,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              onPressed: _submitting ? null : _submit,
-              child: _submitting
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text(
-                      'Submit review',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

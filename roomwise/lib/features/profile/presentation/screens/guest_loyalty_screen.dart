@@ -13,7 +13,14 @@ class GuestLoyaltyScreen extends StatefulWidget {
 }
 
 class _GuestLoyaltyScreenState extends State<GuestLoyaltyScreen> {
+  // --- DESIGN TOKENS (keep in sync with Profile/Support screens) ---
   static const _primaryGreen = Color(0xFF05A87A);
+  static const _bgColor = Color(0xFFF5F7FA);
+  static const _cardColor = Colors.white;
+  static const _textPrimary = Color(0xFF111827);
+  static const _textMuted = Color(0xFF6B7280);
+  static const double _cardRadius = 18;
+  static const double _cardPadding = 16;
 
   bool _loading = true;
   String? _error;
@@ -44,7 +51,10 @@ class _GuestLoyaltyScreenState extends State<GuestLoyaltyScreen> {
     try {
       final api = context.read<RoomWiseApiClient>();
       final balance = await api.getLoyaltyBalance();
-      final historyPage = await api.getLoyaltyHistoryPage(page: 1, pageSize: 50);
+      final historyPage = await api.getLoyaltyHistoryPage(
+        page: 1,
+        pageSize: 50,
+      );
 
       if (!mounted) return;
       setState(() {
@@ -87,170 +97,301 @@ class _GuestLoyaltyScreenState extends State<GuestLoyaltyScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthState>();
 
-    if (!auth.isLoggedIn) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Loyalty')),
-        body: const Center(
-          child: Text('You must be logged in to view loyalty points.'),
+    return Scaffold(
+      backgroundColor: _bgColor,
+      appBar: AppBar(
+        title: const Text('Loyalty'),
+        backgroundColor: _bgColor,
+        elevation: 0,
+      ),
+      body: SafeArea(
+        child: auth.isLoggedIn ? _buildLoggedIn() : _buildLoggedOut(),
+      ),
+    );
+  }
+
+  // ---------- LOGGED OUT ----------
+
+  Widget _buildLoggedOut() {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(Icons.card_giftcard, size: 64, color: _textMuted),
+              SizedBox(height: 16),
+              Text(
+                'Loyalty points',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: _textPrimary,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Sign in to start earning and tracking your loyalty points on every stay.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: _textMuted),
+              ),
+            ],
+          ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    Widget body;
+  // ---------- LOGGED IN ----------
 
-    if (_loading) {
-      body = const Center(child: CircularProgressIndicator());
-    } else if (_error != null) {
-      body = Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(_error!, style: const TextStyle(color: Colors.redAccent)),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: _load,
-              child: const Text('Retry'),
+  Widget _buildLoggedIn() {
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.redAccent),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(onPressed: _load, child: const Text('Retry')),
+                ],
+              ),
+            )
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 600),
+                      child: _buildContent(),
+                    ),
+                  ),
+                );
+              },
             ),
-          ],
-        ),
-      );
-    } else {
-      final balance = _balance?.balance ?? 0;
-      final history = _historyPage?.items ?? const <LoyaltyHistoryItemDto>[];
+    );
+  }
 
-      body = Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildContent() {
+    final balance = _balance?.balance ?? 0;
+    final history = _historyPage?.items ?? const <LoyaltyHistoryItemDto>[];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildSummaryCard(balance),
+        const SizedBox(height: 16),
+        _buildHowItWorksCard(),
+        const SizedBox(height: 16),
+        _buildHistoryCard(history),
+      ],
+    );
+  }
+
+  // ---------- CARDS ----------
+
+  Widget _buildSummaryCard(int balance) {
+    return _loyaltyCard(
+      child: Row(
         children: [
           Container(
-            width: double.infinity,
-            margin: const EdgeInsets.all(20),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: _primaryGreen.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _primaryGreen.withOpacity(0.3)),
+            padding: const EdgeInsets.all(10),
+            decoration: const BoxDecoration(
+              color: Color(0xFFE0F9F1),
+              shape: BoxShape.circle,
             ),
-            child: Row(
+            child: const Icon(
+              Icons.card_giftcard,
+              color: _primaryGreen,
+              size: 26,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.card_giftcard, size: 32, color: _primaryGreen),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Your loyalty balance',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.black54,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '$balance pts',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      '1 pt = 1 € discount, earn 1 pt per 10 € spent.',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.black45,
-                      ),
-                    ),
-                  ],
+                const Text(
+                  'Your loyalty balance',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: _textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$balance pts',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: _textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Use your points to get instant discounts on future stays.',
+                  style: TextStyle(fontSize: 12, color: _textMuted),
                 ),
               ],
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'History',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHowItWorksCard() {
+    return _loyaltyCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          Text(
+            'How it works',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: _textPrimary,
             ),
           ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: history.isEmpty
-                ? const Center(
-                    child: Text(
-                      'No loyalty activity yet.',
-                      style: TextStyle(fontSize: 13, color: Colors.black54),
-                    ),
-                  )
-                : ListView.separated(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    itemBuilder: (_, index) {
-                      final item = history[index];
-                      final isEarn = item.delta > 0;
-                      final sign = item.delta > 0 ? '+' : '';
-                      final color = isEarn ? Colors.green : Colors.redAccent;
-
-                      return ListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        leading: Icon(
-                          isEarn
-                              ? Icons.trending_up
-                              : Icons.trending_down,
-                          color: color,
-                        ),
-                        title: Text(
-                          '$sign${item.delta} pts',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: color,
-                          ),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (item.reason?.isNotEmpty == true)
-                              Text(
-                                item.reason!,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            if (item.reservationCode?.isNotEmpty == true)
-                              Text(
-                                'Reservation ${item.reservationCode}',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.black54,
-                                ),
-                              ),
-                            Text(
-                              _formatDateTime(item.createdAt),
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Colors.black45,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                    separatorBuilder: (_, __) => const Divider(height: 12),
-                    itemCount: history.length,
-                  ),
+          SizedBox(height: 8),
+          Text(
+            '• Earn 1 pt for every 10 € spent on eligible bookings.\n'
+            '• Redeem points as a discount during checkout.\n'
+            '• Points are added after your stay is completed.',
+            style: TextStyle(fontSize: 12, color: _textMuted, height: 1.4),
           ),
         ],
-      );
-    }
+      ),
+    );
+  }
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Loyalty')),
-      body: body,
+  Widget _buildHistoryCard(List<LoyaltyHistoryItemDto> history) {
+    return _loyaltyCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'History',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: _textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Recent points you earned or used.',
+            style: TextStyle(fontSize: 12, color: _textMuted),
+          ),
+          const SizedBox(height: 12),
+          if (history.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'No loyalty activity yet.',
+                style: TextStyle(fontSize: 13, color: _textMuted),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: history.length,
+              itemBuilder: (_, index) {
+                final item = history[index];
+                final isEarn = item.delta > 0;
+                final sign = item.delta > 0 ? '+' : '';
+                final color = isEarn ? _primaryGreen : Colors.redAccent;
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      isEarn ? Icons.trending_up : Icons.trending_down,
+                      color: color,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '$sign${item.delta} pts',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: color,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          if (item.reason?.isNotEmpty == true)
+                            Text(
+                              item.reason!,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: _textPrimary,
+                              ),
+                            ),
+                          if (item.reservationCode?.isNotEmpty == true)
+                            Text(
+                              'Reservation ${item.reservationCode}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: _textMuted,
+                              ),
+                            ),
+                          Text(
+                            _formatDateTime(item.createdAt),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: _textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+              separatorBuilder: (_, __) => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Divider(height: 1, color: Color(0xFFE5E7EB)),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ---------- HELPERS ----------
+
+  Widget _loyaltyCard({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(_cardPadding),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(_cardRadius),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: child,
     );
   }
 

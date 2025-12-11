@@ -6,8 +6,12 @@ class GuestBookingCancelledScreen extends StatelessWidget {
 
   const GuestBookingCancelledScreen({super.key, required this.booking});
 
+  // Design tokens
   static const _primaryGreen = Color(0xFF05A87A);
   static const _accentOrange = Color(0xFFFF7A3C);
+  static const _bgColor = Color(0xFFF3F4F6);
+  static const _textPrimary = Color(0xFF111827);
+  static const _textMuted = Color(0xFF6B7280);
 
   int get _nights =>
       booking.checkOut.difference(booking.checkIn).inDays.clamp(1, 365);
@@ -15,94 +19,202 @@ class GuestBookingCancelledScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dateRange =
-        '${_formatDate(booking.checkIn)} - ${_formatDate(booking.checkOut)}';
+        '${_formatDate(booking.checkIn)} – ${_formatDate(booking.checkOut)}';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Cancelled reservation')),
-      body: Column(
-        children: [
-          _HeaderSection(
-            booking: booking,
-            dateRange: dateRange,
-            nights: _nights,
+      backgroundColor: _bgColor,
+      appBar: AppBar(
+        backgroundColor: _bgColor,
+        elevation: 0,
+        centerTitle: false,
+        title: const Text(
+          'Cancelled reservation',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: _textPrimary,
           ),
+        ),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 640),
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _HeaderSection(
+                              booking: booking,
+                              dateRange: dateRange,
+                              nights: _nights,
+                            ),
+                            const SizedBox(height: 32),
 
-          const SizedBox(height: 12),
-
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _SectionTitle('Reservation summary'),
-                  _DetailRow(label: 'Room type', value: booking.roomTypeName),
-                  _DetailRow(
-                    label: 'Guests',
-                    value:
-                        '${booking.guests} guest${booking.guests == 1 ? '' : 's'}',
-                  ),
-                  _DetailRow(label: 'Nights', value: '$_nights'),
-                  _DetailRow(
-                    label: 'Original total',
-                    value:
-                        '${booking.currency} ${booking.total.toStringAsFixed(2)}',
-                    highlight: true,
-                  ),
-                  const SizedBox(height: 16),
-                  _SectionTitle('Status'),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Chip(
-                        label: const Text(
-                          'Cancelled',
-                          style: TextStyle(fontSize: 12),
+                            // DETAILS CARD
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.04),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const _SectionTitle('Reservation summary'),
+                                  const SizedBox(height: 8),
+                                  _DetailRow(
+                                    label: 'Room type',
+                                    value: booking.roomTypeName,
+                                  ),
+                                  _DetailRow(
+                                    label: 'Guests',
+                                    value:
+                                        '${booking.guests} guest${booking.guests == 1 ? '' : 's'}',
+                                  ),
+                                  _DetailRow(
+                                    label: 'Nights',
+                                    value: '$_nights',
+                                  ),
+                                  _DetailRow(
+                                    label: 'Original total',
+                                    value:
+                                        '${booking.currency} ${booking.total.toStringAsFixed(2)}',
+                                    highlight: true,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  const _SectionTitle('Status'),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.redAccent.withOpacity(
+                                            0.08,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            999,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: const [
+                                            Icon(
+                                              Icons.cancel_outlined,
+                                              size: 16,
+                                              color: Colors.redAccent,
+                                            ),
+                                            SizedBox(width: 6),
+                                            Text(
+                                              'Cancelled',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.redAccent,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  const Text(
+                                    'This reservation was cancelled. Refunds or charges depend on '
+                                    'the property’s cancellation policy and the time of cancellation.',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: _textMuted,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                        backgroundColor: Colors.redAccent.withOpacity(0.08),
-                        labelStyle: const TextStyle(color: Colors.redAccent),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'This reservation was cancelled. Refunds or charges depend on '
-                    'the property’s cancellation policy.',
-                    style: TextStyle(fontSize: 13, color: Colors.black54),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // BOTTOM CTA: SEARCH AGAIN
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: _bgColor,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 12,
+                    offset: const Offset(0, -4),
                   ),
                 ],
               ),
-            ),
-          ),
-
-          // Bottom – Book again
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-            ).copyWith(bottom: 16),
-            child: SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _primaryGreen,
-                  side: const BorderSide(color: _primaryGreen),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                onPressed: () {
-                  // TODO: možda navigacija nazad na hotel preview za ponovno bookiranje
-                  Navigator.pop(context);
-                },
-                child: const Text(
-                  'Search this hotel again',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Changed your mind?',
+                        style: TextStyle(fontSize: 12, color: _textMuted),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _primaryGreen,
+                          side: const BorderSide(color: _primaryGreen),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                        onPressed: () {
+                          // TODO: navigate to hotel preview / search screen prefilled
+                          Navigator.pop(context);
+                        },
+                        child: const Text(
+                          'Search this hotel again',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -126,7 +238,7 @@ class GuestBookingCancelledScreen extends StatelessWidget {
   }
 }
 
-// možeš kopirati iste helper klase iz prethodnog file-a
+/// HEADER – reuses the hero/floating card pattern but with cancelled styling
 class _HeaderSection extends StatelessWidget {
   final GuestBookingListItemDto booking;
   final String dateRange;
@@ -139,75 +251,178 @@ class _HeaderSection extends StatelessWidget {
   });
 
   static const _accentOrange = Color(0xFFFF7A3C);
+  static const _textPrimary = Color(0xFF111827);
+  static const _textMuted = Color(0xFF6B7280);
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final image = booking.thumbnailUrl;
+    final hasImage = image != null && image.isNotEmpty;
+
+    return Stack(
+      clipBehavior: Clip.none,
       children: [
-        AspectRatio(
-          aspectRatio: 16 / 9,
-          child: booking.thumbnailUrl == null || booking.thumbnailUrl!.isEmpty
-              ? Container(color: Colors.grey.shade200)
-              : Image.network(booking.thumbnailUrl!, fit: BoxFit.cover),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: AspectRatio(
+            aspectRatio: 16 / 9,
+            child: hasImage
+                ? ColorFiltered(
+                    colorFilter: ColorFilter.mode(
+                      Colors.black.withOpacity(0.20),
+                      BlendMode.darken,
+                    ),
+                    child: Image.network(image!, fit: BoxFit.cover),
+                  )
+                : Container(color: Colors.grey.shade300),
+          ),
         ),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-          ).copyWith(top: 10, bottom: 8),
-          color: Colors.white,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                booking.hotelName,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withOpacity(0.05),
+                  Colors.black.withOpacity(0.50),
+                ],
               ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.location_on_outlined,
-                    size: 14,
-                    color: Colors.grey,
+            ),
+          ),
+        ),
+        Positioned(
+          top: 12,
+          left: 12,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.96),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(Icons.cancel_outlined, size: 16, color: Colors.redAccent),
+                SizedBox(width: 6),
+                Text(
+                  'Reservation cancelled',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.redAccent,
                   ),
-                  const SizedBox(width: 4),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          left: 12,
+          right: 12,
+          bottom: -26,
+          child: Material(
+            color: Colors.white,
+            elevation: 6,
+            borderRadius: BorderRadius.circular(20),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    booking.city,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    booking.hotelName,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: _textPrimary,
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on_outlined,
+                        size: 14,
+                        color: _textMuted,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          booking.city,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: _textMuted,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.date_range, size: 16, color: _textMuted),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '$dateRange · $nights night${nights == 1 ? '' : 's'}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: _textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.person_outline,
+                        size: 16,
+                        color: _textMuted,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${booking.guests} guest${booking.guests == 1 ? '' : 's'}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: _textPrimary,
+                        ),
+                      ),
+                      const Spacer(),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '${booking.currency} ${booking.total.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: _accentOrange,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'Original total',
+                            style: TextStyle(fontSize: 11, color: _textMuted),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Text(
-                    dateRange,
-                    style: const TextStyle(fontSize: 12, color: Colors.black87),
-                  ),
-                  const SizedBox(width: 6),
-                  const Text('•', style: TextStyle(color: Colors.grey)),
-                  const SizedBox(width: 6),
-                  Text(
-                    '$nights night${nights == 1 ? '' : 's'} · '
-                    '${booking.guests} guest${booking.guests == 1 ? '' : 's'}',
-                    style: const TextStyle(fontSize: 12, color: Colors.black87),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '${booking.currency} ${booking.total.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: _accentOrange,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ],
@@ -223,7 +438,11 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+        color: Color(0xFF111827),
+      ),
     );
   }
 }
@@ -244,15 +463,18 @@ class _DetailRow extends StatelessWidget {
     final style = TextStyle(
       fontSize: 13,
       fontWeight: highlight ? FontWeight.w600 : FontWeight.w400,
-      color: highlight ? Colors.black : Colors.black87,
+      color: highlight ? Colors.black : Color(0xFF6B7280),
     );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 13)),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+          ),
           const SizedBox(width: 8),
           Flexible(
             child: Text(

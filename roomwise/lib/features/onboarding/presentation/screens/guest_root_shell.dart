@@ -15,6 +15,11 @@ class GuestRootShell extends StatefulWidget {
 }
 
 class _GuestRootShellState extends State<GuestRootShell> {
+  // Design tokens to keep consistent with other guest screens
+  static const _primaryGreen = Color(0xFF05A87A);
+  static const _bgColor = Color(0xFFF3F4F6);
+  static const _navTextMuted = Color(0xFF9CA3AF);
+
   int _currentIndex = 0;
   AuthState? _authState;
 
@@ -48,65 +53,142 @@ class _GuestRootShellState extends State<GuestRootShell> {
   @override
   Widget build(BuildContext context) {
     final unread = context.watch<NotificationController>().unreadCount;
-    return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: _pages),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() => _currentIndex = index);
 
-          if (index == 2) {
-            _wishlistKey.currentState?.reload();
-          }
-        },
-        items: [
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: 'Explore',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today_outlined),
-            label: 'Bookings',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.favorite_outline),
-            label: 'Wishlist',
-          ),
-          BottomNavigationBarItem(
-            icon: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const Icon(Icons.person_outline),
-                if (unread > 0)
-                  Positioned(
-                    right: -6,
-                    top: -4,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        unread > 99 ? '99+' : unread.toString(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
+    return Scaffold(
+      backgroundColor: _bgColor,
+      body: IndexedStack(index: _currentIndex, children: _pages),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
               ],
             ),
-            label: 'Profile',
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: BottomNavigationBar(
+                type: BottomNavigationBarType.fixed,
+                backgroundColor: Colors.white,
+                elevation: 0,
+                currentIndex: _currentIndex,
+                selectedItemColor: _primaryGreen,
+                unselectedItemColor: _navTextMuted,
+                selectedFontSize: 11,
+                unselectedFontSize: 11,
+                showUnselectedLabels: true,
+                onTap: (index) {
+                  setState(() => _currentIndex = index);
+
+                  // Reload wishlist when user lands on it
+                  if (index == 2) {
+                    _wishlistKey.currentState?.reload();
+                  }
+                },
+                items: [
+                  BottomNavigationBarItem(
+                    icon: _buildNavIcon(
+                      icon: Icons.search_outlined,
+                      isActive: _currentIndex == 0,
+                    ),
+                    activeIcon: _buildNavIcon(
+                      icon: Icons.search,
+                      isActive: true,
+                    ),
+                    label: 'Explore',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: _buildNavIcon(
+                      icon: Icons.calendar_today_outlined,
+                      isActive: _currentIndex == 1,
+                    ),
+                    activeIcon: _buildNavIcon(
+                      icon: Icons.calendar_today,
+                      isActive: true,
+                    ),
+                    label: 'Bookings',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: _buildNavIcon(
+                      icon: Icons.favorite_border,
+                      isActive: _currentIndex == 2,
+                    ),
+                    activeIcon: _buildNavIcon(
+                      icon: Icons.favorite,
+                      isActive: true,
+                    ),
+                    label: 'Wishlist',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: _buildProfileIcon(
+                      unread: unread,
+                      isActive: _currentIndex == 3,
+                    ),
+                    activeIcon: _buildProfileIcon(
+                      unread: unread,
+                      isActive: true,
+                    ),
+                    label: 'Profile',
+                  ),
+                ],
+              ),
+            ),
           ),
-        ],
+        ),
       ),
+    );
+  }
+
+  // Simple circular active state halo around icon
+  Widget _buildNavIcon({required IconData icon, required bool isActive}) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: isActive ? _primaryGreen.withOpacity(0.08) : Colors.transparent,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Icon(
+        icon,
+        size: 22,
+        color: isActive ? _primaryGreen : _navTextMuted,
+      ),
+    );
+  }
+
+  Widget _buildProfileIcon({required int unread, required bool isActive}) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        _buildNavIcon(icon: Icons.person_outline, isActive: isActive),
+        if (unread > 0)
+          Positioned(
+            right: -2,
+            top: -2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                unread > 99 ? '99+' : unread.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 

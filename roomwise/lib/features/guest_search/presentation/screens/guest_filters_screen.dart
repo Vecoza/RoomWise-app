@@ -24,6 +24,11 @@ class GuestFiltersScreen extends StatefulWidget {
 
 class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
   static const _primaryGreen = Color(0xFF05A87A);
+  static const _accentOrange = Color(0xFFFF7A3C);
+  static const _bgColor = Color(0xFFF3F4F6);
+  static const _cardColor = Colors.white;
+  static const _textPrimary = Color(0xFF111827);
+  static const _textMuted = Color(0xFF6B7280);
 
   bool _loading = true;
   String? _warning;
@@ -179,6 +184,17 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
     Navigator.pop(context, filters);
   }
 
+  int get _selectedCount {
+    int count = 0;
+    if (_selectedCityId != null) count++;
+    if (_priceRange.start > 0 || _priceRange.end < 500) count++;
+    if (_minRating > 0) count++;
+    if (_dateRange != null) count++;
+    if (_selectedAddonIds.isNotEmpty) count++;
+    if (_selectedFacilityIds.isNotEmpty) count++;
+    return count;
+  }
+
   @override
   Widget build(BuildContext context) {
     final body = _loading
@@ -186,14 +202,41 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
         : _buildContent();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Filters')),
+      backgroundColor: _bgColor,
+      appBar: AppBar(
+        backgroundColor: _bgColor,
+        elevation: 0,
+        titleSpacing: 16,
+        title: const Text(
+          'Filters',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: _textPrimary,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: _resetFilters,
+            child: const Text(
+              'Clear all',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: _textMuted,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [
             if (_warning != null)
               Container(
                 width: double.infinity,
-                color: Colors.orange.withOpacity(0.12),
+                color: Colors.orange.withOpacity(0.1),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 10,
@@ -224,59 +267,91 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
               ),
             Expanded(child: body),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: _cardColor,
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.05),
-                    blurRadius: 8,
+                    blurRadius: 10,
                     offset: const Offset(0, -2),
                   ),
                 ],
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.grey.shade800,
-                        side: BorderSide(color: Colors.grey.shade300),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.grey.shade800,
+                            side: BorderSide(color: Colors.grey.shade300),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            minimumSize: const Size.fromHeight(48),
+                          ),
+                          onPressed: _resetFilters,
+                          child: const Text(
+                            'Reset',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
-                        minimumSize: const Size.fromHeight(48),
                       ),
-                      onPressed: _resetFilters,
-                      child: const Text(
-                        'Reset',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _primaryGreen,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            minimumSize: const Size.fromHeight(48),
+                          ),
+                          onPressed: _onApply,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text(
+                                'Apply',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              if (_selectedCount > 0) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.16),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    '$_selectedCount',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _primaryGreen,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        minimumSize: const Size.fromHeight(48),
-                      ),
-                      onPressed: _onApply,
-                      child: const Text(
-                        'Apply filters',
-                        style:
-                            TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ],
@@ -286,53 +361,98 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
   }
 
   Widget _buildContent() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildCityCard(),
+                  const SizedBox(height: 12),
+                  _buildPriceCard(),
+                  const SizedBox(height: 12),
+                  _buildRatingCard(),
+                  const SizedBox(height: 12),
+                  _buildDatesAndGuestsCard(),
+                  const SizedBox(height: 12),
+                  if (_addons.isNotEmpty) _buildAddOnsCard(),
+                  if (_addons.isNotEmpty) const SizedBox(height: 12),
+                  if (_facilities.isNotEmpty) _buildFacilitiesCard(),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // --- CARDS ---
+
+  Widget _buildCityCard() {
+    return _FilterCard(
+      title: 'City',
+      subtitle: 'Choose where you want to stay',
+      child: DropdownButtonFormField<int>(
+        value: _selectedCityId,
+        decoration: InputDecoration(
+          filled: true,
+          fillColor: Colors.grey.shade100,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 10,
+          ),
+          prefixIcon: const Icon(Icons.location_city_outlined, size: 20),
+        ),
+        hint: const Text('Any city'),
+        items: _cities
+            .map(
+              (c) => DropdownMenuItem<int>(
+                value: c.id,
+                child: Text('${c.name}, ${c.countryName}'),
+              ),
+            )
+            .toList(),
+        onChanged: (value) {
+          setState(() {
+            _selectedCityId = value;
+          });
+        },
+      ),
+    );
+  }
+
+  Widget _buildPriceCard() {
+    return _FilterCard(
+      title: 'Price per night',
+      subtitle: 'Set your preferred budget range',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // City
-          const Text(
-            'City',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 6),
-          DropdownButtonFormField<int>(
-            value: _selectedCityId,
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: Colors.grey.shade100,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
+          Row(
+            children: [
+              _PricePill(
+                label: 'Min',
+                value: '€${_priceRange.start.toStringAsFixed(0)}',
               ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 8,
+              const SizedBox(width: 8),
+              _PricePill(
+                label: 'Max',
+                value: '€${_priceRange.end.toStringAsFixed(0)}',
               ),
-            ),
-            items: _cities
-                .map(
-                  (c) => DropdownMenuItem<int>(
-                    value: c.id,
-                    child: Text('${c.name}, ${c.countryName}'),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) {
-              setState(() {
-                _selectedCityId = value;
-              });
-            },
+              const Spacer(),
+              const Icon(Icons.euro_symbol, size: 18, color: _textMuted),
+            ],
           ),
-          const SizedBox(height: 16),
-
-          // Price
-          const Text(
-            'Price per night (approx)',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           RangeSlider(
             values: _priceRange,
             min: 0,
@@ -348,48 +468,56 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
               });
             },
           ),
-          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
 
-          // Rating
-          const Text(
-            'Minimum rating',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 4),
+  Widget _buildRatingCard() {
+    return _FilterCard(
+      title: 'Minimum rating',
+      subtitle: 'See only hotels above a certain score',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Row(
             children: [
-              Expanded(
-                child: Slider(
-                  value: _minRating,
-                  min: 0,
-                  max: 5,
-                  divisions: 10,
-                  label: _minRating.toStringAsFixed(1),
-                  onChanged: (value) {
-                    setState(() {
-                      _minRating = value;
-                    });
-                  },
-                ),
-              ),
+              _buildStarsPreview(_minRating),
               const SizedBox(width: 8),
               Text(
                 _minRating.toStringAsFixed(1),
                 style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: _textPrimary,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-
-          // Date range
-          const Text(
-            'Stay dates',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          Slider(
+            value: _minRating,
+            min: 0,
+            max: 5,
+            divisions: 10,
+            label: _minRating.toStringAsFixed(1),
+            onChanged: (value) {
+              setState(() {
+                _minRating = value;
+              });
+            },
           ),
-          const SizedBox(height: 6),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDatesAndGuestsCard() {
+    return _FilterCard(
+      title: 'Trip details',
+      subtitle: 'Choose your dates and number of guests',
+      child: Column(
+        children: [
+          // Dates row
           GestureDetector(
             onTap: _pickDateRange,
             child: Container(
@@ -404,17 +532,18 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
                   const Icon(
                     Icons.date_range_outlined,
                     size: 18,
-                    color: Colors.grey,
+                    color: _textMuted,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       _dateRange == null
-                          ? 'Select date range'
-                          : '${_formatDate(_dateRange!.start)} - ${_formatDate(_dateRange!.end)}',
+                          ? 'Select dates'
+                          : '${_formatDate(_dateRange!.start)} – ${_formatDate(_dateRange!.end)}',
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
+                        color: _textPrimary,
                       ),
                     ),
                   ),
@@ -422,14 +551,8 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 16),
-
-          // Guests
-          const Text(
-            'Guests',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 10),
+          // Guests row
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
@@ -437,90 +560,109 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
               children: [
-                IconButton(
-                  onPressed: () => _changeGuests(-1),
-                  icon: const Icon(Icons.remove),
-                  splashRadius: 18,
-                ),
+                const Icon(Icons.people_outline, size: 18, color: _textMuted),
+                const SizedBox(width: 8),
                 Text(
-                  '$_guests',
+                  '$_guests guest${_guests == 1 ? '' : 's'}',
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
+                    color: _textPrimary,
                   ),
                 ),
-                IconButton(
-                  onPressed: () => _changeGuests(1),
-                  icon: const Icon(Icons.add),
-                  splashRadius: 18,
+                const Spacer(),
+                _RoundIconButton(
+                  icon: Icons.remove,
+                  onTap: () => _changeGuests(-1),
+                  enabled: _guests > 1,
+                ),
+                const SizedBox(width: 6),
+                _RoundIconButton(
+                  icon: Icons.add,
+                  onTap: () => _changeGuests(1),
+                  enabled: _guests < 10,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
-
-          // AddOns
-          if (_addons.isNotEmpty) ...[
-            const Text(
-              'Add-ons',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _addons.map((a) {
-                final selected = _selectedAddonIds.contains(a.id);
-                return FilterChip(
-                  label: Text(a.name),
-                  selected: selected,
-                  onSelected: (value) {
-                    setState(() {
-                      if (value) {
-                        _selectedAddonIds.add(a.id);
-                      } else {
-                        _selectedAddonIds.remove(a.id);
-                      }
-                    });
-                  },
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 16),
-          ],
-
-          // Facilities
-          if (_facilities.isNotEmpty) ...[
-            const Text(
-              'Facilities',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _facilities.map((f) {
-                final selected = _selectedFacilityIds.contains(f.id);
-                return FilterChip(
-                  label: Text(f.name),
-                  selected: selected,
-                  onSelected: (value) {
-                    setState(() {
-                      if (value) {
-                        _selectedFacilityIds.add(f.id);
-                      } else {
-                        _selectedFacilityIds.remove(f.id);
-                      }
-                    });
-                  },
-                );
-              }).toList(),
-            ),
-          ],
         ],
       ),
+    );
+  }
+
+  Widget _buildAddOnsCard() {
+    return _FilterCard(
+      title: 'Add-ons',
+      subtitle: 'Enhance your stay with extras',
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: _addons.map((a) {
+          final selected = _selectedAddonIds.contains(a.id);
+          return FilterChip(
+            label: Text(a.name),
+            selected: selected,
+            onSelected: (value) {
+              setState(() {
+                if (value) {
+                  _selectedAddonIds.add(a.id);
+                } else {
+                  _selectedAddonIds.remove(a.id);
+                }
+              });
+            },
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildFacilitiesCard() {
+    return _FilterCard(
+      title: 'Facilities',
+      subtitle: 'Pick what matters most to you',
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: _facilities.map((f) {
+          final selected = _selectedFacilityIds.contains(f.id);
+          return FilterChip(
+            label: Text(f.name),
+            selected: selected,
+            onSelected: (value) {
+              setState(() {
+                if (value) {
+                  _selectedFacilityIds.add(f.id);
+                } else {
+                  _selectedFacilityIds.remove(f.id);
+                }
+              });
+            },
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildStarsPreview(double rating) {
+    final fullStars = rating.floor();
+    final hasHalf = (rating - fullStars) >= 0.25 && (rating - fullStars) < 0.75;
+    final totalStars = 5;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(totalStars, (index) {
+        IconData icon;
+        if (index < fullStars) {
+          icon = Icons.star;
+        } else if (index == fullStars && hasHalf) {
+          icon = Icons.star_half;
+        } else {
+          icon = Icons.star_border;
+        }
+        return Icon(icon, size: 18, color: Colors.amber);
+      }),
     );
   }
 
@@ -540,5 +682,130 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
       'Dec',
     ];
     return '${d.day} ${months[d.month - 1]}';
+  }
+}
+
+// --- Small reusable widgets ---
+
+class _FilterCard extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final Widget child;
+
+  const _FilterCard({required this.title, this.subtitle, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _GuestFiltersScreenState._cardColor,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: _GuestFiltersScreenState._textPrimary,
+            ),
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              subtitle!,
+              style: const TextStyle(
+                fontSize: 12,
+                color: _GuestFiltersScreenState._textMuted,
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _PricePill extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _PricePill({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '$label:',
+            style: const TextStyle(
+              fontSize: 11,
+              color: _GuestFiltersScreenState._textMuted,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RoundIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool enabled;
+
+  const _RoundIconButton({
+    required this.icon,
+    required this.onTap,
+    this.enabled = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: enabled ? Colors.white : Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: enabled ? Colors.grey.shade400 : Colors.grey.shade300,
+          ),
+        ),
+        child: Icon(
+          icon,
+          size: 16,
+          color: enabled ? Colors.black87 : Colors.grey,
+        ),
+      ),
+    );
   }
 }
