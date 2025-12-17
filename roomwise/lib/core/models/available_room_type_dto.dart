@@ -4,6 +4,11 @@ class AvailableRoomTypeDto {
   final int capacity;
   final double priceFromPerNight;
   final int roomsLeft;
+  final double? originalNightlyPrice;
+  final double? promotionDiscountPercent;
+  final double? promotionDiscountFixed;
+  final String? promotionTitle;
+  final DateTime? promotionEndDate;
   final String? description;
   final String? bedConfiguration;
   final DateTime? validFrom;
@@ -22,6 +27,11 @@ class AvailableRoomTypeDto {
     required this.capacity,
     required this.priceFromPerNight,
     this.roomsLeft = 0,
+    this.originalNightlyPrice,
+    this.promotionDiscountPercent,
+    this.promotionDiscountFixed,
+    this.promotionTitle,
+    this.promotionEndDate,
     this.description,
     this.bedConfiguration,
     this.validFrom,
@@ -75,12 +85,29 @@ class AvailableRoomTypeDto {
       'size',
     ], fallback: 0.0);
 
+    double? _readNullableDouble(String key) {
+      final v = json[key];
+      if (v == null) return null;
+      if (v is num) return v.toDouble();
+      if (v is String) return double.tryParse(v);
+      return null;
+    }
+
     return AvailableRoomTypeDto(
       id: id,
       name: (json['name'] as String?) ?? '',
       capacity: _readInt(['capacity'], fallback: 1),
       priceFromPerNight: price,
       roomsLeft: _readInt(['roomsLeft'], fallback: 0),
+      originalNightlyPrice:
+          _readNullableDouble('originalNightlyPrice') ??
+              _readNullableDouble('originalPrice'),
+      promotionDiscountPercent: _readNullableDouble('promotionDiscountPercent'),
+      promotionDiscountFixed: _readNullableDouble('promotionDiscountFixed'),
+      promotionTitle: json['promotionTitle'] as String?,
+      promotionEndDate: json['promotionEndDate'] != null
+          ? DateTime.tryParse(json['promotionEndDate'] as String)
+          : null,
       description: json['description'] as String?,
       bedConfiguration: json['bedConfiguration'] as String?,
       sizeM2: size > 0 ? size : null,

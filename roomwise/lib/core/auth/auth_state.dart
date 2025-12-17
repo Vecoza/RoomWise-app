@@ -14,17 +14,22 @@ class AuthState extends ChangeNotifier {
   static const _keyEmail = 'auth_email';
   static const _keyRefreshToken = 'auth_refresh_token';
   static const _keyRefreshExpires = 'auth_refresh_expires';
+  static const _keyRoles = 'auth_roles';
 
   String? _token;
   String? _email;
   String? _refreshToken;
   DateTime? _refreshExpiresUtc;
+  List<String> _roles = const [];
 
   String? get token => _token;
   String? get email => _email;
   String? get refreshToken => _refreshToken;
   DateTime? get refreshExpiresUtc => _refreshExpiresUtc;
   bool get isLoggedIn => _token != null;
+  List<String> get roles => _roles;
+  bool get isAdmin => _roles.any((r) => r.toLowerCase() == 'administrator');
+  bool get isGuest => _roles.any((r) => r.toLowerCase() == 'guest');
 
   Future<void> loadFromStorage() async {
     final prefs = await SharedPreferences.getInstance();
@@ -32,15 +37,12 @@ class AuthState extends ChangeNotifier {
     final storedEmail = prefs.getString(_keyEmail);
     final storedRefresh = prefs.getString(_keyRefreshToken);
     final storedRefreshExpiresString = prefs.getString(_keyRefreshExpires);
+    final storedRoles = prefs.getStringList(_keyRoles) ?? const [];
 
     DateTime? storedRefreshExpires;
     if (storedRefreshExpiresString != null &&
         storedRefreshExpiresString.isNotEmpty) {
-      try {
-        storedRefreshExpires = DateTime.parse(storedRefreshExpiresString);
-      } catch (_) {
-        storedRefreshExpires = null;
-      }
+      storedRefreshExpires = DateTime.tryParse(storedRefreshExpiresString);
     }
 
     if (storedToken != null && storedToken.isNotEmpty) {
@@ -48,6 +50,8 @@ class AuthState extends ChangeNotifier {
       _email = storedEmail;
       _refreshToken = storedRefresh;
       _refreshExpiresUtc = storedRefreshExpires;
+      _roles = storedRoles;
+
       _api.setAuthToken(_token);
       notifyListeners();
     }
@@ -63,11 +67,13 @@ class AuthState extends ChangeNotifier {
         _keyRefreshExpires,
         _refreshExpiresUtc?.toUtc().toIso8601String() ?? '',
       );
+      await prefs.setStringList(_keyRoles, _roles);
     } else {
       await prefs.remove(_keyToken);
       await prefs.remove(_keyEmail);
       await prefs.remove(_keyRefreshToken);
       await prefs.remove(_keyRefreshExpires);
+      await prefs.remove(_keyRoles);
     }
   }
 
@@ -90,13 +96,15 @@ class AuthState extends ChangeNotifier {
     required String email,
     required String password,
   }) async {
-    final req = LoginRequestDto(email: email, password: password);
-    final res = await _api.loginGuest(req);
+    final res = await _api.loginGuest(
+      LoginRequestDto(email: email, password: password),
+    );
 
     _token = _normalizeToken(res.token);
     _refreshToken = res.refreshToken;
     _refreshExpiresUtc = res.refreshExpiresUtc.toUtc();
     _email = res.email ?? email;
+    _roles = res.roles; // ✅
 
     _api.setAuthToken(_token);
     await _persist();
@@ -109,6 +117,7 @@ class AuthState extends ChangeNotifier {
     _email = null;
     _refreshToken = null;
     _refreshExpiresUtc = null;
+    _roles = const [];
     _api.setAuthToken(null);
     await _persist();
     notifyListeners();
@@ -132,6 +141,7 @@ class AuthState extends ChangeNotifier {
       _token = _normalizeToken(res.token);
       _refreshToken = res.refreshToken;
       _refreshExpiresUtc = res.refreshExpiresUtc.toUtc();
+      _roles = res.roles;
 
       _api.setAuthToken(_token);
       await _persist();

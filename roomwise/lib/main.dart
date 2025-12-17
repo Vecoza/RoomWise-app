@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:provider/provider.dart';
 import 'package:roomwise/core/api/roomwise_api_client.dart';
 import 'package:roomwise/core/auth/auth_state.dart';
+import 'package:roomwise/core/locale/locale_controller.dart';
 import 'package:roomwise/features/booking/sync/bookings_sync.dart';
 import 'package:roomwise/features/onboarding/onboarding_prefs.dart';
 import 'package:roomwise/features/onboarding/presentation/screens/guest_root_shell.dart';
@@ -11,6 +13,7 @@ import 'package:roomwise/features/onboarding/presentation/screens/guest_landing_
 import 'package:roomwise/features/wishlist/wishlist_sync.dart';
 import 'package:roomwise/features/notifications/domain/notification_controller.dart';
 import 'package:roomwise/core/search/search_state.dart';
+import 'package:roomwise/l10n/app_localizations.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,18 +24,28 @@ Future<void> main() async {
   final api = RoomWiseApiClient();
   final auth = AuthState(api);
   await auth.loadFromStorage();
+  final localeController = LocaleController();
+  await localeController.load();
 
-  runApp(RoomWiseRoot(apiClient: api, authState: auth));
+  runApp(
+    RoomWiseRoot(
+      apiClient: api,
+      authState: auth,
+      localeController: localeController,
+    ),
+  );
 }
 
 class RoomWiseRoot extends StatelessWidget {
   final RoomWiseApiClient apiClient;
   final AuthState authState;
+  final LocaleController localeController;
 
   const RoomWiseRoot({
     super.key,
     required this.apiClient,
     required this.authState,
+    required this.localeController,
   });
 
   @override
@@ -44,6 +57,7 @@ class RoomWiseRoot extends StatelessWidget {
         ChangeNotifierProvider<WishlistSync>(create: (_) => WishlistSync()),
         ChangeNotifierProvider(create: (_) => BookingsSync()),
         ChangeNotifierProvider<SearchState>(create: (_) => SearchState()),
+        ChangeNotifierProvider<LocaleController>.value(value: localeController),
         ChangeNotifierProxyProvider<AuthState, NotificationController>(
           create: (context) => NotificationController(
             api: Provider.of<RoomWiseApiClient>(context, listen: false),
@@ -67,9 +81,19 @@ class RoomWiseApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final localeController = context.watch<LocaleController>();
     return MaterialApp(
-      title: 'RoomWise',
+      onGenerateTitle: (context) =>
+          AppLocalizations.of(context)?.appTitle ?? 'Roomwise',
       debugShowCheckedModeBanner: false,
+      locale: localeController.locale,
+      localizationsDelegates: [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('en'), Locale('bs')],
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF05A87A)),

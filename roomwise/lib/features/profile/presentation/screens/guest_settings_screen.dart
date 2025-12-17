@@ -10,12 +10,15 @@ import 'package:roomwise/core/api/roomwise_api_client.dart';
 import 'package:roomwise/core/auth/auth_state.dart';
 import 'package:roomwise/core/models/loyalty_summary_dto.dart';
 import 'package:roomwise/core/models/me_profile_dto.dart';
+import 'package:roomwise/features/booking/sync/bookings_sync.dart';
 import 'package:roomwise/features/auth/presentation/screens/guest_register_screen.dart';
 import 'package:roomwise/features/onboarding/presentation/screens/guest_login_screen.dart';
 import 'package:roomwise/features/profile/presentation/screens/guest_settings_support_screen.dart';
 import 'package:roomwise/features/notifications/domain/notification_controller.dart';
 import 'package:roomwise/features/notifications/presentation/notifications_screen.dart';
 import 'package:roomwise/features/profile/presentation/screens/guest_loyalty_screen.dart';
+import 'package:roomwise/core/locale/locale_controller.dart';
+import 'package:roomwise/l10n/app_localizations.dart';
 
 class GuestSettingsScreen extends StatefulWidget {
   const GuestSettingsScreen({super.key});
@@ -58,11 +61,33 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
   bool _changingPassword = false;
 
   bool _savingProfile = false;
+  int _lastBookingsVersion = 0;
+  String? _lastAuthToken;
 
   @override
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final bookingsSync = context.watch<BookingsSync>();
+    final auth = context.watch<AuthState>();
+
+    // Reload when auth token changes (login/logout or user switch)
+    if (auth.token != _lastAuthToken) {
+      _lastAuthToken = auth.token;
+      _loadData();
+    }
+
+    if (bookingsSync.version != _lastBookingsVersion) {
+      _lastBookingsVersion = bookingsSync.version;
+      if (auth.isLoggedIn && !_loading) {
+        _loadData();
+      }
+    }
   }
 
   @override
@@ -459,7 +484,7 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
                   );
                   await _loadData();
                 },
-                child: const Text('I already have an account'),
+                child: Text(AppLocalizations.of(context)!.alreadyAccount),
               ),
             ],
           ),
@@ -469,6 +494,7 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
   }
 
   Widget _buildLoggedIn() {
+    final t = AppLocalizations.of(context)!;
     return RefreshIndicator(
       onRefresh: _loadData,
       child: _loading
@@ -483,7 +509,10 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
                     style: const TextStyle(color: Colors.redAccent),
                   ),
                   const SizedBox(height: 8),
-                  TextButton(onPressed: _loadData, child: const Text('Retry')),
+                  TextButton(
+                    onPressed: _loadData,
+                    child: Text(t.retry),
+                  ),
                 ],
               ),
             )
@@ -506,6 +535,7 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
 
   Widget _buildContent() {
     final profile = _profile!;
+    final t = AppLocalizations.of(context)!;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -513,6 +543,8 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
         _buildHeader(profile),
         const SizedBox(height: 16),
         _buildLoyaltySection(),
+        const SizedBox(height: 16),
+        _buildLanguageSection(),
         const SizedBox(height: 16),
         _buildProfileSection(),
         const SizedBox(height: 16),
@@ -525,7 +557,7 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
           height: 48,
           child: OutlinedButton.icon(
             icon: const Icon(Icons.logout),
-            label: const Text('Log out'),
+            label: Text(t.logout),
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.redAccent,
               side: const BorderSide(color: Colors.redAccent),
@@ -544,6 +576,7 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
     return Consumer<NotificationController>(
       builder: (context, controller, _) {
         final unread = controller.unreadCount;
+        final t = AppLocalizations.of(context)!;
 
         ImageProvider? avatarImage;
         if (_avatarFile != null) {
@@ -639,7 +672,7 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Guest profile',
+                      t.guestProfile,
                       style: const TextStyle(fontSize: 13, color: _textMuted),
                     ),
                   ],
@@ -650,7 +683,7 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.notifications_outlined),
-                    tooltip: 'Notifications',
+                    tooltip: t.notifications,
                     onPressed: _openNotifications,
                   ),
                   if (unread > 0)
@@ -686,32 +719,33 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
   }
 
   Widget _buildProfileSection() {
+    final t = AppLocalizations.of(context)!;
     return _settingsCard(
       child: Form(
         key: _profileFormKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Personal information',
-              style: TextStyle(
+            Text(
+              t.personalInfoTitle,
+              style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
                 color: _textPrimary,
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Edit your basic details used for bookings and communication.',
-              style: TextStyle(fontSize: 12, color: _textMuted),
+            Text(
+              t.personalInfoSubtitle,
+              style: const TextStyle(fontSize: 12, color: _textMuted),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _firstNameCtrl,
-              decoration: _inputDecoration('First name'),
+              decoration: _inputDecoration(t.firstName),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return 'Please enter your first name.';
+                  return t.firstNameError;
                 }
                 return null;
               },
@@ -719,12 +753,12 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
             const SizedBox(height: 12),
             TextFormField(
               controller: _lastNameCtrl,
-              decoration: _inputDecoration('Last name'),
+              decoration: _inputDecoration(t.lastName),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _phoneCtrl,
-              decoration: _inputDecoration('Phone (optional)'),
+              decoration: _inputDecoration(t.phoneOptional),
               keyboardType: TextInputType.phone,
             ),
             const SizedBox(height: 16),
@@ -749,9 +783,9 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
                           color: Colors.white,
                         ),
                       )
-                    : const Text(
-                        'Save changes',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                    : Text(
+                        t.saveChanges,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
               ),
             ),
@@ -762,9 +796,10 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
   }
 
   Widget _buildLoyaltySection() {
+    final t = AppLocalizations.of(context)!;
     final balanceText = _loyalty != null
         ? '${_loyalty!.balance} pts'
-        : 'View your points';
+        : t.loyaltyViewPoints;
 
     return _settingsCard(
       child: Row(
@@ -782,9 +817,9 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Loyalty',
-                  style: TextStyle(
+                Text(
+                  t.loyaltyTitle,
+                  style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: _textPrimary,
@@ -798,40 +833,82 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
               ],
             ),
           ),
-          TextButton(onPressed: _openLoyalty, child: const Text('View')),
+          TextButton(onPressed: _openLoyalty, child: Text(t.view)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLanguageSection() {
+    final localeController = context.watch<LocaleController>();
+    final currentCode = localeController.locale.languageCode;
+    final t = AppLocalizations.of(context)!;
+
+    return _settingsCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            t.languageLabel,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: _textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          RadioListTile<String>(
+            contentPadding: EdgeInsets.zero,
+            title: Text(t.english),
+            value: 'en',
+            groupValue: currentCode,
+            onChanged: (value) {
+              if (value != null) localeController.setLanguage(value);
+            },
+          ),
+          RadioListTile<String>(
+            contentPadding: EdgeInsets.zero,
+            title: Text(t.bosnian),
+            value: 'bs',
+            groupValue: currentCode,
+            onChanged: (value) {
+              if (value != null) localeController.setLanguage(value);
+            },
+          ),
         ],
       ),
     );
   }
 
   Widget _buildPasswordSection() {
+    final t = AppLocalizations.of(context)!;
     return _settingsCard(
       child: Form(
         key: _passwordFormKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Security',
-              style: TextStyle(
+            Text(
+              t.securityTitle,
+              style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
                 color: _textPrimary,
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Update your password regularly to keep your account safe.',
-              style: TextStyle(fontSize: 12, color: _textMuted),
+            Text(
+              t.securitySubtitle,
+              style: const TextStyle(fontSize: 12, color: _textMuted),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _currentPassCtrl,
-              decoration: _inputDecoration('Current password'),
+              decoration: _inputDecoration(t.currentPassword),
               obscureText: true,
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'Please enter your current password.';
+                  return t.currentPasswordError;
                 }
                 return null;
               },
@@ -839,11 +916,11 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
             const SizedBox(height: 12),
             TextFormField(
               controller: _newPassCtrl,
-              decoration: _inputDecoration('New password'),
+              decoration: _inputDecoration(t.newPassword),
               obscureText: true,
               validator: (value) {
                 if (value == null || value.length < 6) {
-                  return 'Password should be at least 6 characters.';
+                  return t.newPasswordError;
                 }
                 return null;
               },
@@ -851,11 +928,11 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
             const SizedBox(height: 12),
             TextFormField(
               controller: _confirmPassCtrl,
-              decoration: _inputDecoration('Confirm new password'),
+              decoration: _inputDecoration(t.confirmPassword),
               obscureText: true,
               validator: (value) {
                 if (value != _newPassCtrl.text) {
-                  return 'Passwords do not match.';
+                  return t.confirmPasswordError;
                 }
                 return null;
               },
@@ -879,9 +956,9 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text(
-                        'Change password',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                    : Text(
+                        t.changePassword,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
               ),
             ),
@@ -892,21 +969,22 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
   }
 
   Widget _buildSupportSection() {
+    final t = AppLocalizations.of(context)!;
     return _settingsCard(
       child: ListTile(
         contentPadding: EdgeInsets.zero,
         leading: const Icon(Icons.help_outline, color: _textPrimary),
-        title: const Text(
-          'Support & FAQ',
-          style: TextStyle(
+        title: Text(
+          t.supportTitle,
+          style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
             color: _textPrimary,
           ),
         ),
-        subtitle: const Text(
-          'Find answers and contact our support team.',
-          style: TextStyle(fontSize: 12, color: _textMuted),
+        subtitle: Text(
+          t.supportSubtitle,
+          style: const TextStyle(fontSize: 12, color: _textMuted),
         ),
         trailing: const Icon(Icons.chevron_right),
         onTap: () {

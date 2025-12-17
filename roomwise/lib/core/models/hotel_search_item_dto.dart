@@ -7,6 +7,12 @@ class HotelSearchItemDto {
   final double fromPrice;
   final double rating;
   final String? thumbnailUrl;
+  final double? promotionPrice;
+  final double? promotionDiscountPercent;
+  final double? promotionDiscountFixed;
+  final DateTime? promotionEndDate;
+  final String? promotionTitle;
+  final String currency;
   final bool hasAvailability;
   final List<TagDto> tags;
   final int reviewCount;
@@ -19,6 +25,12 @@ class HotelSearchItemDto {
     required this.rating,
     required this.hasAvailability,
     this.reviewCount = 0,
+    this.promotionPrice,
+    this.promotionDiscountPercent,
+    this.promotionDiscountFixed,
+    this.promotionEndDate,
+    this.promotionTitle,
+    this.currency = 'EUR',
     this.thumbnailUrl,
     this.tags = const [],
   });
@@ -35,6 +47,16 @@ class HotelSearchItemDto {
       city: json['city'] as String? ?? '',
       fromPrice: (json['fromPrice'] as num?)?.toDouble() ?? 0.0,
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
+      promotionPrice: (json['promotionPrice'] as num?)?.toDouble(),
+      promotionDiscountPercent:
+          (json['promotionDiscountPercent'] as num?)?.toDouble(),
+      promotionDiscountFixed:
+          (json['promotionDiscountFixed'] as num?)?.toDouble(),
+      promotionEndDate: json['promotionEndDate'] != null
+          ? DateTime.tryParse(json['promotionEndDate'].toString())
+          : null,
+      promotionTitle: json['promotionTitle'] as String?,
+      currency: json['currency'] as String? ?? 'EUR',
       reviewCount: (json['reviewCount'] as num? ??
               json['reviewsCount'] as num? ??
               json['ratingsCount'] as num?)

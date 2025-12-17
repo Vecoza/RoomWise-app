@@ -5,6 +5,7 @@ import 'package:roomwise/core/api/roomwise_api_client.dart';
 import 'package:roomwise/core/auth/auth_state.dart';
 import 'package:roomwise/core/models/available_room_type_dto.dart';
 import 'package:roomwise/core/models/hotel_details_dto.dart';
+import 'package:roomwise/core/models/hotel_search_item_dto.dart';
 import 'package:roomwise/core/models/hotel_image_dto.dart';
 import 'package:roomwise/core/models/review_response_dto.dart';
 import 'package:roomwise/core/search/search_state.dart';
@@ -51,6 +52,11 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
   int _reviewsPage = 1;
   bool _reviewsHasMore = true;
 
+  final List<HotelSearchItemDto> _recommended = [];
+  bool _recommendedLoading = false;
+  String? _recommendedError;
+  bool _recommendedFallback = false;
+
   @override
   void initState() {
     super.initState();
@@ -81,6 +87,7 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
 
       await _loadReviews(reset: true);
       await _syncWishlistStatus();
+      await _loadRecommendations();
     } on DioException catch (e) {
       debugPrint('Hotel details load failed: $e');
       if (!mounted) return;
@@ -127,34 +134,171 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
     final hotel = _hotel;
     if (hotel == null) return;
 
+    _prepareSelection().then((selection) {
+      if (selection == null) return;
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => GuestReservationDetailsScreen(
+            hotel: hotel,
+            roomType: roomType,
+            dateRange: selection.range,
+            guests: selection.guests,
+          ),
+        ),
+      );
+    });
+  }
+
+  Future<_BookingSelection?> _prepareSelection() async {
+    final auth = context.read<AuthState>();
+    if (!auth.isLoggedIn) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const GuestLoginScreen()),
+      );
+      if (!context.mounted || !context.read<AuthState>().isLoggedIn) {
+        return null;
+      }
+    }
+
     final search = context.read<SearchState>();
-    final dateRange =
+    DateTimeRange? dateRange =
         widget.dateRange ??
         (search.hasSelection
             ? DateTimeRange(start: search.checkIn!, end: search.checkOut!)
             : null);
-    final guests = widget.guests ?? search.guests;
+    int? guests = widget.guests ?? search.guests;
 
-    if (dateRange == null || guests == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select dates and number of guests first.'),
-        ),
-      );
-      return;
+    if (dateRange != null && guests != null) {
+      return _BookingSelection(dateRange, guests);
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => GuestReservationDetailsScreen(
-          hotel: hotel,
-          roomType: roomType,
-          dateRange: dateRange,
-          guests: guests,
-        ),
-      ),
+    final result = await showModalBottomSheet<_BookingSelection>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        DateTimeRange? localRange = dateRange;
+        int localGuests = guests ?? 2;
+
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            left: 16,
+            right: 16,
+            top: 16,
+          ),
+          child: StatefulBuilder(
+            builder: (context, setModalState) {
+              Future<void> pickRange() async {
+                final now = DateTime.now();
+                final picked = await showDateRangePicker(
+                  context: context,
+                  firstDate: now,
+                  lastDate: now.add(const Duration(days: 365)),
+                  initialDateRange: localRange ??
+                      DateTimeRange(
+                        start: now,
+                        end: now.add(const Duration(days: 1)),
+                      ),
+                );
+                if (picked != null) {
+                  setModalState(() => localRange = picked);
+                }
+              }
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Choose dates & guests',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ListTile(
+                    leading: const Icon(Icons.date_range_outlined),
+                    title: Text(
+                      localRange == null
+                          ? 'Select dates'
+                          : '${_formatDate(localRange!.start)} → ${_formatDate(localRange!.end)}',
+                    ),
+                    onTap: pickRange,
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Guests',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: () {
+                              setModalState(
+                                () => localGuests =
+                                    (localGuests - 1).clamp(1, 10),
+                              );
+                            },
+                            icon: const Icon(Icons.remove_circle_outline),
+                          ),
+                          Text(
+                            '$localGuests',
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                          IconButton(
+                            onPressed: () {
+                              setModalState(
+                                () => localGuests =
+                                    (localGuests + 1).clamp(1, 10),
+                              );
+                            },
+                            icon: const Icon(Icons.add_circle_outline),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: localRange == null
+                          ? null
+                          : () {
+                              Navigator.pop(
+                                context,
+                                _BookingSelection(localRange!, localGuests),
+                              );
+                            },
+                      child: const Text('Continue'),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              );
+            },
+          ),
+        );
+      },
     );
+
+    if (result != null) {
+      // Update shared search state so future screens have it
+      context.read<SearchState>().update(
+            checkIn: result.range.start,
+            checkOut: result.range.end,
+            guests: result.guests,
+          );
+    }
+
+    return result;
   }
 
   Future<void> _toggleWishlist() async {
@@ -287,6 +431,53 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
       setState(() {
         _reviewsLoading = false;
         _reviewsError = 'Failed to load reviews';
+      });
+    }
+  }
+
+  Future<void> _loadRecommendations() async {
+    final auth = context.read<AuthState>();
+
+    setState(() {
+      _recommendedLoading = true;
+      _recommendedError = null;
+      _recommendedFallback = false;
+    });
+
+    try {
+      final api = context.read<RoomWiseApiClient>();
+      List<HotelSearchItemDto> items = [];
+
+      if (auth.isLoggedIn) {
+        items = await api.getRecommendations(top: 5);
+        if (items.isEmpty) {
+          _recommendedFallback = true;
+          items = await api.getHotDeals();
+        }
+      } else {
+        // Not logged in – show popular deals instead of empty state.
+        _recommendedFallback = true;
+        items = await api.getHotDeals();
+      }
+
+      // keep it concise
+      if (items.length > 5) {
+        items = items.take(5).toList();
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _recommended
+          ..clear()
+          ..addAll(items);
+        _recommendedLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Recommendations load failed: $e');
+      if (!mounted) return;
+      setState(() {
+        _recommendedLoading = false;
+        _recommendedError = 'Failed to load recommendations.';
       });
     }
   }
@@ -842,6 +1033,34 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
                 ),
               ),
 
+              const SizedBox(height: 18),
+
+              // CARD 4: Recommendations
+              if (_recommendedLoading ||
+                  _recommendedError != null ||
+                  _recommended.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.03),
+                          blurRadius: 10,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: _buildRecommendedSection(),
+                  ),
+                ),
+
               const SizedBox(height: 24),
             ],
           ),
@@ -955,6 +1174,203 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
               ),
             ),
         ],
+      ],
+    );
+  }
+
+  Widget _buildRecommendedSection() {
+    if (_recommendedLoading) {
+      return const Center(
+        child: SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+
+    if (_recommendedError != null || _recommended.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionTitle('Recommended for you'),
+        if (_recommendedFallback)
+          const Padding(
+            padding: EdgeInsets.only(top: 2, bottom: 6),
+            child: Text(
+              'Showing popular picks for now.',
+              style: TextStyle(fontSize: 12, color: _textMuted),
+            ),
+          ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 215,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _recommended.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final h = _recommended[index];
+              final price = h.promotionPrice ?? h.fromPrice;
+              final hasPromo = h.promotionPrice != null;
+              return GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => GuestHotelPreviewScreen(
+                        hotelId: h.id,
+                        dateRange: widget.dateRange,
+                        guests: widget.guests,
+                      ),
+                    ),
+                  );
+                },
+                child: Container(
+                  width: 180,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(16),
+                        ),
+                        child: AspectRatio(
+                          aspectRatio: 16 / 9,
+                          child: h.thumbnailUrl == null || h.thumbnailUrl!.isEmpty
+                              ? Container(color: Colors.grey.shade200)
+                              : Image.network(
+                                  h.thumbnailUrl!,
+                                  fit: BoxFit.cover,
+                                ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              h.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: _textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.location_on_outlined,
+                                  size: 14,
+                                  color: _textMuted,
+                                ),
+                                const SizedBox(width: 3),
+                                Expanded(
+                                  child: Text(
+                                    h.city,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: _textMuted,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          '€${price.toStringAsFixed(0)}',
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: _accentOrange,
+                                          ),
+                                        ),
+                                        if (hasPromo) ...[
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            '€${h.fromPrice.toStringAsFixed(0)}',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: _textMuted,
+                                              decoration:
+                                                  TextDecoration.lineThrough,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                    const SizedBox(height: 2),
+                                    const Text(
+                                      'per night',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: _textMuted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (h.reviewCount > 0)
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.star,
+                                        size: 14,
+                                        color: Colors.amber,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        h.rating.toStringAsFixed(1),
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: _textPrimary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
       ],
     );
   }
@@ -1237,44 +1653,81 @@ class _RoomTypeCard extends StatelessWidget {
                       // Price + button
                       Row(
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '$currency ${room.priceFromPerNight.toStringAsFixed(0)}',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                  color: _accentOrange,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Wrap(
+                                  spacing: 6,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    Text(
+                                      '$currency ${room.priceFromPerNight.toStringAsFixed(0)}',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                        color: _accentOrange,
+                                      ),
+                                    ),
+                                    if (room.originalNightlyPrice != null &&
+                                        room.originalNightlyPrice! >
+                                            room.priceFromPerNight)
+                                      Text(
+                                        '$currency ${room.originalNightlyPrice!.toStringAsFixed(0)}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: _textMuted,
+                                          decoration: TextDecoration.lineThrough,
+                                        ),
+                                      ),
+                                  ],
                                 ),
-                              ),
-                              const SizedBox(height: 2),
-                              const Text(
-                                'per night',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: _textMuted,
+                                const SizedBox(height: 2),
+                                const Text(
+                                  'per night',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: _textMuted,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const Spacer(),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _primaryGreen,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 10,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
+                                if (room.promotionTitle != null &&
+                                    room.promotionTitle!.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      room.promotionTitle!,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: _textMuted,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
-                            onPressed: room.roomsLeft == 0 ? null : onSelect,
-                            child: const Text(
-                              'Select',
-                              style: TextStyle(fontSize: 13),
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _primaryGreen,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 10,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                                onPressed: room.roomsLeft == 0 ? null : onSelect,
+                                child: const Text(
+                                  'Select',
+                                  style: TextStyle(fontSize: 13),
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -1310,4 +1763,10 @@ class _RoomTypeCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _BookingSelection {
+  final DateTimeRange range;
+  final int guests;
+  _BookingSelection(this.range, this.guests);
 }

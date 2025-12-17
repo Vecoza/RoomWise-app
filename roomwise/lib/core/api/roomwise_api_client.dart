@@ -25,6 +25,8 @@ import '../models/hotel_details_dto.dart';
 import '../models/auth_dto.dart';
 
 class RoomWiseApiClient {
+  static const bool _logApi = false;
+
   RoomWiseApiClient({String? hostOverride})
     : _dio = Dio(
         BaseOptions(
@@ -39,18 +41,22 @@ class RoomWiseApiClient {
           if (_authToken != null && _authToken!.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $_authToken';
           }
-          debugPrint(
-            '[API] → ${options.method} ${options.uri} '
-            'data=${_safeDataPreview(options.data)}',
-          );
+          if (_logApi) {
+            debugPrint(
+              '[API] → ${options.method} ${options.uri} '
+              'data=${_safeDataPreview(options.data)}',
+            );
+          }
           return handler.next(options);
         },
         onResponse: (response, handler) {
-          debugPrint(
-            '[API] ← ${response.requestOptions.method} '
-            '${response.requestOptions.uri} '
-            'status=${response.statusCode}',
-          );
+          if (_logApi) {
+            debugPrint(
+              '[API] ← ${response.requestOptions.method} '
+              '${response.requestOptions.uri} '
+              'status=${response.statusCode}',
+            );
+          }
           return handler.next(response);
         },
         onError: (error, handler) async {
@@ -96,12 +102,14 @@ class RoomWiseApiClient {
             }
           }
 
-          debugPrint(
-            '[API] ✖ ${error.requestOptions.method} '
-            '${error.requestOptions.uri} '
-            'status=${error.response?.statusCode} '
-            'message=${error.message}',
-          );
+          if (_logApi) {
+            debugPrint(
+              '[API] ✖ ${error.requestOptions.method} '
+              '${error.requestOptions.uri} '
+              'status=${error.response?.statusCode} '
+              'message=${error.message}',
+            );
+          }
           return handler.next(error);
         },
       ),
@@ -144,6 +152,26 @@ class RoomWiseApiClient {
           (json) => HotelSearchItemDto.fromJson(json as Map<String, dynamic>),
         )
         .toList();
+  }
+
+  // ---- RECOMMENDATIONS ----
+  Future<List<HotelSearchItemDto>> getRecommendations({int top = 5}) async {
+    try {
+      final response = await _dio.get(
+        '/Hotels/recommendations',
+        queryParameters: {'top': top},
+      );
+      final data = _extractList(response.data);
+      return data
+          .map(
+            (json) => HotelSearchItemDto.fromJson(json as Map<String, dynamic>),
+          )
+          .toList();
+    } on DioException catch (e) {
+      // Treat 404 as "no recommendations available" instead of crashing UI.
+      if (e.response?.statusCode == 404) return [];
+      rethrow;
+    }
   }
 
   // ---- TAGS CATEGORIES ----
@@ -287,13 +315,12 @@ class RoomWiseApiClient {
 
   Future<LoyaltyBalanceDto> getLoyaltyBalance() async {
     try {
-      final response = await _dio.get('/api/loyalty/balance');
+      final response = await _dio.get('/Loyalty/balance');
       return LoyaltyBalanceDto.fromJson(response.data);
     } on DioException catch (e) {
-      if (e.response?.statusCode == 404 || e.response?.statusCode == 405) {
-        final response = await _dio.get('/Loyalty/balance');
-        return LoyaltyBalanceDto.fromJson(response.data);
-      }
+      debugPrint(
+        'getLoyaltyBalance failed: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
       rethrow;
     }
   }
@@ -607,10 +634,12 @@ class RoomWiseApiClient {
   Future<PaymentIntentDto> createPaymentIntent({
     required int reservationId,
     required String paymentMethod,
+    int? loyaltyPointsToRedeem,
   }) async {
     final body = {
       'reservationId': reservationId,
       'paymentMethod': paymentMethod,
+      if (loyaltyPointsToRedeem != null) 'loyaltyPointsToRedeem': loyaltyPointsToRedeem,
     };
 
     debugPrint('CREATE PAYMENT INTENT REQUEST: $body');

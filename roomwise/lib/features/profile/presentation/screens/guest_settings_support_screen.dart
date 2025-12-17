@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:roomwise/l10n/app_localizations.dart';
 
 class GuestSettingsSupportScreen extends StatelessWidget {
   const GuestSettingsSupportScreen({super.key});
@@ -16,10 +17,11 @@ class GuestSettingsSupportScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: _bgColor,
       appBar: AppBar(
-        title: const Text('Support & FAQ'),
+        title: Text(t.supportTitle),
         backgroundColor: _bgColor,
         elevation: 0,
       ),
@@ -34,9 +36,9 @@ class GuestSettingsSupportScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _buildHeaderCard(),
+                      _buildHeaderCard(context),
                       const SizedBox(height: 16),
-                      _buildFaqCard(),
+                      _buildFaqCard(context),
                       const SizedBox(height: 16),
                       _buildContactCard(context),
                     ],
@@ -52,7 +54,8 @@ class GuestSettingsSupportScreen extends StatelessWidget {
 
   // ----- CARDS -----
 
-  Widget _buildHeaderCard() {
+  Widget _buildHeaderCard(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return _supportCard(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -66,22 +69,22 @@ class GuestSettingsSupportScreen extends StatelessWidget {
             child: const Icon(Icons.support_agent, color: _primaryGreen),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'How can we help?',
-                  style: TextStyle(
+                  t.supportHeaderTitle,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     color: _textPrimary,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  'Browse common questions or reach out to our support team if something is unclear.',
-                  style: TextStyle(fontSize: 13, color: _textMuted),
+                  t.supportHeaderSubtitle,
+                  style: const TextStyle(fontSize: 13, color: _textMuted),
                 ),
               ],
             ),
@@ -91,49 +94,46 @@ class GuestSettingsSupportScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFaqCard() {
+  Widget _buildFaqCard(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return _supportCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
+        children: [
           Text(
-            'Frequently asked questions',
-            style: TextStyle(
+            t.faqTitle,
+            style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
               color: _textPrimary,
             ),
           ),
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
           Text(
-            'Tap a question to see more details.',
-            style: TextStyle(fontSize: 12, color: _textMuted),
+            t.faqSubtitle,
+            style: const TextStyle(fontSize: 12, color: _textMuted),
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
 
           // FAQ items
           _FaqItem(
-            question: 'How do I change or cancel my reservation?',
-            answer:
-                'You can manage your stays from the Bookings tab. Tap on a reservation to view details and see the available options.',
+            question: t.faqQ1,
+            answer: t.faqA1,
           ),
-          _FaqDivider(),
+          const _FaqDivider(),
           _FaqItem(
-            question: 'Where can I see my loyalty points?',
-            answer:
-                'Your current point balance is visible in the Profile section under “Loyalty points”.',
+            question: t.faqQ2,
+            answer: t.faqA2,
           ),
-          _FaqDivider(),
+          const _FaqDivider(),
           _FaqItem(
-            question: 'What payment methods are supported?',
-            answer:
-                'You can usually pay by card via Stripe. Availability of other methods depends on the hotel and your country.',
+            question: t.faqQ3,
+            answer: t.faqA3,
           ),
-          _FaqDivider(),
+          const _FaqDivider(),
           _FaqItem(
-            question: 'I found an issue with my booking. What should I do?',
-            answer:
-                'If something looks wrong, please contact our support team with your booking reference so we can help as soon as possible.',
+            question: t.faqQ4,
+            answer: t.faqA4,
           ),
         ],
       ),
@@ -141,22 +141,23 @@ class GuestSettingsSupportScreen extends StatelessWidget {
   }
 
   Widget _buildContactCard(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return _supportCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Contact support',
-            style: TextStyle(
+          Text(
+            t.supportContactTitle,
+            style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
               color: _textPrimary,
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Didn’t find what you were looking for? Reach out and we’ll get back to you as soon as possible.',
-            style: TextStyle(fontSize: 12, color: _textMuted),
+          Text(
+            t.supportContactSubtitle,
+            style: const TextStyle(fontSize: 12, color: _textMuted),
           ),
           const SizedBox(height: 12),
           Row(

@@ -1,24 +1,32 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:provider/provider.dart';
 import 'package:roomwise/core/api/roomwise_api_client.dart';
 import 'package:roomwise/core/models/payment_dto.dart';
+import 'package:roomwise/core/models/addon_dto.dart';
+import 'package:roomwise/core/models/reservation_addOn_item_dto.dart';
 import 'package:roomwise/core/models/reservation_dto.dart';
 import 'package:roomwise/core/models/hotel_details_dto.dart';
 import 'package:roomwise/core/models/available_room_type_dto.dart';
+import 'package:roomwise/features/booking/sync/bookings_sync.dart';
 import 'guest_reservation_confirm_screen.dart';
+import 'package:roomwise/l10n/app_localizations.dart';
 
 class GuestReservationPreviewScreen extends StatefulWidget {
-  final ReservationDto reservation;
+  final CreateReservationRequestDto request;
   final HotelDetailsDto hotel;
   final AvailableRoomTypeDto roomType;
   final String paymentMethod; // 'Card' or 'PayOnArrival'
+  final String? cardHolderName;
 
   const GuestReservationPreviewScreen({
     super.key,
-    required this.reservation,
+    required this.request,
     required this.hotel,
     required this.roomType,
     required this.paymentMethod,
+    this.cardHolderName,
   });
 
   @override
@@ -38,22 +46,25 @@ class _GuestReservationPreviewScreenState
   bool _submitting = false;
   String? _error;
   final GlobalKey _bodyKey = GlobalKey(debugLabel: 'preview-body');
+  double _loyaltyBalance = 0;
+  bool _loyaltyLoaded = false;
 
   @override
   void initState() {
     super.initState();
     _logScreenData();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadLoyaltyBalance());
   }
 
   void _logScreenData() {
-    final r = widget.reservation;
+    final r = widget.request;
     final h = widget.hotel;
     final room = widget.roomType;
     debugPrint(
-      '[PreviewScreen] reservationId=${r.id}, hotel=${h.name}, room=${room.name}, '
+      '[PreviewScreen] pending reservation hotel=${h.name}, room=${room.name}, '
       'paymentMethod=${widget.paymentMethod}, guests=${r.guests}, '
-      'total=${r.currency} ${r.total.toStringAsFixed(2)}, '
-      'dates=${r.checkIn} -> ${r.checkOut}',
+      'dates=${r.checkIn} -> ${r.checkOut}, '
+      'cardHolder=${widget.cardHolderName}',
     );
 
     // After first frame, log body size to confirm it's in the tree
@@ -63,42 +74,192 @@ class _GuestReservationPreviewScreenState
     });
   }
 
+  Future<void> _loadLoyaltyBalance() async {
+    try {
+      final api = context.read<RoomWiseApiClient>();
+      final bal = await api.getLoyaltyBalance();
+      if (!mounted) return;
+      setState(() {
+        _loyaltyBalance = bal.balance.toDouble();
+        _loyaltyLoaded = true;
+      });
+    } catch (e) {
+      debugPrint('[PreviewScreen] Could not load loyalty balance: $e');
+      if (!mounted) return;
+      setState(() {
+        _loyaltyBalance = 0;
+        _loyaltyLoaded = true;
+      });
+    }
+  }
+
   Future<void> _onConfirmPressed() async {
     setState(() {
       _submitting = true;
       _error = null;
     });
 
+    final expectedTotal = _grandTotalFromRequest;
+    final expectedFinal = _finalTotal;
+
+    _logFlow('expected', {
+      'hotelId': widget.request.hotelId,
+      'roomTypeId': widget.request.roomTypeId,
+      'nights': _nightsFromRequest,
+      'guests': widget.request.guests,
+      'roomTotal': _roomTotalFromRequest,
+      'addOnsTotal': _addOnsTotalFromRequest,
+      'grandTotal': expectedTotal,
+      'loyaltyApplied': _loyaltyApplied,
+      'finalTotal': expectedFinal,
+      'paymentMethod': widget.paymentMethod,
+    });
+
     try {
-      PaymentIntentDto? intent;
+      final isCard = widget.paymentMethod == 'Card';
+      // Backend auto-applies the full balance; don't send a client override.
+      const int? pointsToRedeem = null;
+      final api = context.read<RoomWiseApiClient>();
 
-      if (widget.paymentMethod == 'Card') {
-        final api = context.read<RoomWiseApiClient>();
+      if (isCard) {
+        _logFlow('create_with_intent', {
+          'hotelId': widget.request.hotelId,
+          'roomTypeId': widget.request.roomTypeId,
+          'nights': _nightsFromRequest,
+          'guests': widget.request.guests,
+          'total': expectedTotal,
+          'final': expectedFinal,
+          'redeem': pointsToRedeem,
+        });
 
-        // Ask backend for PaymentIntent for this reservation
-        intent = await api.createPaymentIntent(
-          reservationId: widget.reservation.id,
-          paymentMethod: 'Card',
-        );
-        // Stripe confirmation would go here using intent.clientSecret
-      }
-
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => GuestReservationConfirmScreen(
-            reservation: widget.reservation,
-            hotel: widget.hotel,
-            roomType: widget.roomType,
-            paymentIntent: intent,
+        // Create reservation + intent now
+        final resWithIntent = await api.createReservationWithIntent(
+          CreateReservationRequestDto(
+            hotelId: widget.request.hotelId,
+            roomTypeId: widget.request.roomTypeId,
+            checkIn: widget.request.checkIn,
+            checkOut: widget.request.checkOut,
+            guests: widget.request.guests,
+            addOns: widget.request.addOns,
+            paymentMethod: widget.paymentMethod,
+            loyaltyPointsToRedeem: pointsToRedeem,
           ),
-        ),
-      );
+        );
+
+        final intent = resWithIntent.payment;
+        _logFlow('backend_with_intent', {
+          'reservationTotal': resWithIntent.reservation.total,
+          'paymentAmount': intent.amount,
+          'paymentCurrency': intent.currency,
+          'clientSecretProvided': intent.clientSecret.isNotEmpty,
+        });
+
+        final clientSecret = intent.clientSecret.isNotEmpty
+            ? intent.clientSecret
+            : (resWithIntent.clientSecret.isNotEmpty
+                  ? resWithIntent.clientSecret
+                  : '');
+
+        if (clientSecret.isEmpty) {
+          throw Exception('Missing clientSecret for payment confirmation.');
+        }
+
+        // Confirm the payment with Stripe using the card entered earlier
+        await Stripe.instance.confirmPayment(
+          paymentIntentClientSecret: clientSecret,
+          data: PaymentMethodParams.card(
+            paymentMethodData: PaymentMethodData(
+              billingDetails: BillingDetails(
+                name: (widget.cardHolderName?.trim().isEmpty ?? true)
+                    ? null
+                    : widget.cardHolderName!.trim(),
+              ),
+            ),
+          ),
+        );
+
+        // Points are deducted on backend after payment intent succeeds;
+        // zero locally so UI/next flows don't reapply stale balance.
+        if (mounted) {
+          setState(() {
+            _loyaltyBalance = 0;
+          });
+        }
+
+        context.read<BookingsSync>().markChanged();
+
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => GuestReservationConfirmScreen(
+              reservation: resWithIntent.reservation,
+              hotel: widget.hotel,
+              roomType: widget.roomType,
+              paymentIntent: intent,
+              displayTotalOverride: expectedFinal,
+            ),
+          ),
+        );
+      } else {
+        // Pay on arrival: create reservation now
+        _logFlow('create_pay_on_arrival', {
+          'hotelId': widget.request.hotelId,
+          'roomTypeId': widget.request.roomTypeId,
+          'nights': _nightsFromRequest,
+          'guests': widget.request.guests,
+          'total': expectedTotal,
+          'final': expectedFinal,
+          'redeem': pointsToRedeem,
+        });
+
+        final reservation = await api.createReservation(
+          CreateReservationRequestDto(
+            hotelId: widget.request.hotelId,
+            roomTypeId: widget.request.roomTypeId,
+            checkIn: widget.request.checkIn,
+            checkOut: widget.request.checkOut,
+            guests: widget.request.guests,
+            addOns: widget.request.addOns,
+            paymentMethod: widget.paymentMethod,
+            loyaltyPointsToRedeem: pointsToRedeem,
+          ),
+        );
+        _logFlow('backend_pay_on_arrival', {
+          'reservationTotal': reservation.total,
+          'currency': reservation.currency,
+        });
+
+        if ((reservation.total - expectedFinal).abs() > 0.01) {
+          setState(() {
+            _submitting = false;
+            _error =
+                'Price mismatch detected. Expected $expectedFinal but backend returned total=${reservation.total}. Please try again or contact support.';
+          });
+          return;
+        }
+
+        context.read<BookingsSync>().markChanged();
+
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => GuestReservationConfirmScreen(
+              reservation: reservation,
+              hotel: widget.hotel,
+              roomType: widget.roomType,
+              paymentIntent: null,
+              displayTotalOverride: expectedFinal,
+            ),
+          ),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'Failed to confirm reservation. Please try again.';
+        _error =
+            'Payment could not be completed. Please check your card details or try again.';
       });
     } finally {
       if (mounted) {
@@ -109,8 +270,9 @@ class _GuestReservationPreviewScreenState
 
   @override
   Widget build(BuildContext context) {
-    final r = widget.reservation;
+    final req = widget.request;
     final isCard = widget.paymentMethod == 'Card';
+    final t = AppLocalizations.of(context);
 
     debugPrint('[PreviewScreen] build -> start');
 
@@ -123,9 +285,12 @@ class _GuestReservationPreviewScreenState
           color: _textPrimary,
           onPressed: _submitting ? null : () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Review your stay',
-          style: TextStyle(color: _textPrimary, fontWeight: FontWeight.w700),
+        title: Text(
+          t?.reviewYourStay ?? 'Review your stay',
+          style: const TextStyle(
+            color: _textPrimary,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
       // IMPORTANT: we no longer use bottomNavigationBar
@@ -177,7 +342,12 @@ class _GuestReservationPreviewScreenState
   // ---------- UI sections ----------
 
   Widget _buildBottomBarRow(bool isCard) {
-    final r = widget.reservation;
+    final currency = widget.hotel.currency.isNotEmpty
+        ? widget.hotel.currency
+        : 'EUR';
+    final total = (_grandTotalFromRequest - _loyaltyApplied)
+        .clamp(0, 1e12)
+        .toStringAsFixed(2);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
@@ -204,7 +374,7 @@ class _GuestReservationPreviewScreenState
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${r.currency} ${r.total.toStringAsFixed(2)}',
+                  '$currency $total',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
@@ -320,7 +490,7 @@ class _GuestReservationPreviewScreenState
 
   /// Gradient hero with dates + payment pill
   Widget _buildSummaryHero() {
-    final r = widget.reservation;
+    final r = widget.request;
     final isCard = widget.paymentMethod == 'Card';
     final nights = widgetDateRangeNights;
 
@@ -328,7 +498,7 @@ class _GuestReservationPreviewScreenState
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
         gradient: const LinearGradient(
-          colors: [Color(0xFF05A87A), Color(0xFF0FB18A), Color(0xFFFF7A3C)],
+          colors: [Color(0xFF05A87A), Color(0xFF0FB18A)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -532,8 +702,12 @@ class _GuestReservationPreviewScreenState
   }
 
   Widget _buildDetailsCard() {
-    final r = widget.reservation;
+    final r = widget.request;
     final nights = widgetDateRangeNights;
+    final currency = widget.hotel.currency.isNotEmpty
+        ? widget.hotel.currency
+        : 'EUR';
+    final total = (_grandTotalFromRequest - _loyaltyApplied).clamp(0, 1e12);
 
     return Container(
       decoration: BoxDecoration(
@@ -605,7 +779,7 @@ class _GuestReservationPreviewScreenState
                 style: TextStyle(fontSize: 12, color: _textMuted),
               ),
               Text(
-                '${r.currency} ${r.total.toStringAsFixed(2)}',
+                '$currency ${total.toStringAsFixed(2)}',
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
@@ -614,20 +788,17 @@ class _GuestReservationPreviewScreenState
               ),
             ],
           ),
-          if (r.confirmationNumber != null) ...[
-            const SizedBox(height: 10),
-            Text(
-              'Temporary reference: ${r.confirmationNumber}',
-              style: const TextStyle(fontSize: 11, color: _textMuted),
-            ),
-          ],
         ],
       ),
     );
   }
 
   Widget _buildPaymentCard(bool isCard) {
-    final r = widget.reservation;
+    final currency = widget.hotel.currency.isNotEmpty
+        ? widget.hotel.currency
+        : 'EUR';
+    final totalText =
+        '$currency ${(_grandTotalFromRequest - _loyaltyApplied).clamp(0, 1e12).toStringAsFixed(2)}';
 
     return Container(
       decoration: BoxDecoration(
@@ -684,8 +855,8 @@ class _GuestReservationPreviewScreenState
                     const SizedBox(height: 3),
                     Text(
                       isCard
-                          ? 'We’ll securely process ${r.currency} ${r.total.toStringAsFixed(2)} with your card.'
-                          : 'You’ll pay ${r.currency} ${r.total.toStringAsFixed(2)} directly at the property when you arrive.',
+                          ? 'We’ll securely process $totalText with your card.'
+                          : 'You’ll pay $totalText directly at the property when you arrive.',
                       style: const TextStyle(
                         fontSize: 11,
                         color: _textMuted,
@@ -774,12 +945,77 @@ class _GuestReservationPreviewScreenState
     );
   }
 
-  // helper: nights if DTO doesn't provide
+  // helper: nights and totals from request
   int get widgetDateRangeNights {
-    final diff = widget.reservation.checkOut
-        .difference(widget.reservation.checkIn)
+    final diff = widget.request.checkOut
+        .difference(widget.request.checkIn)
         .inDays;
     return diff > 0 ? diff : 1;
+  }
+
+  int get _nightsFromRequest => widgetDateRangeNights;
+
+  double get _roomTotalFromRequest =>
+      widget.roomType.priceFromPerNight * _nightsFromRequest;
+
+  double get _addOnsTotalFromRequest {
+    double total = 0;
+    final addOns = widget.hotel.addOns;
+    for (final item in widget.request.addOns) {
+      AddonDto? found;
+      for (final AddonDto a in addOns) {
+        if (a.id == item.addOnId) {
+          found = a;
+          break;
+        }
+      }
+      final addOn = found;
+      if (addOn == null) continue;
+      double base = addOn.price * item.quantity;
+      switch (addOn.pricingModel) {
+        case 'PerNight':
+          base *= _nightsFromRequest;
+          break;
+        case 'PerGuestPerNight':
+          base *= _nightsFromRequest * widget.request.guests;
+          break;
+        case 'PerStay':
+        default:
+          break;
+      }
+      total += base;
+    }
+    return total;
+  }
+
+  double get _grandTotalFromRequest =>
+      _roomTotalFromRequest + _addOnsTotalFromRequest;
+
+  // Display-only estimate; backend applies full balance automatically.
+  double get _loyaltyApplied =>
+      _loyaltyLoaded ? math.min(_loyaltyBalance, _grandTotalFromRequest) : 0;
+
+  double get _finalTotal =>
+      (_grandTotalFromRequest - _loyaltyApplied).clamp(0, 1e12);
+
+  void _logFlow(String tag, Map<String, Object?> data) {
+    final buffer = StringBuffer('[Flow:$tag] ');
+    bool first = true;
+    data.forEach((key, value) {
+      if (!first) buffer.write(', ');
+      first = false;
+      buffer.write('$key=$value');
+    });
+    debugPrint(buffer.toString());
+  }
+
+  // Some backends return minor units (cents), some return major units.
+  // If the raw amount is already close to the expected, use it; otherwise fallback to /100.
+  double _coerceAmount(double raw, double expected) {
+    if ((raw - expected).abs() < 1.0) {
+      return raw;
+    }
+    return raw / 100.0;
   }
 
   // DATE FORMATTER – no time part

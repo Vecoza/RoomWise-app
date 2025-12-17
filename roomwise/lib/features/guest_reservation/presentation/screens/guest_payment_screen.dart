@@ -1,22 +1,26 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
-import 'package:roomwise/core/models/reservation_dto.dart';
+import 'package:provider/provider.dart';
+import 'package:roomwise/core/api/roomwise_api_client.dart';
 import 'package:roomwise/core/models/hotel_details_dto.dart';
+import 'package:roomwise/core/models/addon_dto.dart';
 import 'package:roomwise/core/models/available_room_type_dto.dart';
+import 'package:roomwise/core/models/reservation_addOn_item_dto.dart';
+import 'package:roomwise/core/models/reservation_dto.dart' show CreateReservationRequestDto;
 import 'package:roomwise/features/guest_reservation/presentation/screens/guest_reservation_preview.dart';
 
 class GuestPaymentScreen extends StatefulWidget {
-  final ReservationDto reservation;
+  final CreateReservationRequestDto request;
   final HotelDetailsDto hotel;
   final AvailableRoomTypeDto roomType;
-  final String clientSecret;
 
   const GuestPaymentScreen({
     super.key,
-    required this.reservation,
+    required this.request,
     required this.hotel,
     required this.roomType,
-    required this.clientSecret,
   });
 
   @override
@@ -32,9 +36,36 @@ class _GuestPaymentScreenState extends State<GuestPaymentScreen> {
 
   bool _loading = false;
   String? _error;
+  double _loyaltyBalance = 0;
+  bool _loyaltyLoaded = false;
 
   CardFieldInputDetails? _cardDetails;
   final TextEditingController _cardHolderController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadLoyaltyBalance());
+  }
+
+  Future<void> _loadLoyaltyBalance() async {
+    try {
+      final api = context.read<RoomWiseApiClient>();
+      final bal = await api.getLoyaltyBalance();
+      if (!mounted) return;
+      setState(() {
+        _loyaltyBalance = bal.balance.toDouble();
+        _loyaltyLoaded = true;
+      });
+    } catch (e) {
+      debugPrint('Payment screen: failed to load loyalty balance: $e');
+      if (!mounted) return;
+      setState(() {
+        _loyaltyBalance = 0;
+        _loyaltyLoaded = true;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -56,37 +87,20 @@ class _GuestPaymentScreenState extends State<GuestPaymentScreen> {
     });
 
     try {
-      await Stripe.instance.confirmPayment(
-        paymentIntentClientSecret: widget.clientSecret,
-        data: PaymentMethodParams.card(
-          paymentMethodData: PaymentMethodData(
-            billingDetails: BillingDetails(
-              name: _cardHolderController.text.trim().isEmpty
-                  ? null
-                  : _cardHolderController.text.trim(),
-            ),
-          ),
-        ),
-      );
-
+      // Do not charge here; just pass data forward
       if (!mounted) return;
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => GuestReservationPreviewScreen(
-            reservation: widget.reservation,
+            request: widget.request,
             hotel: widget.hotel,
             roomType: widget.roomType,
             paymentMethod: 'Card',
+            cardHolderName: _cardHolderController.text.trim(),
           ),
         ),
       );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error =
-            'Something went wrong while confirming payment. Please try again.';
-      });
     } finally {
       if (mounted) {
         setState(() => _loading = false);
@@ -101,12 +115,57 @@ class _GuestPaymentScreenState extends State<GuestPaymentScreen> {
     return '$day.$month.$year';
   }
 
+  double _computeAddOnsTotal() {
+    double total = 0;
+    final addOns = widget.hotel.addOns;
+    for (final item in widget.request.addOns) {
+      AddonDto? found;
+      for (final AddonDto a in addOns) {
+        if (a.id == item.addOnId) {
+          found = a;
+          break;
+        }
+      }
+      final addOn = found;
+      if (addOn == null) continue;
+      double base = addOn.price * item.quantity;
+      switch (addOn.pricingModel) {
+        case 'PerNight':
+          base *= widget.request.checkOut
+              .difference(widget.request.checkIn)
+              .inDays
+              .clamp(1, 365);
+          break;
+        case 'PerGuestPerNight':
+          base *= widget.request.checkOut
+                  .difference(widget.request.checkIn)
+                  .inDays
+                  .clamp(1, 365) *
+              widget.request.guests;
+          break;
+        case 'PerStay':
+        default:
+          break;
+      }
+      total += base;
+    }
+    return total;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final r = widget.reservation;
-    final totalText = '${r.currency} ${r.total.toStringAsFixed(2)}';
-    final nights = r.checkOut.difference(r.checkIn).inDays.clamp(1, 365);
-    final dateRange = '${_formatDate(r.checkIn)} – ${_formatDate(r.checkOut)}';
+    final req = widget.request;
+    final nights = req.checkOut.difference(req.checkIn).inDays.clamp(1, 365);
+    final currency =
+        widget.hotel.currency.isNotEmpty ? widget.hotel.currency : 'EUR';
+    final roomTotal = widget.roomType.priceFromPerNight * nights;
+    final addOnsTotal = _computeAddOnsTotal();
+    final baseTotal = roomTotal + addOnsTotal;
+    final loyaltyApplied =
+        _loyaltyLoaded ? math.min(_loyaltyBalance, baseTotal) : 0;
+    final finalTotal = (baseTotal - loyaltyApplied).clamp(0, 1e12);
+    final totalText = '$currency ${finalTotal.toStringAsFixed(2)}';
+    final dateRange = '${_formatDate(req.checkIn)} – ${_formatDate(req.checkOut)}';
 
     return Scaffold(
       backgroundColor: _bgColor,

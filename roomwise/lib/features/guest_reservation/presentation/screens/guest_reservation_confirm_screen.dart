@@ -9,6 +9,7 @@ class GuestReservationConfirmScreen extends StatelessWidget {
   final HotelDetailsDto hotel;
   final AvailableRoomTypeDto roomType;
   final PaymentIntentDto? paymentIntent;
+  final double? displayTotalOverride;
 
   const GuestReservationConfirmScreen({
     super.key,
@@ -16,6 +17,7 @@ class GuestReservationConfirmScreen extends StatelessWidget {
     required this.hotel,
     required this.roomType,
     this.paymentIntent,
+    this.displayTotalOverride,
   });
 
   static const _primaryGreen = Color(0xFF05A87A);
@@ -80,7 +82,29 @@ class GuestReservationConfirmScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = reservation;
-    final totalText = '${r.currency} ${r.total.toStringAsFixed(2)}';
+    final effectiveCurrency = r.currency.toUpperCase();
+    final expected = displayTotalOverride ?? r.total;
+
+    double? totalDisplay;
+    String? currencyDisplay;
+
+    if (displayTotalOverride != null) {
+      totalDisplay = displayTotalOverride;
+      currencyDisplay = effectiveCurrency;
+    }
+
+    if (totalDisplay == null && paymentIntent != null) {
+      final raw = paymentIntent!.amount.toDouble();
+      final coerced = _coerceAmount(raw, expected);
+      totalDisplay = coerced;
+      currencyDisplay = paymentIntent!.currency.toUpperCase();
+    }
+
+    totalDisplay ??= r.total;
+    currencyDisplay ??= effectiveCurrency;
+
+    final totalText =
+        '$currencyDisplay ${totalDisplay.toStringAsFixed(2)}';
     final (statusLabel, statusColor, statusBg) = _paymentStatusStyle();
 
     return Scaffold(
@@ -88,6 +112,7 @@ class GuestReservationConfirmScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: _bgColor,
         elevation: 0,
+        automaticallyImplyLeading: false,
         title: const Text(
           'Reservation confirmed',
           style: TextStyle(
@@ -427,5 +452,12 @@ class GuestReservationConfirmScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // Some backends return minor units (cents), some return major units.
+  // If the raw amount is already close to expected, use it; otherwise divide by 100.
+  double _coerceAmount(double raw, double expected) {
+    if ((raw - expected).abs() < 1.0) return raw;
+    return raw / 100.0;
   }
 }

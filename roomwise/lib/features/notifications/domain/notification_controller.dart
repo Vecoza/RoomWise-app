@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:roomwise/core/api/roomwise_api_client.dart';
 import 'package:roomwise/core/auth/auth_state.dart';
 import 'package:roomwise/core/models/notification_dto.dart';
@@ -8,6 +11,7 @@ class NotificationController extends ChangeNotifier {
   NotificationController({required this.api});
 
   final RoomWiseApiClient api;
+  bool _pendingNotify = false;
 
   final List<NotificationDto> _notifications = [];
   List<NotificationDto> get notifications => List.unmodifiable(_notifications);
@@ -31,13 +35,15 @@ class NotificationController extends ChangeNotifier {
     if (!loggedIn) {
       _isAuthenticated = false;
       _resetState();
-      notifyListeners();
+      // Defer notify to avoid setState during ancestor build
+      scheduleMicrotask(notifyListeners);
       return;
     }
 
     if (!_isAuthenticated) {
       _isAuthenticated = true;
-      loadFirstPage();
+      // Defer loading to next microtask so provider updates finish first
+      scheduleMicrotask(() => loadFirstPage());
     }
   }
 
@@ -80,13 +86,13 @@ class NotificationController extends ChangeNotifier {
         isRead: true,
         createdAt: old.createdAt,
       );
-      notifyListeners();
+      _safeNotify();
     }
   }
 
   Future<void> _loadPage() async {
     _isLoading = true;
-    notifyListeners();
+    _safeNotify();
 
     try {
       final PagedResult<NotificationDto> result = await api.getMyNotifications(
@@ -100,7 +106,7 @@ class NotificationController extends ChangeNotifier {
       _notifications.addAll(result.items);
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -109,5 +115,14 @@ class NotificationController extends ChangeNotifier {
     _page = 1;
     _totalCount = 0;
     _isLoading = false;
+  }
+
+  void _safeNotify() {
+    if (!hasListeners || _pendingNotify) return;
+    _pendingNotify = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _pendingNotify = false;
+      if (hasListeners) notifyListeners();
+    });
   }
 }

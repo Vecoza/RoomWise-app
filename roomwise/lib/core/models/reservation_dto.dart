@@ -94,6 +94,7 @@ class CreateReservationRequestDto {
   final int guests;
   final List<ReservationAddOnItemDto> addOns;
   final String paymentMethod;
+  final int? loyaltyPointsToRedeem;
 
   CreateReservationRequestDto({
     required this.hotelId,
@@ -103,6 +104,7 @@ class CreateReservationRequestDto {
     required this.guests,
     this.addOns = const [],
     required this.paymentMethod,
+    this.loyaltyPointsToRedeem,
   });
 
   Map<String, dynamic> toJson() => {
@@ -113,6 +115,8 @@ class CreateReservationRequestDto {
     'guests': guests,
     'addOns': addOns.map((a) => a.toJson()).toList(),
     'paymentMethod': paymentMethod,
+    if (loyaltyPointsToRedeem != null)
+      'loyaltyPointsToRedeem': loyaltyPointsToRedeem,
   };
 }
 

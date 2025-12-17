@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -44,6 +46,8 @@ class _GuestReservationDetailsScreenState
   String _paymentMethod = 'Card'; // 'Card' or 'PayOnArrival'
   bool _submitting = false;
   String? _error;
+  double _loyaltyBalance = 0;
+  bool _loyaltyLoaded = false;
 
   int get _nights => widget.dateRange.duration.inDays;
 
@@ -72,6 +76,43 @@ class _GuestReservationDetailsScreenState
   }
 
   double get _grandTotal => _roomTotal + _addOnsTotal;
+  double get _loyaltyApplied =>
+      _loyaltyLoaded ? math.min(_loyaltyBalance, _grandTotal) : 0;
+  double get _finalTotal => (_grandTotal - _loyaltyApplied).clamp(0, 1e12);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadLoyaltyBalance());
+  }
+
+  Future<void> _loadLoyaltyBalance() async {
+    final auth = context.read<AuthState>();
+    if (!auth.isLoggedIn) {
+      setState(() {
+        _loyaltyBalance = 0;
+        _loyaltyLoaded = true;
+      });
+      return;
+    }
+
+    try {
+      final api = context.read<RoomWiseApiClient>();
+      final balanceDto = await api.getLoyaltyBalance();
+      if (!mounted) return;
+      setState(() {
+        _loyaltyBalance = balanceDto.balance.toDouble();
+        _loyaltyLoaded = true;
+      });
+    } catch (e) {
+      debugPrint('Failed to load loyalty balance: $e');
+      if (!mounted) return;
+      setState(() {
+        _loyaltyBalance = 0;
+        _loyaltyLoaded = true;
+      });
+    }
+  }
 
   void _toggleAddon(AddonDto addon, bool selected) {
     setState(() {
@@ -109,8 +150,6 @@ class _GuestReservationDetailsScreenState
     });
 
     try {
-      final api = context.read<RoomWiseApiClient>();
-
       final selectedAddOnItems = _selectedAddonIds
           .map((id) => ReservationAddOnItemDto(addOnId: id, quantity: 1))
           .toList();
@@ -125,56 +164,31 @@ class _GuestReservationDetailsScreenState
         paymentMethod: _paymentMethod,
       );
 
-      debugPrint('CREATE RESERVATION REQUEST JSON: ${req.toJson()}');
+      debugPrint('CREATE RESERVATION REQUEST JSON (deferred): ${req.toJson()}');
 
       if (_paymentMethod == 'Card') {
-        final res = await api.createReservationWithIntent(req);
-        if (!mounted) return;
-        context.read<BookingsSync>().markChanged();
-
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => GuestPaymentScreen(
-              reservation: res.reservation,
+              request: req,
               hotel: widget.hotel,
               roomType: widget.roomType,
-              clientSecret: res.clientSecret,
             ),
           ),
         );
       } else {
-        final reservation = await api.createReservation(req);
-        if (!mounted) return;
-        context.read<BookingsSync>().markChanged();
-
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => GuestReservationPreviewScreen(
-              reservation: reservation,
+              request: req,
               hotel: widget.hotel,
               roomType: widget.roomType,
               paymentMethod: 'PayOnArrival',
             ),
           ),
         );
-      }
-    } on DioException catch (e) {
-      debugPrint('Create reservation failed: ${e.response?.statusCode}');
-      debugPrint('Response data: ${e.response?.data}');
-      debugPrint('Response headers: ${e.response?.headers}');
-      if (mounted) {
-        setState(() {
-          _error = 'Failed to create reservation. Please try again.';
-        });
-      }
-    } catch (e) {
-      debugPrint('Create reservation failed (non-Dio): $e');
-      if (mounted) {
-        setState(() {
-          _error = 'Failed to create reservation. Please try again.';
-        });
       }
     } finally {
       if (mounted) {
@@ -265,7 +279,7 @@ class _GuestReservationDetailsScreenState
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${hotel.currency} ${_grandTotal.toStringAsFixed(2)}',
+                    '${hotel.currency} ${_finalTotal.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
@@ -829,11 +843,13 @@ class _GuestReservationDetailsScreenState
           const SizedBox(height: 4),
           _priceRow('Room', _roomTotal),
           _priceRow('Add-ons', _addOnsTotal),
+          if (_loyaltyApplied > 0)
+            _priceRow('Loyalty discount', -_loyaltyApplied),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 6),
             child: Divider(height: 1),
           ),
-          _priceRow('Total (approx.)', _grandTotal, highlight: true),
+          _priceRow('Total (approx.)', _finalTotal, highlight: true),
           const SizedBox(height: 4),
           const Text(
             'Final price may vary slightly depending on currency and fees.',

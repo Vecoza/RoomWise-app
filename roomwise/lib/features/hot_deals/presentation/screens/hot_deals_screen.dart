@@ -502,16 +502,18 @@ class _HotDealCard extends StatelessWidget {
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: const [
-                              Icon(
+                            children: [
+                              const Icon(
                                 Icons.local_fire_department,
                                 size: 14,
                                 color: Colors.white,
                               ),
-                              SizedBox(width: 4),
+                              const SizedBox(width: 4),
                               Text(
-                                'Hot deal',
-                                style: TextStyle(
+                                hotel.promotionTitle?.isNotEmpty == true
+                                    ? hotel.promotionTitle!
+                                    : 'Hot deal',
+                                style: const TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white,
@@ -614,18 +616,38 @@ class _HotDealCard extends StatelessWidget {
                             children: [
                               const Text(
                                 'From',
-                                style:
-                                    TextStyle(fontSize: 11, color: _textMuted),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: _textMuted,
+                                ),
                               ),
                               const SizedBox(width: 4),
-                              Text(
-                                '${hotel.currencyCode} '
-                                '${hotel.effectivePrice.toStringAsFixed(0)}',
-                                style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w800,
-                                  color: _accentOrange,
-                                ),
+                              Row(
+                                children: [
+                                  Text(
+                                    '${hotel.currencyCode} '
+                                    '${hotel.effectivePrice.toStringAsFixed(0)}',
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                      color: _accentOrange,
+                                    ),
+                                  ),
+                                  if (hotel.promotionPrice != null &&
+                                      hotel.promotionPrice! > 0 &&
+                                      hotel.promotionPrice! <
+                                          hotel.fromPrice) ...[
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '${hotel.currencyCode} ${hotel.fromPrice.toStringAsFixed(0)}',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: _textMuted,
+                                        decoration: TextDecoration.lineThrough,
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                             ],
                           ),
@@ -651,6 +673,9 @@ class _HotDealCard extends StatelessWidget {
 
 // Small helpers to keep your old logic intact
 extension _HotelPriceExtension on HotelSearchItemDto {
-  double get effectivePrice => fromPrice;
-  String get currencyCode => '€';
+  double get effectivePrice =>
+      (promotionPrice != null && promotionPrice! > 0)
+          ? promotionPrice!
+          : fromPrice;
+  String get currencyCode => currency.isNotEmpty ? currency : '€';
 }

@@ -398,6 +398,7 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
       title: 'City',
       subtitle: 'Choose where you want to stay',
       child: DropdownButtonFormField<int>(
+        isExpanded: true,
         value: _selectedCityId,
         decoration: InputDecoration(
           filled: true,
