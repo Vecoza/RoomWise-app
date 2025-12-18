@@ -1,16 +1,27 @@
 # roomwise
 
-A new Flutter project.
+Roomwise is a single Flutter codebase that ships two apps:
 
-## Getting Started
+- **Guest app (mobile):** hotel discovery + booking flow.
+- **Admin app (desktop):** admin panel (separate UI).
 
-This project is a starting point for a Flutter application.
+## Entry points
 
-A few resources to get you started if this is your first Flutter project:
+- `lib/main.dart` → defaults to the **guest** app (`lib/main_guest.dart`)
+- `lib/main_admin.dart` → **admin** app entry point
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## Run
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Guest (default):
+
+- `flutter run`
+- or explicitly `flutter run -t lib/main_guest.dart`
+
+Admin (desktop):
+
+- `flutter run -t lib/main_admin.dart -d macos` (or `windows` / `linux`)
+
+## Notes
+
+- The admin UI is currently a placeholder `AdminRootShell` that requires an
+  authenticated user with the **Administrator** role.
