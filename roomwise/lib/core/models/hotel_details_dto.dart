@@ -55,7 +55,6 @@ class HotelDetailsDto {
     final tagsJson =
         (json['tags'] as List?) ?? (hotelJson['tags'] as List?) ?? const [];
 
-    // photos/gallery/images – pick first as hero, keep rest as gallery
     final imagesRaw =
         (json['photos'] as List?) ??
         (json['galleryUrls'] as List?) ??
@@ -76,7 +75,6 @@ class HotelDetailsDto {
             .map(HotelImageDto.fromJson)
             .toList();
 
-    // fallback: map string gallery to dto list if backend doesn't send objects
     final imagesFromPhotos = photos
         .asMap()
         .entries
@@ -124,8 +122,7 @@ class HotelDetailsDto {
           ? facilitiesJson
                 .map((e) => FacilityDto.fromJson(e as Map<String, dynamic>))
                 .toList()
-          : // backend returns "amenities": ["Free Wi-Fi", ...]
-            (json['amenities'] as List<dynamic>? ?? const [])
+          : (json['amenities'] as List<dynamic>? ?? const [])
                 .map((e) => FacilityDto(id: 0, code: '', name: e.toString()))
                 .toList(),
       addOns: addOnsJson

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:roomwise/core/api/roomwise_api_client.dart';
@@ -72,7 +73,12 @@ class NotificationController extends ChangeNotifier {
   Future<void> markAsRead(NotificationDto notification) async {
     if (!_isAuthenticated || notification.isRead) return;
 
-    await api.markNotificationAsRead(notification.id);
+    try {
+      await api.markNotificationAsRead(notification.id);
+    } catch (e) {
+      debugPrint('Mark notification as read failed: $e');
+      return;
+    }
 
     final idx = _notifications.indexWhere((n) => n.id == notification.id);
     if (idx != -1) {
@@ -104,6 +110,15 @@ class NotificationController extends ChangeNotifier {
           result.totalCount ?? (_notifications.length + result.items.length);
 
       _notifications.addAll(result.items);
+    } catch (e) {
+      debugPrint('Load notifications failed: $e');
+      if (e is DioException) {
+        final code = e.response?.statusCode;
+        if (code == 401 || code == 403) {
+          _isAuthenticated = false;
+          _resetState();
+        }
+      }
     } finally {
       _isLoading = false;
       _safeNotify();

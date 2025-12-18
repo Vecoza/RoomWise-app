@@ -11,7 +11,6 @@ class GuestRegisterScreen extends StatefulWidget {
 }
 
 class _GuestRegisterScreenState extends State<GuestRegisterScreen> {
-  // DESIGN TOKENS – reuse these across screens later
   static const _primaryGreen = Color(0xFF05A87A);
   static const _accentOrange = Color(0xFFFF7A3C);
   static const _radius = 16.0;

@@ -9,7 +9,6 @@ import 'package:roomwise/features/booking/sync/bookings_sync.dart';
 import 'package:roomwise/features/onboarding/onboarding_prefs.dart';
 import 'package:roomwise/features/onboarding/presentation/screens/guest_root_shell.dart';
 import 'package:roomwise/features/onboarding/presentation/screens/onboarding_screen_1.dart';
-import 'package:roomwise/features/onboarding/presentation/screens/guest_landing_screen.dart';
 import 'package:roomwise/features/wishlist/wishlist_sync.dart';
 import 'package:roomwise/features/notifications/domain/notification_controller.dart';
 import 'package:roomwise/core/search/search_state.dart';
@@ -121,9 +120,6 @@ class _AppBootstrapperState extends State<_AppBootstrapper> {
   }
 
   Future<void> _init() async {
-    final auth = context.read<AuthState>();
-    await auth.loadFromStorage();
-
     final seen = await OnboardingPrefs.hasSeenOnboarding();
 
     if (!mounted) return;

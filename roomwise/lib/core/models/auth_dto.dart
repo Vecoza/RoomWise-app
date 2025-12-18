@@ -48,9 +48,7 @@ class AuthResponseDto {
       token: json['token'] as String,
       refreshToken: json['refreshToken'] as String,
       refreshExpiresUtc: DateTime.parse(json['refreshExpiresUtc'] as String),
-      email:
-          json['email']
-              as String?, // your backend currently doesn't send this; safe
+      email: json['email'] as String?,
       roles:
           (json['roles'] as List<dynamic>?)
               ?.map((e) => e.toString())

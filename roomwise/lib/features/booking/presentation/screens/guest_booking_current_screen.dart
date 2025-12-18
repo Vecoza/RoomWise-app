@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:roomwise/core/api/roomwise_api_client.dart';
 import 'package:roomwise/core/models/guest_booking_list_item_dto.dart';
 import 'package:roomwise/features/booking/sync/bookings_sync.dart';
+import 'package:roomwise/l10n/app_localizations.dart';
 
 class GuestBookingCurrentScreen extends StatefulWidget {
   final GuestBookingListItemDto booking;
@@ -31,6 +32,7 @@ class _GuestBookingCurrentScreenState extends State<GuestBookingCurrentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final booking = widget.booking;
     final dateRange =
         '${_formatDate(booking.checkIn)} – ${_formatDate(booking.checkOut)}';
@@ -46,9 +48,9 @@ class _GuestBookingCurrentScreenState extends State<GuestBookingCurrentScreen> {
         elevation: 0,
         backgroundColor: _bgColor,
         centerTitle: false,
-        title: const Text(
-          'Reservation details',
-          style: TextStyle(
+        title: Text(
+          t.bookingDetailsTitle,
+          style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: _textPrimary,
@@ -95,29 +97,29 @@ class _GuestBookingCurrentScreenState extends State<GuestBookingCurrentScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const _SectionTitle('Stay details'),
+                                  _SectionTitle(t.bookingCurrentStayDetails),
                                   const SizedBox(height: 8),
                                   _DetailRow(
-                                    label: 'Room type',
+                                    label: t.bookingDetailsRoomType,
                                     value: booking.roomTypeName,
                                   ),
                                   _DetailRow(
-                                    label: 'Guests',
+                                    label: t.bookingDetailsGuests,
                                     value:
-                                        '${booking.guests} guest${booking.guests == 1 ? '' : 's'}',
+                                        '${booking.guests} ${t.guestsLabel(booking.guests)}',
                                   ),
                                   _DetailRow(
-                                    label: 'Nights',
+                                    label: t.bookingDetailsNights,
                                     value: '$_nights',
                                   ),
                                   _DetailRow(
-                                    label: 'Total price',
+                                    label: t.bookingDetailsTotal,
                                     value:
                                         '${booking.currency} ${booking.total.toStringAsFixed(2)}',
                                     highlight: true,
                                   ),
                                   const SizedBox(height: 16),
-                                  const _SectionTitle('Status'),
+                                  _SectionTitle(t.bookingPastStatusTitle),
                                   const SizedBox(height: 8),
                                   Row(
                                     children: [
@@ -144,7 +146,7 @@ class _GuestBookingCurrentScreenState extends State<GuestBookingCurrentScreen> {
                                             ),
                                             const SizedBox(width: 6),
                                             Text(
-                                              'Upcoming stay',
+                                              t.bookingCurrentStatusUpcoming,
                                               style: const TextStyle(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w600,
@@ -159,9 +161,11 @@ class _GuestBookingCurrentScreenState extends State<GuestBookingCurrentScreen> {
                                   const SizedBox(height: 10),
                                   Text(
                                     daysUntil == 0
-                                        ? 'Check-in is today. Have a great stay!'
-                                        : 'You will check-in on ${_formatDate(booking.checkIn)} '
-                                              '(${daysUntil} day${daysUntil == 1 ? '' : 's'} left).',
+                                        ? t.bookingCurrentToday
+                                        : t.bookingCurrentCountdown(
+                                            _formatDate(booking.checkIn),
+                                            daysUntil,
+                                          ),
                                     style: const TextStyle(
                                       fontSize: 13,
                                       color: _textPrimary,
@@ -169,13 +173,11 @@ class _GuestBookingCurrentScreenState extends State<GuestBookingCurrentScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 16),
-                                  const _SectionTitle('Important info'),
+                                  _SectionTitle(t.bookingCurrentImportant),
                                   const SizedBox(height: 8),
-                                  const Text(
-                                    'Check the property’s cancellation policy before cancelling. '
-                                    'Some stays may be non-refundable or only partially refundable '
-                                    'depending on how close you are to check-in.',
-                                    style: TextStyle(
+                                  Text(
+                                    t.bookingCurrentImportantText,
+                                    style: const TextStyle(
                                       fontSize: 13,
                                       color: _textMuted,
                                       height: 1.4,
@@ -212,11 +214,12 @@ class _GuestBookingCurrentScreenState extends State<GuestBookingCurrentScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Align(
+                    Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        'Need to change plans?',
-                        style: TextStyle(fontSize: 12, color: _textMuted),
+                        t.bookingCurrentChangePlans,
+                        style:
+                            const TextStyle(fontSize: 12, color: _textMuted),
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -240,9 +243,9 @@ class _GuestBookingCurrentScreenState extends State<GuestBookingCurrentScreen> {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : const Text(
-                                'Cancel reservation',
-                                style: TextStyle(
+                            : Text(
+                                t.bookingCurrentCancel,
+                                style: const TextStyle(
                                   fontWeight: FontWeight.w600,
                                   fontSize: 15,
                                 ),

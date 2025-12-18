@@ -12,6 +12,7 @@ import 'package:roomwise/core/search/search_state.dart';
 import 'package:roomwise/features/guest_reservation/presentation/screens/guest_reservation_details_screen.dart';
 import 'package:roomwise/features/onboarding/presentation/screens/guest_login_screen.dart';
 import 'package:roomwise/features/wishlist/wishlist_sync.dart';
+import 'package:roomwise/l10n/app_localizations.dart';
 
 class GuestHotelPreviewScreen extends StatefulWidget {
   final int hotelId;
@@ -56,11 +57,26 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
   bool _recommendedLoading = false;
   String? _recommendedError;
   bool _recommendedFallback = false;
+  String? _lastAuthToken;
 
   @override
   void initState() {
     super.initState();
+    _lastAuthToken = context.read<AuthState>().token;
     _loadDetails();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final authToken = context.read<AuthState>().token;
+    if (authToken == _lastAuthToken) return;
+    _lastAuthToken = authToken;
+
+    if (_hotel == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadRecommendations();
+    });
   }
 
   Future<void> _loadDetails() async {
@@ -92,14 +108,14 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
       debugPrint('Hotel details load failed: $e');
       if (!mounted) return;
       setState(() {
-        _error = 'Failed to load hotel details.';
+        _error = AppLocalizations.of(context)!.previewLoadFailed;
         _loading = false;
       });
     } catch (e) {
       debugPrint('Hotel details load failed (non-Dio): $e');
       if (!mounted) return;
       setState(() {
-        _error = 'Failed to load hotel details.';
+        _error = AppLocalizations.of(context)!.previewLoadFailed;
         _loading = false;
       });
     }
@@ -179,6 +195,7 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
       context: context,
       isScrollControlled: true,
       builder: (ctx) {
+        final t = AppLocalizations.of(ctx)!;
         DateTimeRange? localRange = dateRange;
         int localGuests = guests ?? 2;
 
@@ -212,9 +229,9 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Choose dates & guests',
-                    style: TextStyle(
+                  Text(
+                    t.previewSelectionTitle,
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
@@ -224,7 +241,7 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
                     leading: const Icon(Icons.date_range_outlined),
                     title: Text(
                       localRange == null
-                          ? 'Select dates'
+                          ? t.landingSelectDatesLabel
                           : '${_formatDate(localRange!.start)} → ${_formatDate(localRange!.end)}',
                     ),
                     onTap: pickRange,
@@ -233,9 +250,9 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Guests',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                      Text(
+                        t.landingGuestsLabel,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                       Row(
                         children: [
@@ -277,7 +294,7 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
                                 _BookingSelection(localRange!, localGuests),
                               );
                             },
-                      child: const Text('Continue'),
+                      child: Text(t.previewContinue),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -307,7 +324,7 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
     final auth = context.read<AuthState>();
     if (!auth.isLoggedIn) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please log in to update wishlist.')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.wishlistUpdateLogin)),
       );
 
       await Navigator.push(
@@ -346,7 +363,9 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            currentlyWishlisted ? 'Removed from wishlist' : 'Added to wishlist',
+            currentlyWishlisted
+                ? AppLocalizations.of(context)!.wishlistRemoved
+                : AppLocalizations.of(context)!.previewWishlistAdded,
           ),
         ),
       );
@@ -360,18 +379,18 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
         if (!mounted) return;
         setState(() => _isWishlisted = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please log in to update wishlist.')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.wishlistUpdateLogin)),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to update wishlist')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.wishlistUpdateFailed)),
         );
       }
     } catch (e) {
       debugPrint('Wishlist update failed (non-Dio): $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to update wishlist')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.wishlistUpdateFailed)),
       );
     } finally {
       if (mounted) {
@@ -430,13 +449,26 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
       if (!mounted) return;
       setState(() {
         _reviewsLoading = false;
-        _reviewsError = 'Failed to load reviews';
+        _reviewsError = AppLocalizations.of(context)!.previewReviewsLoadFailed;
       });
     }
   }
 
   Future<void> _loadRecommendations() async {
     final auth = context.read<AuthState>();
+    if (_recommendedLoading) return;
+
+    if (!auth.isLoggedIn) {
+      debugPrint('[Preview] recommendations skipped – not logged in');
+      if (!mounted) return;
+      setState(() {
+        _recommended.clear();
+        _recommendedError = null;
+        _recommendedLoading = false;
+        _recommendedFallback = false;
+      });
+      return;
+    }
 
     setState(() {
       _recommendedLoading = true;
@@ -446,21 +478,11 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
 
     try {
       final api = context.read<RoomWiseApiClient>();
-      List<HotelSearchItemDto> items = [];
+      var items = await api.getRecommendations(top: 5);
+      // Remove the hotel currently being viewed to avoid showing it again.
+      items = items.where((h) => h.id != widget.hotelId).toList();
+      debugPrint('[Preview] recommendations loaded: ${items.length}');
 
-      if (auth.isLoggedIn) {
-        items = await api.getRecommendations(top: 5);
-        if (items.isEmpty) {
-          _recommendedFallback = true;
-          items = await api.getHotDeals();
-        }
-      } else {
-        // Not logged in – show popular deals instead of empty state.
-        _recommendedFallback = true;
-        items = await api.getHotDeals();
-      }
-
-      // keep it concise
       if (items.length > 5) {
         items = items.take(5).toList();
       }
@@ -477,7 +499,7 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
       if (!mounted) return;
       setState(() {
         _recommendedLoading = false;
-        _recommendedError = 'Failed to load recommendations.';
+        _recommendedError = AppLocalizations.of(context)!.landingRecommendationsFailed;
       });
     }
   }
@@ -535,7 +557,7 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
     if (images.isEmpty) {
       return AspectRatio(
         aspectRatio: 16 / 9,
-        child: Container(
+       child: Container(
           decoration: BoxDecoration(
             color: Colors.grey.shade200,
             borderRadius: BorderRadius.circular(20),
@@ -695,6 +717,7 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
   Widget _buildContent(HotelDetailsDto hotel) {
     final rooms = hotel.availableRoomTypes;
     final currency = hotel.currency.isNotEmpty ? hotel.currency : '€';
+    final t = AppLocalizations.of(context)!;
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -790,21 +813,21 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
                                             fontSize: 13,
                                             fontWeight: FontWeight.w600,
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${_reviews.length} review${_reviews.length == 1 ? '' : 's'}',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: _textMuted,
-                                    ),
                                   ),
                                 ],
-                              );
-                            },
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              t.previewReviewsCount(_reviews.length),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: _textMuted,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                           ),
                         ],
                       ),
@@ -845,7 +868,7 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
                               _InfoPill(
                                 icon: Icons.person_outline,
                                 label:
-                                    '${widget.guests} guest${widget.guests == 1 ? '' : 's'}',
+                                    t.previewGuestsCount(widget.guests!),
                               ),
                           ],
                         ),
@@ -882,7 +905,7 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
                       // About
                       if (hotel.description != null &&
                           hotel.description!.trim().isNotEmpty) ...[
-                        const _SectionTitle('About this stay'),
+                        _SectionTitle(t.previewSectionAbout),
                         const SizedBox(height: 6),
                         Text(
                           hotel.description!,
@@ -897,7 +920,7 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
 
                       // Facilities
                       if (hotel.facilities.isNotEmpty) ...[
-                        const _SectionTitle('Facilities'),
+                        _SectionTitle(t.previewSectionFacilities),
                         const SizedBox(height: 8),
                         Wrap(
                           spacing: 8,
@@ -925,7 +948,7 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
 
                       // Add-ons
                       if (hotel.addOns.isNotEmpty) ...[
-                        const _SectionTitle('Add-ons'),
+                        _SectionTitle(t.previewSectionAddOns),
                         const SizedBox(height: 8),
                         Wrap(
                           spacing: 8,
@@ -980,12 +1003,12 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const _SectionTitle('Rooms'),
+                      _SectionTitle(t.previewRoomsTitle),
                       const SizedBox(height: 8),
                       if (rooms.isEmpty)
-                        const Text(
-                          'No rooms available for the selected dates.',
-                          style: TextStyle(fontSize: 13, color: _textMuted),
+                        Text(
+                          t.previewNoRooms,
+                          style: const TextStyle(fontSize: 13, color: _textMuted),
                         )
                       else
                         ListView.separated(
@@ -1029,7 +1052,7 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
                       ),
                     ],
                   ),
-                  child: _buildReviewsSection(),
+                  child: _buildReviewsSection(t),
                 ),
               ),
 
@@ -1069,11 +1092,11 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
     );
   }
 
-  Widget _buildReviewsSection() {
+  Widget _buildReviewsSection(AppLocalizations t) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _SectionTitle('Reviews'),
+        _SectionTitle(t.previewReviewsTitle),
         const SizedBox(height: 8),
         if (_reviewsLoading && _reviews.isEmpty)
           const Padding(
@@ -1091,14 +1114,14 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
               ),
               TextButton(
                 onPressed: () => _loadReviews(reset: true),
-                child: const Text('Retry'),
+                child: Text(t.retry),
               ),
             ],
           )
         else if (_reviews.isEmpty)
-          const Text(
-            'No reviews yet.',
-            style: TextStyle(fontSize: 13, color: _textMuted),
+          Text(
+            t.previewReviewsEmpty,
+            style: const TextStyle(fontSize: 13, color: _textMuted),
           )
         else ...[
           ListView.separated(
@@ -1170,7 +1193,7 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
                         width: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Load more'),
+                    : Text(t.previewLoadMore),
               ),
             ),
         ],
@@ -1179,6 +1202,10 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
   }
 
   Widget _buildRecommendedSection() {
+    if (!context.watch<AuthState>().isLoggedIn) {
+      return const SizedBox.shrink();
+    }
+
     if (_recommendedLoading) {
       return const Center(
         child: SizedBox(
@@ -1193,18 +1220,11 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
       return const SizedBox.shrink();
     }
 
+    final t = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _SectionTitle('Recommended for you'),
-        if (_recommendedFallback)
-          const Padding(
-            padding: EdgeInsets.only(top: 2, bottom: 6),
-            child: Text(
-              'Showing popular picks for now.',
-              style: TextStyle(fontSize: 12, color: _textMuted),
-            ),
-          ),
+        _SectionTitle(t.landingRecommendedTitle),
         const SizedBox(height: 8),
         SizedBox(
           height: 215,
@@ -1216,6 +1236,7 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
               final h = _recommended[index];
               final price = h.promotionPrice ?? h.fromPrice;
               final hasPromo = h.promotionPrice != null;
+              final currency = h.currency.isNotEmpty ? h.currency : '€';
               return GestureDetector(
                 onTap: () {
                   Navigator.push(
@@ -1309,7 +1330,10 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
                                     Row(
                                       children: [
                                         Text(
-                                          '€${price.toStringAsFixed(0)}',
+                                          t.landingFromPrice(
+                                            currency,
+                                            price.toStringAsFixed(0),
+                                          ),
                                           style: const TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w700,
@@ -1319,7 +1343,10 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
                                         if (hasPromo) ...[
                                           const SizedBox(width: 6),
                                           Text(
-                                            '€${h.fromPrice.toStringAsFixed(0)}',
+                                            t.landingFromPrice(
+                                              currency,
+                                              h.fromPrice.toStringAsFixed(0),
+                                            ),
                                             style: const TextStyle(
                                               fontSize: 11,
                                               color: _textMuted,
@@ -1331,9 +1358,9 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
                                       ],
                                     ),
                                     const SizedBox(height: 2),
-                                    const Text(
-                                      'per night',
-                                      style: TextStyle(
+                                    Text(
+                                      t.landingPerNight,
+                                      style: const TextStyle(
                                         fontSize: 11,
                                         color: _textMuted,
                                       ),
@@ -1410,6 +1437,7 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     Widget body;
 
     if (_loading) {
@@ -1421,12 +1449,12 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
           children: [
             Text(_error!, style: const TextStyle(color: Colors.redAccent)),
             const SizedBox(height: 8),
-            TextButton(onPressed: _loadDetails, child: const Text('Retry')),
+            TextButton(onPressed: _loadDetails, child: Text(t.retry)),
           ],
         ),
       );
     } else if (_hotel == null) {
-      body = const Center(child: Text('Hotel not found.'));
+      body = Center(child: Text(t.previewHotelNotFound));
     } else {
       // Only wrap with RefreshIndicator when we have scrollable content
       body = RefreshIndicator(
@@ -1447,7 +1475,7 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
             onPressed: () => Navigator.of(context).pop(_wishlistChanged),
           ),
           title: Text(
-            _hotel?.name ?? 'Hotel',
+            _hotel?.name ?? t.previewHeaderFallback,
             style: const TextStyle(
               color: _textPrimary,
               fontWeight: FontWeight.w600,
@@ -1529,6 +1557,7 @@ class _RoomTypeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Material(
       borderRadius: BorderRadius.circular(18),
       color: Colors.white,
@@ -1623,9 +1652,9 @@ class _RoomTypeCard extends StatelessWidget {
                                 color: _primaryGreen.withOpacity(0.08),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Text(
-                                'Non-smoking',
-                                style: TextStyle(
+                              child: Text(
+                                t.previewNonSmoking,
+                                style: const TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
                                   color: _primaryGreen,
@@ -1636,8 +1665,8 @@ class _RoomTypeCard extends StatelessWidget {
                             const SizedBox(width: 8),
                             Text(
                               room.roomsLeft <= 3
-                                  ? 'Only ${room.roomsLeft} left!'
-                                  : '${room.roomsLeft} rooms left',
+                                  ? t.previewRoomsLeftFew(room.roomsLeft)
+                                  : t.previewRoomsLeft(room.roomsLeft),
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
@@ -1683,9 +1712,9 @@ class _RoomTypeCard extends StatelessWidget {
                                   ],
                                 ),
                                 const SizedBox(height: 2),
-                                const Text(
-                                  'per night',
-                                  style: TextStyle(
+                                Text(
+                                  t.landingPerNight,
+                                  style: const TextStyle(
                                     fontSize: 11,
                                     color: _textMuted,
                                   ),
@@ -1723,9 +1752,9 @@ class _RoomTypeCard extends StatelessWidget {
                                   ),
                                 ),
                                 onPressed: room.roomsLeft == 0 ? null : onSelect,
-                                child: const Text(
-                                  'Select',
-                                  style: TextStyle(fontSize: 13),
+                                child: Text(
+                                  t.previewSelect,
+                                  style: const TextStyle(fontSize: 13),
                                 ),
                               ),
                             ),

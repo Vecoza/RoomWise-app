@@ -4,6 +4,7 @@ import 'package:roomwise/core/api/roomwise_api_client.dart';
 import 'package:roomwise/core/models/city_dto.dart';
 import 'package:roomwise/core/models/hotel_search_item_dto.dart';
 import 'package:roomwise/features/guest_hotel/presentation/screens/guest_hotel_preview_screen.dart';
+import 'package:roomwise/l10n/app_localizations.dart';
 
 // Design tokens for this screen
 const _primaryGreen = Color(0xFF05A87A);
@@ -99,14 +100,16 @@ class _HotelSearchScreenState extends State<HotelSearchScreen> {
     } catch (e) {
       debugPrint('Hotel search failed: $e');
       setState(() {
-        _error = 'Failed to load hotels for ${widget.city.name}.';
+        _error = AppLocalizations.of(context)!
+            .searchErrorCity(widget.city.name);
         _loading = false;
       });
     }
   }
 
   String _formatDates() {
-    if (widget.dateRange == null) return 'Flexible dates';
+    final t = AppLocalizations.of(context)!;
+    if (widget.dateRange == null) return t.searchFlexibleDates;
     final start = widget.dateRange!.start;
     final end = widget.dateRange!.end;
     return '${start.day}.${start.month}.${start.year} – ${end.day}.${end.month}.${end.year}';
@@ -115,6 +118,7 @@ class _HotelSearchScreenState extends State<HotelSearchScreen> {
   @override
   Widget build(BuildContext context) {
     Widget body;
+    final t = AppLocalizations.of(context)!;
 
     if (_loading) {
       body = const Center(child: CircularProgressIndicator());
@@ -139,7 +143,7 @@ class _HotelSearchScreenState extends State<HotelSearchScreen> {
               const SizedBox(height: 8),
               TextButton(
                 onPressed: _loadHotels,
-                child: const Text('Try again'),
+                child: Text(t.retry),
               ),
             ],
           ),
@@ -159,15 +163,15 @@ class _HotelSearchScreenState extends State<HotelSearchScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'No stays found in ${widget.city.name}.',
+                t.searchEmptyTitle(widget.city.name),
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 14, color: _textPrimary),
               ),
               const SizedBox(height: 4),
-              const Text(
-                'Try adjusting your dates or filters.',
+              Text(
+                t.searchEmptySubtitle,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: _textMuted),
+                style: const TextStyle(fontSize: 12, color: _textMuted),
               ),
             ],
           ),
@@ -261,7 +265,7 @@ class _HotelSearchScreenState extends State<HotelSearchScreen> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        '${_hotels.length} stay${_hotels.length == 1 ? '' : 's'}',
+                        t.searchCount(_hotels.length),
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -316,8 +320,13 @@ class _HotelCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final hasRating = hotel.reviewCount > 0;
-    final priceText = 'From €${hotel.fromPrice.toStringAsFixed(0)}';
+    final currency = hotel.currency.isNotEmpty ? hotel.currency : '€';
+    final priceText = t.landingFromPrice(
+      currency,
+      hotel.fromPrice.toStringAsFixed(0),
+    );
 
     return InkWell(
       borderRadius: BorderRadius.circular(18),
@@ -488,9 +497,9 @@ class _HotelCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 2),
-                          const Text(
-                            'per night · incl. taxes (est.)',
-                            style: TextStyle(fontSize: 11, color: _textMuted),
+                          Text(
+                            t.searchPerNightTaxes,
+                            style: const TextStyle(fontSize: 11, color: _textMuted),
                           ),
                         ],
                       ),
@@ -514,7 +523,7 @@ class _HotelCard extends StatelessWidget {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              'View details',
+                              t.searchViewDetails,
                               style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,

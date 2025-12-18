@@ -9,6 +9,7 @@ import 'package:roomwise/features/auth/presentation/screens/guest_register_scree
 import 'package:roomwise/features/onboarding/presentation/screens/guest_login_screen.dart';
 import 'package:roomwise/features/guest_hotel/presentation/screens/guest_hotel_preview_screen.dart';
 import 'package:roomwise/features/wishlist/wishlist_sync.dart';
+import 'package:roomwise/l10n/app_localizations.dart';
 
 class GuestWishlistScreen extends StatefulWidget {
   const GuestWishlistScreen({super.key});
@@ -104,13 +105,15 @@ class GuestWishlistScreenState extends State<GuestWishlistScreen> {
           _items = [];
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please log in again to view your wishlist.'),
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.wishlistLoginAgain,
+            ),
           ),
         );
       } else {
         setState(() {
-          _error = 'Failed to load wishlist.';
+          _error = AppLocalizations.of(context)!.wishlistLoadFailed;
           _loading = false;
         });
       }
@@ -118,7 +121,7 @@ class GuestWishlistScreenState extends State<GuestWishlistScreen> {
       debugPrint('Load wishlist failed: $e');
       if (!mounted) return;
       setState(() {
-        _error = 'Failed to load wishlist.';
+        _error = AppLocalizations.of(context)!.wishlistLoadFailed;
         _loading = false;
       });
     }
@@ -138,7 +141,11 @@ class GuestWishlistScreenState extends State<GuestWishlistScreen> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Removed from wishlist')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.wishlistRemoved),
+        ),
+      );
     } on DioException catch (e) {
       debugPrint('Remove from wishlist failed: $e');
       if (!mounted) return;
@@ -147,18 +154,28 @@ class GuestWishlistScreenState extends State<GuestWishlistScreen> {
         await context.read<AuthState>().logout();
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please log in to update wishlist.')),
+          SnackBar(
+            content:
+                Text(AppLocalizations.of(context)!.wishlistUpdateLogin),
+          ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to update wishlist')),
+          SnackBar(
+            content:
+                Text(AppLocalizations.of(context)!.wishlistUpdateFailed),
+          ),
         );
       }
     } catch (e) {
       debugPrint('Remove from wishlist failed: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to update wishlist')),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.wishlistUpdateFailed,
+          ),
+        ),
       );
     }
   }
@@ -168,23 +185,24 @@ class GuestWishlistScreenState extends State<GuestWishlistScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthState>();
+    final t = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: _bgColor,
       appBar: AppBar(
-        title: const Text('Wishlist'),
+        title: Text(t.wishlistTitle),
         backgroundColor: _bgColor,
         elevation: 0,
       ),
       body: SafeArea(
-        child: auth.isLoggedIn ? _buildLoggedIn() : _buildLoggedOut(),
+        child: auth.isLoggedIn ? _buildLoggedIn(t) : _buildLoggedOut(t),
       ),
     );
   }
 
   // ---------- LOGGED OUT ----------
 
-  Widget _buildLoggedOut() {
+  Widget _buildLoggedOut(AppLocalizations t) {
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -195,19 +213,19 @@ class GuestWishlistScreenState extends State<GuestWishlistScreen> {
             children: [
               const Icon(Icons.favorite_border, size: 64, color: _textMuted),
               const SizedBox(height: 16),
-              const Text(
-                'Save your favourite stays',
-                style: TextStyle(
+              Text(
+                t.wishlistLoggedOutTitle,
+                style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
                   color: _textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Create an account or log in to start building your wishlist and quickly find places you love.',
+              Text(
+                t.wishlistLoggedOutSubtitle,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: _textMuted),
+                style: const TextStyle(fontSize: 14, color: _textMuted),
               ),
               const SizedBox(height: 24),
               SizedBox(
@@ -229,9 +247,9 @@ class GuestWishlistScreenState extends State<GuestWishlistScreen> {
                       ),
                     );
                   },
-                  child: const Text(
-                    'Create account',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                  child: Text(
+                    t.wishlistCreateAccount,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -244,7 +262,7 @@ class GuestWishlistScreenState extends State<GuestWishlistScreen> {
                   );
                   await _loadWishlist();
                 },
-                child: const Text('I already have an account'),
+                child: Text(t.alreadyAccount),
               ),
             ],
           ),
@@ -255,7 +273,7 @@ class GuestWishlistScreenState extends State<GuestWishlistScreen> {
 
   // ---------- LOGGED IN ----------
 
-  Widget _buildLoggedIn() {
+  Widget _buildLoggedIn(AppLocalizations t) {
     return RefreshIndicator(
       onRefresh: _loadWishlist,
       child: _loading
@@ -272,7 +290,7 @@ class GuestWishlistScreenState extends State<GuestWishlistScreen> {
                   const SizedBox(height: 8),
                   TextButton(
                     onPressed: _loadWishlist,
-                    child: const Text('Retry'),
+                    child: Text(t.retry),
                   ),
                 ],
               ),
@@ -326,29 +344,34 @@ class GuestWishlistScreenState extends State<GuestWishlistScreen> {
         padding: const EdgeInsets.all(20),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(Icons.favorite_border, size: 64, color: _textMuted),
-              SizedBox(height: 16),
-              Text(
-                'No favourites yet',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: _textPrimary,
-                ),
-              ),
-              SizedBox(height: 8),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24),
-                child: Text(
-                  'Tap the heart on a hotel to add it to your wishlist and easily revisit it later.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: _textMuted),
-                ),
-              ),
-            ],
+          child: Builder(
+            builder: (context) {
+              final t = AppLocalizations.of(context)!;
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.favorite_border, size: 64, color: _textMuted),
+                  const SizedBox(height: 16),
+                  Text(
+                    t.wishlistNoFavouritesTitle,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: _textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      t.wishlistNoFavouritesSubtitle,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 14, color: _textMuted),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),

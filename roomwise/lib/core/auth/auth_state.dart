@@ -21,6 +21,7 @@ class AuthState extends ChangeNotifier {
   String? _refreshToken;
   DateTime? _refreshExpiresUtc;
   List<String> _roles = const [];
+  bool _loggingOut = false;
 
   String? get token => _token;
   String? get email => _email;
@@ -104,23 +105,40 @@ class AuthState extends ChangeNotifier {
     _refreshToken = res.refreshToken;
     _refreshExpiresUtc = res.refreshExpiresUtc.toUtc();
     _email = res.email ?? email;
-    _roles = res.roles; // ✅
-
+    _roles = res.roles;
     _api.setAuthToken(_token);
     await _persist();
     notifyListeners();
   }
 
   Future<void> logout() async {
+    if (_loggingOut) return;
+
+    final alreadyLoggedOut =
+        _token == null &&
+        _email == null &&
+        (_refreshToken == null || _refreshToken!.isEmpty) &&
+        _refreshExpiresUtc == null &&
+        _roles.isEmpty;
+    if (alreadyLoggedOut) {
+      _api.setAuthToken(null);
+      return;
+    }
+
+    _loggingOut = true;
     debugPrint('AuthState.logout() CALLED');
-    _token = null;
-    _email = null;
-    _refreshToken = null;
-    _refreshExpiresUtc = null;
-    _roles = const [];
-    _api.setAuthToken(null);
-    await _persist();
-    notifyListeners();
+    try {
+      _token = null;
+      _email = null;
+      _refreshToken = null;
+      _refreshExpiresUtc = null;
+      _roles = const [];
+      _api.setAuthToken(null);
+      await _persist();
+      notifyListeners();
+    } finally {
+      _loggingOut = false;
+    }
   }
 
   bool get _canRefresh {

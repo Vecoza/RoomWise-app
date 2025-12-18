@@ -5,6 +5,7 @@ import 'package:roomwise/core/models/notification_dto.dart';
 
 import 'package:roomwise/features/notifications/domain/notification_controller.dart';
 import 'package:roomwise/features/onboarding/presentation/screens/guest_login_screen.dart';
+import 'package:roomwise/l10n/app_localizations.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -37,16 +38,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthState>();
+    final t = AppLocalizations.of(context)!;
 
     if (!auth.isLoggedIn) {
       return Scaffold(
         backgroundColor: _bgColor,
         appBar: AppBar(
-          title: const Text('Notifications'),
+          title: Text(t.notifications),
           backgroundColor: _bgColor,
           elevation: 0,
         ),
-        body: _buildLoggedOut(),
+        body: _buildLoggedOut(t),
       );
     }
 
@@ -88,7 +90,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           child: Row(
                             children: [
                               _FilterChip(
-                                label: 'All',
+                                label: t.notificationsFilterAll,
                                 isActive: !_showOnlyUnread,
                                 onTap: () {
                                   if (_showOnlyUnread) {
@@ -98,7 +100,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               ),
                               const SizedBox(width: 8),
                               _FilterChip(
-                                label: 'Unread',
+                                label: t.notificationsFilterUnread,
                                 isActive: _showOnlyUnread,
                                 onTap: () {
                                   if (!_showOnlyUnread) {
@@ -111,9 +113,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 TextButton(
                                   onPressed: () =>
                                       _markAllAsRead(allNotifications),
-                                  child: const Text(
-                                    'Mark all read',
-                                    style: TextStyle(
+                                  child: Text(
+                                    t.notificationsMarkAllRead,
+                                    style: const TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -142,7 +144,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return Scaffold(
       backgroundColor: _bgColor,
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: Text(t.notifications),
         backgroundColor: _bgColor,
         elevation: 0,
       ),
@@ -153,6 +155,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   // ---------- HEADER ----------
 
   Widget _buildHeader(int unreadCount) {
+    final t = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Container(
@@ -192,9 +195,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Your updates',
-                    style: TextStyle(
+                  Text(
+                    t.notificationsHeaderTitle,
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
@@ -203,8 +206,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   const SizedBox(height: 4),
                   Text(
                     unreadCount == 0
-                        ? 'You’re all caught up.'
-                        : '$unreadCount unread notification${unreadCount == 1 ? '' : 's'}.',
+                        ? t.notificationsAllCaughtUp
+                        : t.notificationsUnreadCount(unreadCount),
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.white.withOpacity(0.9),
@@ -232,7 +235,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'Unread',
+                      t.notificationsFilterUnread,
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -250,7 +253,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   // ---------- LOGGED OUT ----------
 
-  Widget _buildLoggedOut() {
+  Widget _buildLoggedOut(AppLocalizations t) {
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -273,19 +276,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
-                'Log in to see your notifications',
-                style: TextStyle(
+              Text(
+                t.notificationsLoggedOutTitle,
+                style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
                   color: _textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'We’ll show updates about your reservations, payments and account here.',
+              Text(
+                t.notificationsLoggedOutSubtitle,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: _textMuted),
+                style: const TextStyle(fontSize: 13, color: _textMuted),
               ),
               const SizedBox(height: 24),
               SizedBox(
@@ -313,9 +316,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           .loadFirstPage();
                     }
                   },
-                  child: const Text(
-                    'Log in',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                  child: Text(
+                    t.notificationsLoginButton,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -329,6 +332,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   // ---------- EMPTY / LIST ----------
 
   Widget _buildEmptyState(BoxConstraints constraints) {
+    final t = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 40),
       child: SizedBox(
@@ -338,22 +342,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             constraints: const BoxConstraints(maxWidth: 420),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(Icons.inbox_outlined, size: 60, color: _textMuted),
-                SizedBox(height: 14),
+              children: [
+                const Icon(Icons.inbox_outlined, size: 60, color: _textMuted),
+                const SizedBox(height: 14),
                 Text(
-                  'You’re all caught up',
-                  style: TextStyle(
+                  t.notificationsAllCaughtUp,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     color: _textPrimary,
                   ),
                 ),
-                SizedBox(height: 6),
+                const SizedBox(height: 6),
                 Text(
-                  'We’ll let you know when there’s something new about your stays.',
+                  t.notificationsEmptySubtitle,
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: _textMuted),
+                  style: const TextStyle(fontSize: 13, color: _textMuted),
                 ),
               ],
             ),
@@ -422,7 +426,6 @@ class _FilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const activeColor = Color(0xFF05A87A);
-    const textPrimary = Color(0xFF111827);
     const textMuted = Color(0xFF6B7280);
 
     return GestureDetector(
@@ -467,6 +470,7 @@ class _NotificationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = context.read<NotificationController>();
+    final t = AppLocalizations.of(context)!;
 
     final iconData = _iconForType(notification.type);
     final color = _colorForType(notification.type);
@@ -485,7 +489,7 @@ class _NotificationCard extends StatelessWidget {
       color: _textMuted,
     );
 
-    final pillText = _pillText(notification.type);
+    final pillText = _pillText(t, notification.type);
 
     return Material(
       color: isUnread ? _primaryGreen.withOpacity(0.03) : Colors.white,
@@ -528,7 +532,7 @@ class _NotificationCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            _displayMessage(notification),
+                            _displayMessage(t, notification),
                             style: titleStyle,
                           ),
                         ),
@@ -543,9 +547,9 @@ class _NotificationCard extends StatelessWidget {
                               color: _accentOrange.withOpacity(0.12),
                               borderRadius: BorderRadius.circular(999),
                             ),
-                            child: const Text(
-                              'New',
-                              style: TextStyle(
+                            child: Text(
+                              t.notificationsBadgeNew,
+                              style: const TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
                                 color: _accentOrange,
@@ -620,27 +624,27 @@ class _NotificationCard extends StatelessWidget {
     }
   }
 
-  String? _pillText(String type) {
+  String? _pillText(AppLocalizations t, String type) {
     switch (type) {
       case 'reservation_created':
-        return 'Reservation';
+        return t.notificationsPillReservation;
       case 'reservation_cancelled':
-        return 'Cancelled';
+        return t.notificationsPillCancelled;
       case 'payment_succeeded':
-        return 'Payment';
+        return t.notificationsPillPayment;
       default:
         return null;
     }
   }
 
-  String _displayMessage(NotificationDto n) {
+  String _displayMessage(AppLocalizations t, NotificationDto n) {
     switch (n.type) {
       case 'reservation_created':
-        return 'Your reservation has been created.';
+        return t.notificationsMessageReservationCreated;
       case 'reservation_cancelled':
-        return 'Your reservation was cancelled.';
+        return t.notificationsMessageReservationCancelled;
       case 'payment_succeeded':
-        return 'Payment completed successfully.';
+        return t.notificationsMessagePaymentSucceeded;
       default:
         return n.message;
     }

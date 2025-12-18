@@ -10,8 +10,8 @@ import 'package:roomwise/core/models/reservation_dto.dart';
 import 'package:roomwise/core/models/hotel_details_dto.dart';
 import 'package:roomwise/core/models/available_room_type_dto.dart';
 import 'package:roomwise/features/booking/sync/bookings_sync.dart';
-import 'guest_reservation_confirm_screen.dart';
 import 'package:roomwise/l10n/app_localizations.dart';
+import 'guest_reservation_confirm_screen.dart';
 
 class GuestReservationPreviewScreen extends StatefulWidget {
   final CreateReservationRequestDto request;
@@ -272,7 +272,7 @@ class _GuestReservationPreviewScreenState
   Widget build(BuildContext context) {
     final req = widget.request;
     final isCard = widget.paymentMethod == 'Card';
-    final t = AppLocalizations.of(context);
+    final t = AppLocalizations.of(context)!;
 
     debugPrint('[PreviewScreen] build -> start');
 
@@ -286,7 +286,7 @@ class _GuestReservationPreviewScreenState
           onPressed: _submitting ? null : () => Navigator.pop(context),
         ),
         title: Text(
-          t?.reviewYourStay ?? 'Review your stay',
+          t.reviewYourStay,
           style: const TextStyle(
             color: _textPrimary,
             fontWeight: FontWeight.w700,
@@ -349,6 +349,7 @@ class _GuestReservationPreviewScreenState
         .clamp(0, 1e12)
         .toStringAsFixed(2);
 
+    final t = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
       decoration: BoxDecoration(
@@ -368,9 +369,9 @@ class _GuestReservationPreviewScreenState
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'You will pay',
-                  style: TextStyle(fontSize: 11, color: _textMuted),
+                Text(
+                  t.previewYouWillPay,
+                  style: const TextStyle(fontSize: 11, color: _textMuted),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -404,7 +405,7 @@ class _GuestReservationPreviewScreenState
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : Text(
-                      isCard ? 'Confirm & pay' : 'Confirm reservation',
+                      isCard ? t.previewConfirmPay : t.previewConfirmReservation,
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -419,11 +420,12 @@ class _GuestReservationPreviewScreenState
 
   /// Stepper: Stay → Add-ons → Payment → Review
   Widget _buildStepsHeader() {
+    final t = AppLocalizations.of(context)!;
     final steps = <Map<String, Object>>[
-      {'label': 'Stay', 'icon': Icons.hotel},
-      {'label': 'Add-ons', 'icon': Icons.extension},
-      {'label': 'Payment', 'icon': Icons.credit_card},
-      {'label': 'Review', 'icon': Icons.visibility_outlined},
+      {'label': t.reservationStepStay, 'icon': Icons.hotel},
+      {'label': t.reservationStepAddOns, 'icon': Icons.extension},
+      {'label': t.reservationStepPayment, 'icon': Icons.credit_card},
+      {'label': t.previewStepReview, 'icon': Icons.visibility_outlined},
     ];
 
     return LayoutBuilder(
@@ -490,6 +492,7 @@ class _GuestReservationPreviewScreenState
 
   /// Gradient hero with dates + payment pill
   Widget _buildSummaryHero() {
+    final t = AppLocalizations.of(context)!;
     final r = widget.request;
     final isCard = widget.paymentMethod == 'Card';
     final nights = widgetDateRangeNights;
@@ -532,13 +535,13 @@ class _GuestReservationPreviewScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'One last look before you go',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                  Text(
+                    t.previewHeroTitle,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${_formatDate(r.checkIn)} → ${_formatDate(r.checkOut)} · $nights night${nights == 1 ? '' : 's'}',
+                    '${_formatDate(r.checkIn)} → ${_formatDate(r.checkOut)} · ${t.nightsLabel(nights)}',
                     style: const TextStyle(fontSize: 12, color: Colors.white70),
                   ),
                   const SizedBox(height: 6),
@@ -565,7 +568,9 @@ class _GuestReservationPreviewScreenState
                             ),
                             const SizedBox(width: 5),
                             Text(
-                              isCard ? 'Card payment' : 'Pay at property',
+                              isCard
+                                  ? t.previewPaymentCardPill
+                                  : t.previewPaymentPayOnPropertyPill,
                               style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w500,
@@ -585,7 +590,7 @@ class _GuestReservationPreviewScreenState
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
-                          'Guests: ${r.guests}',
+                          t.previewGuestsPill(r.guests),
                           style: const TextStyle(
                             fontSize: 11,
                             color: Colors.white,
@@ -606,6 +611,7 @@ class _GuestReservationPreviewScreenState
   Widget _buildHotelCard() {
     final hotel = widget.hotel;
     final room = widget.roomType;
+    final t = AppLocalizations.of(context)!;
 
     return Container(
       decoration: BoxDecoration(
@@ -708,6 +714,7 @@ class _GuestReservationPreviewScreenState
         ? widget.hotel.currency
         : 'EUR';
     final total = (_grandTotalFromRequest - _loyaltyApplied).clamp(0, 1e12);
+    final t = AppLocalizations.of(context)!;
 
     return Container(
       decoration: BoxDecoration(
@@ -725,9 +732,9 @@ class _GuestReservationPreviewScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Stay details',
-            style: TextStyle(
+          Text(
+            t.confirmStayDetails,
+            style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
               color: _textPrimary,
@@ -738,7 +745,7 @@ class _GuestReservationPreviewScreenState
             children: [
               Expanded(
                 child: _dateBox(
-                  label: 'Check-in',
+                  label: t.previewCheckIn,
                   icon: Icons.login,
                   value: _formatDate(r.checkIn),
                 ),
@@ -746,7 +753,7 @@ class _GuestReservationPreviewScreenState
               const SizedBox(width: 10),
               Expanded(
                 child: _dateBox(
-                  label: 'Check-out',
+                  label: t.previewCheckOut,
                   icon: Icons.logout,
                   value: _formatDate(r.checkOut),
                 ),
@@ -760,11 +767,11 @@ class _GuestReservationPreviewScreenState
             children: [
               _pill(
                 icon: Icons.nightlight_round,
-                label: '$nights night${nights == 1 ? '' : 's'}',
+                label: t.nightsLabel(nights),
               ),
               _pill(
                 icon: Icons.person_outline,
-                label: '${r.guests} guest${r.guests == 1 ? '' : 's'}',
+                label: t.guestsLabel(r.guests),
               ),
             ],
           ),
@@ -774,13 +781,13 @@ class _GuestReservationPreviewScreenState
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Total amount',
-                style: TextStyle(fontSize: 12, color: _textMuted),
-              ),
-              Text(
-                '$currency ${total.toStringAsFixed(2)}',
-                style: const TextStyle(
+          Text(
+            t.reservationPriceTotalApprox,
+            style: const TextStyle(fontSize: 12, color: _textMuted),
+          ),
+          Text(
+            '$currency ${total.toStringAsFixed(2)}',
+            style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
                   color: _accentOrange,
@@ -799,6 +806,7 @@ class _GuestReservationPreviewScreenState
         : 'EUR';
     final totalText =
         '$currency ${(_grandTotalFromRequest - _loyaltyApplied).clamp(0, 1e12).toStringAsFixed(2)}';
+    final t = AppLocalizations.of(context)!;
 
     return Container(
       decoration: BoxDecoration(
@@ -816,9 +824,9 @@ class _GuestReservationPreviewScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Payment',
-            style: TextStyle(
+          Text(
+            t.reservationStepPayment,
+            style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
               color: _textPrimary,
@@ -845,7 +853,9 @@ class _GuestReservationPreviewScreenState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isCard ? 'Card (online via Stripe)' : 'Pay at property',
+                      isCard
+                          ? t.previewPaymentCardTitle
+                          : t.previewPaymentPayOnPropertyTitle,
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -855,8 +865,8 @@ class _GuestReservationPreviewScreenState
                     const SizedBox(height: 3),
                     Text(
                       isCard
-                          ? 'We’ll securely process $totalText with your card.'
-                          : 'You’ll pay $totalText directly at the property when you arrive.',
+                          ? t.previewPaymentCardSubtitle(totalText)
+                          : t.previewPaymentPayOnPropertySubtitle(totalText),
                       style: const TextStyle(
                         fontSize: 11,
                         color: _textMuted,
@@ -874,10 +884,10 @@ class _GuestReservationPreviewScreenState
   }
 
   Widget _buildFinePrint() {
-    return const Text(
-      'By confirming, you agree to the property’s cancellation policy and '
-      'RoomWise terms of service.',
-      style: TextStyle(fontSize: 11, color: _textMuted, height: 1.4),
+    final t = AppLocalizations.of(context)!;
+    return Text(
+      t.previewFinePrint,
+      style: const TextStyle(fontSize: 11, color: _textMuted, height: 1.4),
     );
   }
 

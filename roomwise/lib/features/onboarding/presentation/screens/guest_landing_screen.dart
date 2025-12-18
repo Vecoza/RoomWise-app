@@ -12,6 +12,7 @@ import 'package:roomwise/features/guest_search/presentation/screens/guest_filter
 import 'package:roomwise/features/guest_search/presentation/screens/hotel_search_screen.dart';
 import 'package:roomwise/features/guest_search/presentation/screens/search_results_screen.dart';
 import 'package:roomwise/features/hot_deals/presentation/screens/hot_deals_screen.dart';
+import 'package:roomwise/l10n/app_localizations.dart';
 
 class GuestLandingScreen extends StatefulWidget {
   const GuestLandingScreen({super.key});
@@ -41,6 +42,7 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
   bool _tagsLoading = false;
   bool _recommendedLoading = false;
   String? _recommendedError;
+  String? _lastAuthToken;
 
   final TextEditingController _searchCtrl = TextEditingController();
   DateTimeRange? _selectedRange;
@@ -49,7 +51,6 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
   @override
   void initState() {
     super.initState();
-    _loadLandingData();
   }
 
   @override
@@ -58,7 +59,28 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
     super.dispose();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // React to auth changes so recommendations appear immediately after login.
+    final authToken = context.read<AuthState>().token;
+    if (authToken != _lastAuthToken) {
+      _lastAuthToken = authToken;
+      if (!_loading && _cities.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _loadRecommendations();
+        });
+      }
+    }
+
+    // Defer work that depends on inherited widgets (like localizations).
+    if (!_loading && _cities.isNotEmpty) return;
+    _loadLandingData();
+  }
+
   Future<void> _loadLandingData() async {
+    final t = AppLocalizations.of(context)!;
     setState(() {
       _loading = true;
       _error = null;
@@ -87,7 +109,7 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
       debugPrint('Landing data load failed: $e');
       if (!mounted) return;
       setState(() {
-        _error = 'Failed to load data. Please try again.';
+        _error = t.landingLoadFailed;
         _loading = false;
       });
     }
@@ -95,14 +117,15 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
 
   Future<void> _loadRecommendations() async {
     final auth = context.read<AuthState>();
+    if (_recommendedLoading) return;
     if (!auth.isLoggedIn) {
-      if (_recommended.isNotEmpty || _recommendedError != null) {
-        setState(() {
-          _recommended = [];
-          _recommendedError = null;
-          _recommendedLoading = false;
-        });
-      }
+      debugPrint('[Landing] recommendations skipped – not logged in');
+      if (!mounted) return;
+      setState(() {
+        _recommended = [];
+        _recommendedError = null;
+        _recommendedLoading = false;
+      });
       return;
     }
 
@@ -114,6 +137,7 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
     try {
       final api = context.read<RoomWiseApiClient>();
       final items = await api.getRecommendations(top: 5);
+      debugPrint('[Landing] recommendations loaded: ${items.length}');
       if (!mounted) return;
       setState(() {
         _recommended = items;
@@ -124,7 +148,8 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
       if (!mounted) return;
       setState(() {
         _recommendedLoading = false;
-        _recommendedError = 'Could not load recommendations.';
+        _recommendedError = AppLocalizations.of(context)!
+            .landingRecommendationsFailed;
       });
     }
   }
@@ -164,6 +189,7 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
   }
 
   void _onSearchPressed() {
+    final t = AppLocalizations.of(context)!;
     debugPrint(
       '[Landing] search pressed, range=$_selectedRange, guests=$_guests',
     );
@@ -171,7 +197,7 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
     if (_selectedRange == null) {
       debugPrint('[Landing] search aborted – no date range selected');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select dates first.')),
+        SnackBar(content: Text(t.landingSnackSelectDates)),
       );
       return;
     }
@@ -179,7 +205,7 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
     if (_guests <= 0) {
       debugPrint('[Landing] search aborted – invalid guests: $_guests');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please set number of guests.')),
+        SnackBar(content: Text(t.landingSnackGuests)),
       );
       return;
     }
@@ -213,6 +239,7 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     Widget body;
 
     if (_loading) {
@@ -227,12 +254,12 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
               style: const TextStyle(color: Colors.redAccent, fontSize: 14),
             ),
             const SizedBox(height: 8),
-            TextButton(onPressed: _loadLandingData, child: const Text('Retry')),
+            TextButton(onPressed: _loadLandingData, child: Text(t.retry)),
           ],
         ),
       );
     } else {
-      body = _buildContent();
+      body = _buildContent(t);
     }
 
     return Scaffold(
@@ -243,7 +270,7 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
 
   // ---------- MAIN CONTENT WITH HERO ----------
 
-  Widget _buildContent() {
+  Widget _buildContent(AppLocalizations t) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final maxWidth = constraints.maxWidth;
@@ -291,29 +318,29 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                children: const [
-                                  SizedBox(height: 4),
+                                children: [
+                                  const SizedBox(height: 4),
                                   Text(
-                                    'Roomwise',
-                                    style: TextStyle(
+                                    t.appTitle,
+                                    style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
                                       color: Colors.white70,
                                     ),
                                   ),
-                                  SizedBox(height: 6),
+                                  const SizedBox(height: 6),
                                   Text(
-                                    'Find your next stay',
-                                    style: TextStyle(
+                                    t.landingHeroTitle,
+                                    style: const TextStyle(
                                       fontSize: 24,
                                       fontWeight: FontWeight.w800,
                                       color: Colors.white,
                                     ),
                                   ),
-                                  SizedBox(height: 4),
+                                  const SizedBox(height: 4),
                                   Text(
-                                    'Smart search for hotels across Bosnia & Herzegovina.',
-                                    style: TextStyle(
+                                    t.landingHeroSubtitle,
+                                    style: const TextStyle(
                                       fontSize: 13,
                                       color: Colors.white70,
                                     ),
@@ -328,7 +355,7 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
                             left: horizontalPadding,
                             right: horizontalPadding,
                             bottom: 15,
-                            child: _buildSearchCard(),
+                            child: _buildSearchCard(t),
                           ),
                         ],
                       ),
@@ -348,13 +375,13 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildExploreSection(),
+                          _buildExploreSection(t),
                           const SizedBox(height: 24),
-                          _buildHotDealsSection(),
+                          _buildHotDealsSection(t),
                           const SizedBox(height: 24),
-                          _buildRecommendedSection(),
+                          _buildRecommendedSection(t),
                           const SizedBox(height: 24),
-                          if (_tags.isNotEmpty) _buildTagsSection(),
+                          if (_tags.isNotEmpty) _buildTagsSection(t),
                         ],
                       ),
                     ),
@@ -370,7 +397,7 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
 
   // ---------- SEARCH CARD ----------
 
-  Widget _buildSearchCard() {
+  Widget _buildSearchCard(AppLocalizations t) {
     return Material(
       elevation: 10,
       borderRadius: BorderRadius.circular(_cardRadius),
@@ -387,7 +414,7 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
             TextField(
               controller: _searchCtrl,
               decoration: InputDecoration(
-                hintText: 'Search by hotel or city',
+                hintText: t.landingSearchHint,
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
                 fillColor: const Color(0xFFF3F4F6),
@@ -434,7 +461,7 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
                             const SizedBox(width: 8),
                             Text(
                               _selectedRange == null
-                                  ? 'Select dates'
+                                  ? t.landingSelectDatesLabel
                                   : '${_formatDate(_selectedRange!.start)} - ${_formatDate(_selectedRange!.end)}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -487,9 +514,9 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
                                   color: _textPrimary,
                                 ),
                               ),
-                              const Text(
-                                'Guests',
-                                style: TextStyle(
+                              Text(
+                                t.landingGuestsLabel,
+                                style: const TextStyle(
                                   fontSize: 10,
                                   color: _textMuted,
                                 ),
@@ -531,9 +558,9 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
                         ),
                       ),
                       onPressed: _onSearchPressed,
-                      child: const Text(
-                        'Search stays',
-                        style: TextStyle(
+                      child: Text(
+                        t.landingSearchButton,
+                        style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
@@ -603,7 +630,7 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
 
   // ---------- EXPLORE PLACES ----------
 
-  Widget _buildExploreSection() {
+  Widget _buildExploreSection(AppLocalizations t) {
     final cities = _orderedCities();
     if (cities.isEmpty) return const SizedBox.shrink();
 
@@ -611,8 +638,8 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionHeader(
-          title: 'Explore places',
-          caption: 'Popular cities other guests are booking.',
+          title: t.landingExploreTitle,
+          caption: t.landingExploreCaption,
         ),
         const SizedBox(height: 10),
         SizedBox(
@@ -693,15 +720,15 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
 
   // ---------- HOT DEALS ----------
 
-  Widget _buildHotDealsSection() {
+  Widget _buildHotDealsSection(AppLocalizations t) {
     if (_hotDeals.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionHeader(
-          title: 'Hot deals',
-          caption: 'Limited-time discounts from top stays.',
+          title: t.landingHotDealsTitle,
+          caption: t.landingHotDealsCaption,
           trailing: TextButton(
             onPressed: () {
               Navigator.push(
@@ -709,9 +736,9 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
                 MaterialPageRoute(builder: (_) => const HotDealsScreen()),
               );
             },
-            child: const Text(
-              'See all',
-              style: TextStyle(
+            child: Text(
+              t.landingSeeAll,
+              style: const TextStyle(
                 fontSize: 12,
                 color: _accentOrange,
                 fontWeight: FontWeight.w600,
@@ -740,18 +767,17 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
     );
   }
 
-  Widget _buildRecommendedSection() {
+  Widget _buildRecommendedSection(AppLocalizations t) {
     final isLoggedIn = context.watch<AuthState>().isLoggedIn;
-    final fallback = _recommended.isEmpty ? _hotDeals : _recommended;
-    final caption = isLoggedIn
-        ? 'Based on your wishlist and bookings.'
-        : 'Sign in to get personalized picks.';
+    if (!isLoggedIn) return const SizedBox.shrink();
+
+    final caption = t.landingRecommendedCaption;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionHeader(
-          title: 'Recommended for you',
+          title: t.landingRecommendedTitle,
           caption: caption,
         ),
         const SizedBox(height: 10),
@@ -774,35 +800,27 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
                 ),
                 TextButton(
                   onPressed: _loadRecommendations,
-                  child: const Text('Retry'),
+                  child: Text(t.retry),
                 ),
               ],
             ),
           )
-        else if (fallback.isEmpty)
-          const Center(
+        else if (_recommended.isEmpty)
+          Center(
             child: Text(
-              'No picks yet. Try searching to get suggestions.',
-              style: TextStyle(color: _textMuted),
+              t.landingRecommendedEmpty,
+              style: const TextStyle(color: _textMuted),
             ),
           )
         else ...[
-          if (_recommended.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(bottom: 6),
-              child: Text(
-                'Showing popular deals for now.',
-                style: TextStyle(fontSize: 12, color: _textMuted),
-              ),
-            ),
           SizedBox(
             height: 245,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: fallback.length,
+              itemCount: _recommended.length,
               separatorBuilder: (_, __) => const SizedBox(width: 14),
               itemBuilder: (context, index) {
-                final hotel = fallback[index];
+                final hotel = _recommended[index];
                 return _RecommendedCard(
                   hotel: hotel,
                   dateRange: _selectedRange,
@@ -818,22 +836,22 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
 
   // ---------- TAGS / THEME HOTELS ----------
 
-  Widget _buildTagsSection() {
+  Widget _buildTagsSection(AppLocalizations t) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionHeader(
-          title: 'Theme hotels',
-          caption: 'Pick by vibe: business, spa, romantic...',
+          title: t.landingThemeTitle,
+          caption: t.landingThemeCaption,
           trailing: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: _accentOrange.withOpacity(0.1),
               borderRadius: BorderRadius.circular(999),
             ),
-            child: const Text(
-              'Quick picks',
-              style: TextStyle(
+            child: Text(
+              t.landingQuickPicks,
+              style: const TextStyle(
                 fontSize: 11,
                 color: _accentOrange,
                 fontWeight: FontWeight.w600,
@@ -968,12 +986,13 @@ class _HotDealCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final hasPromo = hotel.promotionPrice != null && hotel.promotionPrice! > 0;
     final currency = hotel.currency.isNotEmpty ? hotel.currency : '€';
     final dealPrice = hasPromo ? hotel.promotionPrice! : hotel.fromPrice;
     final badgeText = hotel.promotionTitle?.isNotEmpty == true
         ? hotel.promotionTitle!
-        : 'Hot deal';
+        : t.landingHotDealBadge;
 
     return GestureDetector(
       onTap: () {
@@ -1089,7 +1108,10 @@ class _HotDealCard extends StatelessWidget {
                       Row(
                         children: [
                           Text(
-                            'From $currency ${dealPrice.toStringAsFixed(0)}',
+                            t.landingFromPrice(
+                              currency,
+                              dealPrice.toStringAsFixed(0),
+                            ),
                             style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
@@ -1110,9 +1132,10 @@ class _HotDealCard extends StatelessWidget {
                         ],
                       ),
                       if (hasPromo)
-                        const Text(
-                          'Limited offer',
-                          style: TextStyle(fontSize: 10, color: _textMuted),
+                        Text(
+                          t.landingLimitedOffer,
+                          style:
+                              const TextStyle(fontSize: 10, color: _textMuted),
                         ),
                       const SizedBox(height: 6),
                       if (hotel.reviewCount > 0)
@@ -1180,8 +1203,10 @@ class _RecommendedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final price = hotel.promotionPrice ?? hotel.fromPrice;
     final hasPromo = hotel.promotionPrice != null;
+    final currency = hotel.currency.isNotEmpty ? hotel.currency : '€';
 
     return GestureDetector(
       onTap: () {
@@ -1239,9 +1264,9 @@ class _RecommendedCard extends StatelessWidget {
                       color: _primaryGreen.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(999),
                     ),
-                    child: const Text(
-                      'For you',
-                      style: TextStyle(
+                    child: Text(
+                      t.landingForYouBadge,
+                      style: const TextStyle(
                         fontSize: 10,
                         color: _primaryGreen,
                         fontWeight: FontWeight.w700,
@@ -1298,7 +1323,10 @@ class _RecommendedCard extends StatelessWidget {
                           Row(
                             children: [
                               Text(
-                                'From €${price.toStringAsFixed(0)}',
+                                t.landingFromPrice(
+                                  currency,
+                                  price.toStringAsFixed(0),
+                                ),
                                 style: const TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
@@ -1308,8 +1336,11 @@ class _RecommendedCard extends StatelessWidget {
                               if (hasPromo) ...[
                                 const SizedBox(width: 6),
                                 Text(
-                                  '€${hotel.fromPrice.toStringAsFixed(0)}',
-                                  style: TextStyle(
+                                  t.landingFromPrice(
+                                    currency,
+                                    hotel.fromPrice.toStringAsFixed(0),
+                                  ),
+                                  style: const TextStyle(
                                     fontSize: 11,
                                     color: _textMuted,
                                     decoration: TextDecoration.lineThrough,
@@ -1319,9 +1350,9 @@ class _RecommendedCard extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: 2),
-                          const Text(
-                            'per night',
-                            style: TextStyle(fontSize: 11, color: _textMuted),
+                          Text(
+                            t.landingPerNight,
+                            style: const TextStyle(fontSize: 11, color: _textMuted),
                           ),
                         ],
                       ),
@@ -1388,6 +1419,7 @@ class _TagCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1426,9 +1458,9 @@ class _TagCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Tap to view hotels',
-              style: TextStyle(fontSize: 11, color: _textMuted),
+            Text(
+              t.landingTagCTA,
+              style: const TextStyle(fontSize: 11, color: _textMuted),
             ),
           ],
         ),
@@ -1497,13 +1529,14 @@ class _TagHotelsScreenState extends State<_TagHotelsScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Failed to load hotels for this category.';
+        _error = AppLocalizations.of(context)!.landingTagLoadFailed;
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     Widget body;
     if (_loading) {
       body = const Center(child: CircularProgressIndicator());
@@ -1514,15 +1547,15 @@ class _TagHotelsScreenState extends State<_TagHotelsScreen> {
           children: [
             Text(_error!, style: const TextStyle(color: Colors.redAccent)),
             const SizedBox(height: 8),
-            TextButton(onPressed: _load, child: const Text('Retry')),
+            TextButton(onPressed: _load, child: Text(t.retry)),
           ],
         ),
       );
     } else if (_hotels.isEmpty) {
-      body = const Center(
+      body = Center(
         child: Text(
-          'No hotels found for this category.',
-          style: TextStyle(color: _textMuted),
+          t.landingTagNoHotels,
+          style: const TextStyle(color: _textMuted),
         ),
       );
     } else {

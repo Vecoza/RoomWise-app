@@ -6,6 +6,7 @@ import 'package:roomwise/features/onboarding/presentation/screens/guest_landing_
 import 'package:roomwise/features/profile/presentation/screens/guest_settings_screen.dart';
 import 'package:roomwise/features/wishlist/presentation/screens/guest_wishlist_screen.dart';
 import 'package:roomwise/features/notifications/domain/notification_controller.dart';
+import 'package:roomwise/l10n/app_localizations.dart';
 
 class GuestRootShell extends StatefulWidget {
   const GuestRootShell({super.key});
@@ -26,12 +27,23 @@ class _GuestRootShellState extends State<GuestRootShell> {
   final GlobalKey<GuestWishlistScreenState> _wishlistKey =
       GlobalKey<GuestWishlistScreenState>();
 
-  late final List<Widget> _pages = [
-    const GuestLandingScreen(),
-    const GuestBookingsScreen(),
-    GuestWishlistScreen(key: _wishlistKey),
-    const GuestSettingsScreen(),
-  ];
+  late final List<Widget?> _pages =
+      List<Widget?>.filled(4, null, growable: false);
+
+  Widget _ensurePage(int index) {
+    final existing = _pages[index];
+    if (existing != null) return existing;
+
+    final created = switch (index) {
+      0 => const GuestLandingScreen(),
+      1 => const GuestBookingsScreen(),
+      2 => GuestWishlistScreen(key: _wishlistKey),
+      3 => const GuestSettingsScreen(),
+      _ => const SizedBox.shrink(),
+    };
+    _pages[index] = created;
+    return created;
+  }
 
   @override
   void didChangeDependencies() {
@@ -53,10 +65,18 @@ class _GuestRootShellState extends State<GuestRootShell> {
   @override
   Widget build(BuildContext context) {
     final unread = context.watch<NotificationController>().unreadCount;
+    final t = AppLocalizations.of(context)!;
+    _ensurePage(_currentIndex);
 
     return Scaffold(
       backgroundColor: _bgColor,
-      body: IndexedStack(index: _currentIndex, children: _pages),
+      body: IndexedStack(
+        index: _currentIndex,
+        children: List.generate(
+          4,
+          (i) => _pages[i] ?? const SizedBox.shrink(),
+        ),
+      ),
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -85,11 +105,16 @@ class _GuestRootShellState extends State<GuestRootShell> {
                 unselectedFontSize: 11,
                 showUnselectedLabels: true,
                 onTap: (index) {
-                  setState(() => _currentIndex = index);
+                  setState(() {
+                    _currentIndex = index;
+                    _ensurePage(index);
+                  });
 
                   // Reload wishlist when user lands on it
                   if (index == 2) {
-                    _wishlistKey.currentState?.reload();
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      _wishlistKey.currentState?.reload();
+                    });
                   }
                 },
                 items: [
@@ -102,7 +127,7 @@ class _GuestRootShellState extends State<GuestRootShell> {
                       icon: Icons.search,
                       isActive: true,
                     ),
-                    label: 'Explore',
+                    label: t.navExplore,
                   ),
                   BottomNavigationBarItem(
                     icon: _buildNavIcon(
@@ -113,7 +138,7 @@ class _GuestRootShellState extends State<GuestRootShell> {
                       icon: Icons.calendar_today,
                       isActive: true,
                     ),
-                    label: 'Bookings',
+                    label: t.navBookings,
                   ),
                   BottomNavigationBarItem(
                     icon: _buildNavIcon(
@@ -124,7 +149,7 @@ class _GuestRootShellState extends State<GuestRootShell> {
                       icon: Icons.favorite,
                       isActive: true,
                     ),
-                    label: 'Wishlist',
+                    label: t.navWishlist,
                   ),
                   BottomNavigationBarItem(
                     icon: _buildProfileIcon(
@@ -135,7 +160,7 @@ class _GuestRootShellState extends State<GuestRootShell> {
                       unread: unread,
                       isActive: true,
                     ),
-                    label: 'Profile',
+                    label: t.navProfile,
                   ),
                 ],
               ),

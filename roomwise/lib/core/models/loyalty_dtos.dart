@@ -18,7 +18,7 @@ class LoyaltyBalanceDto {
 class LoyaltyHistoryItemDto {
   final String id;
   final DateTime createdAt;
-  final int delta; // positive = earned, negative = redeemed
+  final int delta;
   final String? reason;
   final String? reservationCode;
 
@@ -33,14 +33,15 @@ class LoyaltyHistoryItemDto {
   factory LoyaltyHistoryItemDto.fromJson(Map<String, dynamic> json) {
     final created =
         DateTime.tryParse(json['createdAt'] as String? ?? '') ??
-            DateTime.tryParse(json['createdDate'] as String? ?? '') ??
-            DateTime.fromMillisecondsSinceEpoch(0);
+        DateTime.tryParse(json['createdDate'] as String? ?? '') ??
+        DateTime.fromMillisecondsSinceEpoch(0);
     return LoyaltyHistoryItemDto(
       id: json['id']?.toString() ?? '',
       createdAt: created,
       delta: (json['delta'] as num?)?.toInt() ?? 0,
       reason: json['reason'] as String?,
-      reservationCode: json['reservationCode'] as String? ??
+      reservationCode:
+          json['reservationCode'] as String? ??
           json['reservationId']?.toString(),
     );
   }

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:roomwise/core/api/roomwise_api_client.dart';
 import 'package:roomwise/core/models/hotel_search_item_dto.dart';
 import 'package:roomwise/features/guest_hotel/presentation/screens/guest_hotel_preview_screen.dart';
+import 'package:roomwise/l10n/app_localizations.dart';
 
 class HotDealsScreen extends StatefulWidget {
   const HotDealsScreen({super.key});
@@ -67,14 +68,14 @@ class _HotDealsScreenState extends State<HotDealsScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Failed to load hot deals.';
+        _error = AppLocalizations.of(context)!.hotDealsLoadFailed;
       });
     } catch (e) {
       debugPrint('Load hot deals failed (non-Dio): $e');
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Failed to load hot deals.';
+        _error = AppLocalizations.of(context)!.hotDealsLoadFailed;
       });
     }
   }
@@ -118,6 +119,7 @@ class _HotDealsScreenState extends State<HotDealsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final body = _loading
         ? const Center(child: CircularProgressIndicator())
         : _error != null
@@ -127,7 +129,7 @@ class _HotDealsScreenState extends State<HotDealsScreen> {
     return Scaffold(
       backgroundColor: _bgColor,
       appBar: AppBar(
-        title: const Text('Hot deals'),
+        title: Text(t.hotDealsTitle),
         backgroundColor: _bgColor,
         elevation: 0,
       ),
@@ -140,6 +142,7 @@ class _HotDealsScreenState extends State<HotDealsScreen> {
   // ---------- STATES ----------
 
   Widget _buildError() {
+    final t = AppLocalizations.of(context)!;
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
@@ -156,7 +159,7 @@ class _HotDealsScreenState extends State<HotDealsScreen> {
               const SizedBox(height: 12),
               Text(_error!, style: const TextStyle(color: Colors.redAccent)),
               const SizedBox(height: 8),
-              TextButton(onPressed: _loadDeals, child: const Text('Retry')),
+              TextButton(onPressed: _loadDeals, child: Text(t.retry)),
             ],
           ),
         ),
@@ -195,6 +198,7 @@ class _HotDealsScreenState extends State<HotDealsScreen> {
   // ---------- HEADER ----------
 
   Widget _buildHeader() {
+    final t = AppLocalizations.of(context)!;
     final total = _allDeals.length;
     final visible = _visibleDeals.length;
 
@@ -237,9 +241,9 @@ class _HotDealsScreenState extends State<HotDealsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Today’s hot deals',
-                    style: TextStyle(
+                  Text(
+                    t.hotDealsHeaderTitle,
+                    style: const TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
@@ -248,10 +252,10 @@ class _HotDealsScreenState extends State<HotDealsScreen> {
                   const SizedBox(height: 4),
                   Text(
                     total == 0
-                        ? 'We’ll show limited time offers here.'
+                        ? t.hotDealsHeaderEmptySubtitle
                         : visible == total
-                        ? '$total deals available right now.'
-                        : '$visible of $total deals match your filters.',
+                        ? t.hotDealsHeaderCount(total)
+                        : t.hotDealsHeaderFiltered(visible, total),
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.white.withOpacity(0.92),
@@ -269,6 +273,7 @@ class _HotDealsScreenState extends State<HotDealsScreen> {
   // ---------- CONTROLS (SEARCH + SORT) ----------
 
   Widget _buildControls() {
+    final t = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Column(
@@ -277,7 +282,7 @@ class _HotDealsScreenState extends State<HotDealsScreen> {
           TextField(
             controller: _searchCtrl,
             decoration: InputDecoration(
-              hintText: 'Search by hotel or city',
+              hintText: t.landingSearchHint,
               hintStyle: const TextStyle(fontSize: 13, color: _textMuted),
               prefixIcon: const Icon(Icons.search, size: 20),
               suffixIcon: _searchCtrl.text.isEmpty
@@ -308,19 +313,19 @@ class _HotDealsScreenState extends State<HotDealsScreen> {
           // Sort chips row
           Row(
             children: [
-              const Text(
-                'Sort by',
-                style: TextStyle(fontSize: 13, color: _textMuted),
+              Text(
+                t.hotDealsSortLabel,
+                style: const TextStyle(fontSize: 13, color: _textMuted),
               ),
               const SizedBox(width: 8),
               _SortChip(
-                label: 'Lowest price',
+                label: t.hotDealsSortLowest,
                 isActive: _sort == HotDealSort.lowestPrice,
                 onTap: () => _onSortChanged(HotDealSort.lowestPrice),
               ),
               const SizedBox(width: 8),
               _SortChip(
-                label: 'Highest price',
+                label: t.hotDealsSortHighest,
                 isActive: _sort == HotDealSort.highestPrice,
                 onTap: () => _onSortChanged(HotDealSort.highestPrice),
               ),
@@ -334,6 +339,7 @@ class _HotDealsScreenState extends State<HotDealsScreen> {
   // ---------- EMPTY & LIST ----------
 
   Widget _buildEmptyState(BoxConstraints constraints) {
+    final t = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 40, 16, 40),
       child: SizedBox(
@@ -343,22 +349,22 @@ class _HotDealsScreenState extends State<HotDealsScreen> {
             constraints: const BoxConstraints(maxWidth: 420),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(Icons.search_off_outlined, size: 56, color: _textMuted),
-                SizedBox(height: 14),
+              children: [
+                const Icon(Icons.search_off_outlined, size: 56, color: _textMuted),
+                const SizedBox(height: 14),
                 Text(
-                  'No hot deals found',
-                  style: TextStyle(
+                  t.hotDealsEmptyTitle,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     color: _textPrimary,
                   ),
                 ),
-                SizedBox(height: 6),
+                const SizedBox(height: 6),
                 Text(
-                  'Try changing your search text or sort order to see more options.',
+                  t.hotDealsEmptySubtitle,
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: _textMuted),
+                  style: const TextStyle(fontSize: 13, color: _textMuted),
                 ),
               ],
             ),
@@ -441,6 +447,7 @@ class _HotDealCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final thumb = hotel.thumbnailUrl;
     final imageUrl = thumb == null || thumb.trim().isEmpty
         ? null
@@ -512,7 +519,7 @@ class _HotDealCard extends StatelessWidget {
                               Text(
                                 hotel.promotionTitle?.isNotEmpty == true
                                     ? hotel.promotionTitle!
-                                    : 'Hot deal',
+                                    : t.landingHotDealBadge,
                                 style: const TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
@@ -614,9 +621,9 @@ class _HotDealCard extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
-                                'From',
-                                style: TextStyle(
+                              Text(
+                                t.hotDealsFromLabel,
+                                style: const TextStyle(
                                   fontSize: 11,
                                   color: _textMuted,
                                 ),
@@ -625,8 +632,10 @@ class _HotDealCard extends StatelessWidget {
                               Row(
                                 children: [
                                   Text(
-                                    '${hotel.currencyCode} '
-                                    '${hotel.effectivePrice.toStringAsFixed(0)}',
+                                    t.landingFromPrice(
+                                      hotel.currencyCode,
+                                      hotel.effectivePrice.toStringAsFixed(0),
+                                    ),
                                     style: const TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w800,
@@ -636,10 +645,13 @@ class _HotDealCard extends StatelessWidget {
                                   if (hotel.promotionPrice != null &&
                                       hotel.promotionPrice! > 0 &&
                                       hotel.promotionPrice! <
-                                          hotel.fromPrice) ...[
+                                      hotel.fromPrice) ...[
                                     const SizedBox(width: 6),
                                     Text(
-                                      '${hotel.currencyCode} ${hotel.fromPrice.toStringAsFixed(0)}',
+                                      t.landingFromPrice(
+                                        hotel.currencyCode,
+                                        hotel.fromPrice.toStringAsFixed(0),
+                                      ),
                                       style: const TextStyle(
                                         fontSize: 11,
                                         color: _textMuted,
@@ -652,9 +664,9 @@ class _HotDealCard extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: 2),
-                          const Text(
-                            'per night',
-                            style: TextStyle(fontSize: 10, color: _textMuted),
+                          Text(
+                            t.landingPerNight,
+                            style: const TextStyle(fontSize: 10, color: _textMuted),
                           ),
                         ],
                       ),

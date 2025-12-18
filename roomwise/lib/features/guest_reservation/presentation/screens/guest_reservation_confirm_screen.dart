@@ -3,6 +3,7 @@ import 'package:roomwise/core/models/payment_dto.dart';
 import 'package:roomwise/core/models/reservation_dto.dart';
 import 'package:roomwise/core/models/hotel_details_dto.dart';
 import 'package:roomwise/core/models/available_room_type_dto.dart';
+import 'package:roomwise/l10n/app_localizations.dart';
 
 class GuestReservationConfirmScreen extends StatelessWidget {
   final ReservationDto reservation;
@@ -40,10 +41,12 @@ class GuestReservationConfirmScreen extends StatelessWidget {
     return '${_formatDate(reservation.checkIn)} – ${_formatDate(reservation.checkOut)}';
   }
 
-  (String label, Color color, Color bg) _paymentStatusStyle() {
+  (String label, Color color, Color bg) _paymentStatusStyle(
+    AppLocalizations t,
+  ) {
     if (paymentIntent == null) {
       return (
-        'Pay at property',
+        t.confirmPaymentStatusPayAtProperty,
         const Color(0xFF6B7280),
         const Color(0xFFE5E7EB),
       );
@@ -52,28 +55,28 @@ class GuestReservationConfirmScreen extends StatelessWidget {
     final status = paymentIntent!.status.toLowerCase();
     if (status.contains('succeed') || status == 'succeeded') {
       return (
-        'Payment completed',
+        t.confirmPaymentCompleted,
         _primaryGreen,
         _primaryGreen.withOpacity(0.08),
       );
     }
     if (status.contains('processing')) {
       return (
-        'Payment processing',
+        t.confirmPaymentProcessing,
         const Color(0xFF2563EB),
         const Color(0xFFDBEAFE),
       );
     }
     if (status.contains('requires')) {
       return (
-        'Action required',
+        t.confirmPaymentActionRequired,
         const Color(0xFFF97316),
         const Color(0xFFFFEDD5),
       );
     }
 
     return (
-      'Payment: ${paymentIntent!.status}',
+      t.confirmPaymentStatusGeneric(paymentIntent!.status),
       const Color(0xFF6B7280),
       const Color(0xFFE5E7EB),
     );
@@ -81,6 +84,7 @@ class GuestReservationConfirmScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final r = reservation;
     final effectiveCurrency = r.currency.toUpperCase();
     final expected = displayTotalOverride ?? r.total;
@@ -105,7 +109,7 @@ class GuestReservationConfirmScreen extends StatelessWidget {
 
     final totalText =
         '$currencyDisplay ${totalDisplay.toStringAsFixed(2)}';
-    final (statusLabel, statusColor, statusBg) = _paymentStatusStyle();
+    final (statusLabel, statusColor, statusBg) = _paymentStatusStyle(t);
 
     return Scaffold(
       backgroundColor: _bgColor,
@@ -113,9 +117,9 @@ class GuestReservationConfirmScreen extends StatelessWidget {
         backgroundColor: _bgColor,
         elevation: 0,
         automaticallyImplyLeading: false,
-        title: const Text(
-          'Reservation confirmed',
-          style: TextStyle(
+        title: Text(
+          t.confirmTitle,
+          style: const TextStyle(
             color: _textPrimary,
             fontSize: 20,
             fontWeight: FontWeight.w700,
@@ -145,29 +149,29 @@ class GuestReservationConfirmScreen extends StatelessWidget {
                                 shape: BoxShape.circle,
                                 color: _primaryGreen.withOpacity(0.12),
                               ),
-                              child: const Icon(
-                                Icons.check_rounded,
-                                size: 42,
-                                color: _primaryGreen,
-                              ),
+                            child: const Icon(
+                              Icons.check_rounded,
+                              size: 42,
+                              color: _primaryGreen,
                             ),
-                            const SizedBox(height: 14),
-                            const Text(
-                              'Your booking is confirmed!',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                                color: _textPrimary,
-                              ),
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            t.confirmHeading,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: _textPrimary,
                             ),
-                            const SizedBox(height: 6),
-                            const Text(
-                              'We’ve sent your confirmation to your email.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 13, color: _textMuted),
-                            ),
-                            const SizedBox(height: 20),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            t.confirmSubheading,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 13, color: _textMuted),
+                          ),
+                          const SizedBox(height: 20),
 
                             // Main card
                             Container(
@@ -231,9 +235,9 @@ class GuestReservationConfirmScreen extends StatelessWidget {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            const Text(
-                                              'Stay details',
-                                              style: TextStyle(
+                                            Text(
+                                              t.confirmStayDetails,
+                                              style: const TextStyle(
                                                 fontSize: 13,
                                                 fontWeight: FontWeight.w700,
                                                 color: _textPrimary,
@@ -249,7 +253,7 @@ class GuestReservationConfirmScreen extends StatelessWidget {
                                             ),
                                             const SizedBox(height: 2),
                                             Text(
-                                              '$_nights night${_nights == 1 ? '' : 's'} • ${r.guests} guest${r.guests == 1 ? '' : 's'}',
+                                              '${t.nightsLabel(_nights)} • ${t.guestsLabel(r.guests)}',
                                               style: const TextStyle(
                                                 fontSize: 12,
                                                 color: _textMuted,
@@ -302,9 +306,9 @@ class GuestReservationConfirmScreen extends StatelessWidget {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.end,
                                         children: [
-                                          const Text(
-                                            'Total paid',
-                                            style: TextStyle(
+                                          Text(
+                                            t.confirmTotalPaid,
+                                            style: const TextStyle(
                                               fontSize: 11,
                                               color: _textMuted,
                                             ),
@@ -344,9 +348,9 @@ class GuestReservationConfirmScreen extends StatelessWidget {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              const Text(
-                                                'Confirmation number',
-                                                style: TextStyle(
+                                              Text(
+                                                t.confirmConfirmationNumber,
+                                                style: const TextStyle(
                                                   fontSize: 11,
                                                   color: _textMuted,
                                                 ),
@@ -372,17 +376,17 @@ class GuestReservationConfirmScreen extends StatelessWidget {
                                   Row(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
-                                    children: const [
-                                      Icon(
+                                    children: [
+                                      const Icon(
                                         Icons.info_outline,
                                         size: 16,
                                         color: _textMuted,
                                       ),
-                                      SizedBox(width: 8),
+                                      const SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
-                                          'You can view or manage this reservation from your bookings at any time.',
-                                          style: TextStyle(
+                                          t.confirmManageInfo,
+                                          style: const TextStyle(
                                             fontSize: 12,
                                             color: _textMuted,
                                           ),
@@ -434,9 +438,9 @@ class GuestReservationConfirmScreen extends StatelessWidget {
                               (route) => route.isFirst,
                             );
                           },
-                          child: const Text(
-                            'Back to home',
-                            style: TextStyle(
+                          child: Text(
+                            t.confirmBackHome,
+                            style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                             ),

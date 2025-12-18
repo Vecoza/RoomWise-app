@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:roomwise/core/models/guest_booking_list_item_dto.dart';
+import 'package:roomwise/l10n/app_localizations.dart';
 
 class GuestBookingPastScreen extends StatelessWidget {
   final GuestBookingListItemDto booking;
@@ -18,6 +19,7 @@ class GuestBookingPastScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final dateRange =
         '${_formatDate(booking.checkIn)} – ${_formatDate(booking.checkOut)}';
 
@@ -27,9 +29,9 @@ class GuestBookingPastScreen extends StatelessWidget {
         elevation: 0,
         backgroundColor: _bgColor,
         centerTitle: false,
-        title: const Text(
-          'Past stay',
-          style: TextStyle(
+        title: Text(
+          t.bookingPastTitle,
+          style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: _textPrimary,
@@ -76,26 +78,29 @@ class GuestBookingPastScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const _SectionTitle('Stay summary'),
+                            _SectionTitle(t.bookingPastStaySummary),
                             const SizedBox(height: 8),
                             _DetailRow(
-                              label: 'Room type',
+                              label: t.bookingDetailsRoomType,
                               value: booking.roomTypeName,
                             ),
                             _DetailRow(
-                              label: 'Guests',
+                              label: t.bookingDetailsGuests,
                               value:
-                                  '${booking.guests} guest${booking.guests == 1 ? '' : 's'}',
+                                  '${booking.guests} ${t.guestsLabel(booking.guests)}',
                             ),
-                            _DetailRow(label: 'Nights', value: '$_nights'),
                             _DetailRow(
-                              label: 'Total paid',
+                              label: t.bookingDetailsNights,
+                              value: '$_nights',
+                            ),
+                            _DetailRow(
+                              label: t.bookingPastTotalPaid,
                               value:
                                   '${booking.currency} ${booking.total.toStringAsFixed(2)}',
                               highlight: true,
                             ),
                             const SizedBox(height: 16),
-                            const _SectionTitle('Status'),
+                            _SectionTitle(t.bookingPastStatusTitle),
                             const SizedBox(height: 8),
                             Row(
                               children: [
@@ -110,18 +115,18 @@ class GuestBookingPastScreen extends StatelessWidget {
                                     ).withOpacity(0.08),
                                     borderRadius: BorderRadius.circular(999),
                                   ),
-                                  child: const Row(
+                                  child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(
+                                      const Icon(
                                         Icons.check_circle,
                                         size: 16,
                                         color: Color(0xFF059669),
                                       ),
-                                      SizedBox(width: 6),
+                                      const SizedBox(width: 6),
                                       Text(
-                                        'Completed stay',
-                                        style: TextStyle(
+                                        t.bookingPastStatusCompleted,
+                                        style: const TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,
                                           color: Color(0xFF059669),
@@ -133,9 +138,9 @@ class GuestBookingPastScreen extends StatelessWidget {
                               ],
                             ),
                             const SizedBox(height: 10),
-                            const Text(
-                              'We hope you enjoyed your trip. Your past stays help you remember where you’ve been – and make it easier to book again.',
-                              style: TextStyle(
+                            Text(
+                              t.bookingPastMessage,
+                              style: const TextStyle(
                                 fontSize: 13,
                                 color: _textMuted,
                                 height: 1.4,
@@ -148,9 +153,9 @@ class GuestBookingPastScreen extends StatelessWidget {
                       const SizedBox(height: 16),
 
                       // LITTLE FOOTER TEXT
-                      const Text(
-                        'Tip: You can rate this stay from your Trips list to help other guests.',
-                        style: TextStyle(fontSize: 12, color: _textMuted),
+                      Text(
+                        t.bookingPastTip,
+                        style: const TextStyle(fontSize: 12, color: _textMuted),
                       ),
                     ],
                   ),
@@ -168,6 +173,7 @@ class GuestBookingPastScreen extends StatelessWidget {
     BuildContext context,
     GuestBookingListItemDto booking,
   ) {
+    final t = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -191,9 +197,12 @@ class GuestBookingPastScreen extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Rate your stay',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  Text(
+                    t.reviewYourStay,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Row(
@@ -216,9 +225,9 @@ class GuestBookingPastScreen extends StatelessWidget {
                   TextField(
                     controller: controller,
                     maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Tell us more about your experience',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: t.reviewCommentLabel,
+                      border: const OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -237,12 +246,12 @@ class GuestBookingPastScreen extends StatelessWidget {
                         // TODO: wire review API if you want from here
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Review submitted (TODO wire API).'),
+                          SnackBar(
+                            content: Text(t.reviewSubmitted),
                           ),
                         );
                       },
-                      child: const Text('Submit review'),
+                      child: Text(t.reviewSubmit),
                     ),
                   ),
                 ],

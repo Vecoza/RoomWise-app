@@ -32,9 +32,11 @@ class MeProfileDto {
       preferredLanguage: lang as String? ?? '',
       loyaltyBalance: (json['loyaltyBalance'] as num?)?.toInt() ?? 0,
       avatarUrl: json['avatarUrl'] as String?,
-      createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+      createdAt:
+          DateTime.tryParse(json['createdAt'] as String? ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0),
-      updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? '') ??
+      updatedAt:
+          DateTime.tryParse(json['updatedAt'] as String? ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0),
     );
   }
@@ -56,15 +58,14 @@ class UpdateProfileRequestDto {
   });
 
   Map<String, dynamic> toJson() => {
-        'firstName': firstName,
-        'lastName': lastName,
-        'phone': phone,
-        // Send both preferredLanguage and language to be resilient to
-        // different backend property names.
-        'preferredLanguage': preferredLanguage,
-        'language': preferredLanguage,
-        'avatarUrl': avatarUrl,
-      };
+    'firstName': firstName,
+    'lastName': lastName,
+    'phone': phone,
+
+    'preferredLanguage': preferredLanguage,
+    'language': preferredLanguage,
+    'avatarUrl': avatarUrl,
+  };
 }
 
 class ChangePasswordRequestDto {
@@ -77,10 +78,8 @@ class ChangePasswordRequestDto {
   });
 
   Map<String, dynamic> toJson() => {
-        // Some backends expect "oldPassword" instead of "currentPassword".
-        // Send both to stay compatible.
-        'currentPassword': currentPassword,
-        'oldPassword': currentPassword,
-        'newPassword': newPassword,
-      };
+    'currentPassword': currentPassword,
+    'oldPassword': currentPassword,
+    'newPassword': newPassword,
+  };
 }

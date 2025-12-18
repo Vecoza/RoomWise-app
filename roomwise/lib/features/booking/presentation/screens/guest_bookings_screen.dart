@@ -11,6 +11,7 @@ import 'package:roomwise/features/booking/presentation/screens/guest_booking_cur
 import 'package:roomwise/features/booking/presentation/screens/guest_booking_past_screen.dart';
 import 'package:roomwise/features/booking/sync/bookings_sync.dart';
 import 'package:roomwise/features/onboarding/presentation/screens/guest_login_screen.dart';
+import 'package:roomwise/l10n/app_localizations.dart';
 
 class GuestBookingsScreen extends StatefulWidget {
   const GuestBookingsScreen({super.key});
@@ -138,7 +139,7 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
       } else {
         setState(() {
           _loading = false;
-          _error = 'Failed to load your bookings.';
+          _error = AppLocalizations.of(context)!.bookingsLoadFailed;
         });
       }
     } catch (e) {
@@ -146,7 +147,7 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Failed to load your bookings.';
+        _error = AppLocalizations.of(context)!.bookingsLoadFailed;
       });
     }
   }
@@ -167,6 +168,7 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthState>();
+    final t = AppLocalizations.of(context)!;
 
     final currentCount = _current.length;
     final pastCount = _past.length;
@@ -180,7 +182,7 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
         appBar: AppBar(
           backgroundColor: _bgColor,
           elevation: 0,
-          title: const Text('Bookings'),
+          title: Text(t.navBookings),
           centerTitle: false,
         ),
         body: SafeArea(
@@ -224,20 +226,20 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
                         ),
                       ),
                       const SizedBox(height: 18),
-                      const Text(
-                        'Keep all your trips in one place',
+                      Text(
+                        t.bookingsLoggedOutTitle,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w700,
                           color: _textPrimary,
                         ),
                       ),
                       const SizedBox(height: 10),
-                      const Text(
-                        'Create an account or log in to see your upcoming stays, history and cancellations.',
+                      Text(
+                        t.bookingsLoggedOutSubtitle,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 13,
                           color: _textMuted,
                           height: 1.4,
@@ -263,9 +265,9 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
                               ),
                             );
                           },
-                          child: const Text(
-                            'Create account',
-                            style: TextStyle(
+                          child: Text(
+                            t.createAccount,
+                            style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                             ),
@@ -275,9 +277,9 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
                       const SizedBox(height: 8),
                       TextButton(
                         onPressed: _openLogin,
-                        child: const Text(
-                          'I already have an account',
-                          style: TextStyle(fontSize: 13),
+                        child: Text(
+                          t.alreadyAccount,
+                          style: const TextStyle(fontSize: 13),
                         ),
                       ),
                     ],
@@ -301,9 +303,9 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Your trips',
-              style: TextStyle(
+            Text(
+              t.bookingsTitle,
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
                 color: _textPrimary,
@@ -312,8 +314,8 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
             const SizedBox(height: 4),
             Text(
               totalCount == 0
-                  ? 'No stays yet – start exploring!'
-                  : '$totalCount total booking${totalCount == 1 ? '' : 's'}',
+                  ? t.bookingsNoStays
+                  : t.bookingsTotal(totalCount),
               style: const TextStyle(fontSize: 12, color: _textMuted),
             ),
           ],
@@ -327,19 +329,19 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
                 Row(
                   children: [
                     _SummaryChip(
-                      label: 'Current',
+                      label: t.bookingsTabCurrent,
                       value: currentCount.toString(),
                       color: Colors.blue,
                     ),
                     const SizedBox(width: 8),
                     _SummaryChip(
-                      label: 'Past',
+                      label: t.bookingsTabPast,
                       value: pastCount.toString(),
                       color: Colors.green,
                     ),
                     const SizedBox(width: 8),
                     _SummaryChip(
-                      label: 'Cancelled',
+                      label: t.bookingsTabCancelled,
                       value: cancelledCount.toString(),
                       color: Colors.redAccent,
                     ),
@@ -363,17 +365,17 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
                   child: Row(
                     children: [
                       _SegmentTab(
-                        label: 'Current',
+                        label: t.bookingsTabCurrent,
                         selected: _selectedTabIndex == 0,
                         onTap: () => _tabController.animateTo(0),
                       ),
                       _SegmentTab(
-                        label: 'Past',
+                        label: t.bookingsTabPast,
                         selected: _selectedTabIndex == 1,
                         onTap: () => _tabController.animateTo(1),
                       ),
                       _SegmentTab(
-                        label: 'Cancelled',
+                        label: t.bookingsTabCancelled,
                         selected: _selectedTabIndex == 2,
                         onTap: () => _tabController.animateTo(2),
                       ),
@@ -419,7 +421,7 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
                           const SizedBox(height: 8),
                           TextButton(
                             onPressed: _loadAll,
-                            child: const Text('Retry'),
+                            child: Text(t.retry),
                           ),
                         ],
                       ),
@@ -456,13 +458,14 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
 
   /// Builds the body for the currently selected tab.
   Widget _buildTabBody() {
+    final t = AppLocalizations.of(context)!;
     switch (_selectedTabIndex) {
       case 0:
         return _BookingsList(
           bookings: _current,
           emptyIcon: Icons.hourglass_empty,
-          emptyTitle: 'No upcoming stays',
-          emptySubtitle: 'Once you book your next trip, it will appear here.',
+          emptyTitle: t.bookingsEmptyCurrentTitle,
+          emptySubtitle: t.bookingsEmptyCurrentSubtitle,
           onReload: _loadAll,
           type: BookingType.current,
         );
@@ -470,8 +473,8 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
         return _BookingsList(
           bookings: _past,
           emptyIcon: Icons.history,
-          emptyTitle: 'No past stays yet',
-          emptySubtitle: 'After your trips finish, you will see them here.',
+          emptyTitle: t.bookingsEmptyPastTitle,
+          emptySubtitle: t.bookingsEmptyPastSubtitle,
           onReload: _loadAll,
           type: BookingType.past,
         );
@@ -480,8 +483,8 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
         return _BookingsList(
           bookings: _cancelled,
           emptyIcon: Icons.cancel_outlined,
-          emptyTitle: 'No cancelled stays',
-          emptySubtitle: 'Stays you cancel will appear here for reference.',
+          emptyTitle: t.bookingsEmptyCancelledTitle,
+          emptySubtitle: t.bookingsEmptyCancelledSubtitle,
           onReload: _loadAll,
           type: BookingType.cancelled,
         );
@@ -704,13 +707,14 @@ class _BookingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final dateRange =
         '${_formatDate(booking.checkIn)} – ${_formatDate(booking.checkOut)}';
 
     final statusLabel = switch (type) {
-      BookingType.current => 'Upcoming',
-      BookingType.past => 'Completed',
-      BookingType.cancelled => 'Cancelled',
+      BookingType.current => t.bookingsStatusUpcoming,
+      BookingType.past => t.bookingsStatusCompleted,
+      BookingType.cancelled => t.bookingsStatusCancelled,
     };
 
     final statusColor = switch (type) {
@@ -852,7 +856,7 @@ class _BookingCard extends StatelessWidget {
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
-                            '$dateRange · $nights night${nights == 1 ? '' : 's'}',
+                            '$dateRange · $nights ${t.nightsLabel(nights)}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
@@ -874,7 +878,7 @@ class _BookingCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          '${booking.guests} guest${booking.guests == 1 ? '' : 's'}',
+                          '${booking.guests} ${t.guestsLabel(booking.guests)}',
                           style: const TextStyle(
                             fontSize: 12,
                             color: _textPrimary,
@@ -909,9 +913,10 @@ class _BookingCard extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 2),
-                            const Text(
-                              'Total price',
-                              style: TextStyle(fontSize: 11, color: _textMuted),
+                            Text(
+                              t.bookingsTotalPrice,
+                              style: const TextStyle(
+                                  fontSize: 11, color: _textMuted),
                             ),
                           ],
                         ),
@@ -935,9 +940,9 @@ class _BookingCard extends StatelessWidget {
                                 onChanged!();
                               }
                             },
-                            child: const Text(
-                              'Leave a review',
-                              style: TextStyle(fontSize: 12),
+                            child: Text(
+                              t.bookingsLeaveReview,
+                              style: const TextStyle(fontSize: 12),
                             ),
                           ),
                       ],
@@ -1021,9 +1026,10 @@ class _LeaveReviewSheetState extends State<_LeaveReviewSheet> {
   }
 
   Future<void> _submit() async {
+    final t = AppLocalizations.of(context)!;
     if (_rating == 0) {
       setState(() {
-        _error = 'Please choose a rating.';
+        _error = t.reviewRatingRequired;
       });
       return;
     }
@@ -1038,7 +1044,7 @@ class _LeaveReviewSheetState extends State<_LeaveReviewSheet> {
       final hotelId = widget.booking.hotelId;
       if (hotelId == null) {
         setState(() {
-          _error = 'Hotel information is missing for this booking.';
+          _error = t.reviewMissingHotel;
           _submitting = false;
         });
         return;
@@ -1059,7 +1065,7 @@ class _LeaveReviewSheetState extends State<_LeaveReviewSheet> {
 
       Navigator.pop(context, true);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Review submitted. Thank you!')),
+        SnackBar(content: Text(t.reviewSubmitted)),
       );
     } on DioException catch (e) {
       final data = e.response?.data;
@@ -1070,11 +1076,11 @@ class _LeaveReviewSheetState extends State<_LeaveReviewSheet> {
             data['message']?.toString() ??
             data['error']?.toString() ??
             e.message ??
-            'Failed to submit review. Please try again.';
+            t.reviewSubmitFailed;
       } else if (data is String) {
         msg = data;
       } else {
-        msg = e.message ?? 'Failed to submit review. Please try again.';
+        msg = e.message ?? t.reviewSubmitFailed;
       }
 
       debugPrint(
@@ -1088,7 +1094,7 @@ class _LeaveReviewSheetState extends State<_LeaveReviewSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'Failed to submit review. Please try again.';
+        _error = t.reviewSubmitFailed;
       });
     } finally {
       if (mounted) {
@@ -1099,6 +1105,7 @@ class _LeaveReviewSheetState extends State<_LeaveReviewSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return AnimatedPadding(
@@ -1127,13 +1134,13 @@ class _LeaveReviewSheetState extends State<_LeaveReviewSheet> {
               ),
             ),
             Text(
-              'Rate your stay at ${widget.booking.hotelName}',
+              t.reviewTitle(widget.booking.hotelName),
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Your feedback helps other guests and the hotel improve.',
-              style: TextStyle(fontSize: 12, color: _textMuted),
+            Text(
+              t.reviewSubtitle,
+              style: const TextStyle(fontSize: 12, color: _textMuted),
             ),
             const SizedBox(height: 12),
             Row(
@@ -1160,7 +1167,7 @@ class _LeaveReviewSheetState extends State<_LeaveReviewSheet> {
               controller: _commentCtrl,
               maxLines: 4,
               decoration: InputDecoration(
-                labelText: 'Tell us more (optional)',
+                labelText: t.reviewCommentLabel,
                 alignLabelWithHint: true,
                 filled: true,
                 fillColor: Colors.grey.shade100,
@@ -1196,9 +1203,9 @@ class _LeaveReviewSheetState extends State<_LeaveReviewSheet> {
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text(
-                        'Submit review',
-                        style: TextStyle(
+                    : Text(
+                        t.reviewSubmit,
+                        style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                         ),

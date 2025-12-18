@@ -14,6 +14,7 @@ import 'package:roomwise/features/booking/sync/bookings_sync.dart';
 import 'package:roomwise/features/guest_reservation/presentation/screens/guest_reservation_preview.dart';
 import 'package:roomwise/features/onboarding/presentation/screens/guest_login_screen.dart';
 import 'package:roomwise/features/guest_reservation/presentation/screens/guest_payment_screen.dart';
+import 'package:roomwise/l10n/app_localizations.dart';
 
 class GuestReservationDetailsScreen extends StatefulWidget {
   final HotelDetailsDto hotel;
@@ -129,7 +130,7 @@ class _GuestReservationDetailsScreenState
     if (auth.isLoggedIn) return true;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please log in to reserve a room.')),
+      SnackBar(content: Text(AppLocalizations.of(context)!.reservationLoginPrompt)),
     );
 
     await Navigator.push(
@@ -199,6 +200,7 @@ class _GuestReservationDetailsScreenState
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final hotel = widget.hotel;
     final room = widget.roomType;
 
@@ -207,9 +209,9 @@ class _GuestReservationDetailsScreenState
       appBar: AppBar(
         elevation: 0,
         backgroundColor: _bgColor,
-        title: const Text(
-          'Review your stay',
-          style: TextStyle(
+        title: Text(
+          t.reviewYourStay,
+          style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: _textPrimary,
@@ -226,15 +228,15 @@ class _GuestReservationDetailsScreenState
             children: [
               _buildStepsHeader(),
               const SizedBox(height: 12),
-              _buildRoomHeaderCard(hotel, room),
+              _buildRoomHeaderCard(t, hotel, room),
               const SizedBox(height: 12),
-              _buildStaySummaryCard(),
+              _buildStaySummaryCard(t),
               const SizedBox(height: 12),
-              _buildAddOnsCard(),
+              _buildAddOnsCard(t),
               const SizedBox(height: 12),
-              _buildPaymentMethodCard(),
+              _buildPaymentMethodCard(t),
               const SizedBox(height: 12),
-              _buildPriceSummaryCard(),
+              _buildPriceSummaryCard(t),
               if (_error != null) ...[
                 const SizedBox(height: 8),
                 Text(
@@ -253,6 +255,7 @@ class _GuestReservationDetailsScreenState
   // ---------- UI SECTIONS ----------
 
   Widget _buildBottomBar(HotelDetailsDto hotel) {
+    final t = AppLocalizations.of(context)!;
     return SafeArea(
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
@@ -273,9 +276,9 @@ class _GuestReservationDetailsScreenState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    'Total',
-                    style: TextStyle(fontSize: 11, color: _textMuted),
+                  Text(
+                    t.paymentTotalLabel,
+                    style: const TextStyle(fontSize: 11, color: _textMuted),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -308,9 +311,9 @@ class _GuestReservationDetailsScreenState
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text(
-                        'Continue',
-                        style: TextStyle(
+                    : Text(
+                        t.reservationContinue,
+                        style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                         ),
@@ -324,12 +327,13 @@ class _GuestReservationDetailsScreenState
   }
 
   Widget _buildStepsHeader() {
+    final t = AppLocalizations.of(context)!;
     // Visual stepper: Stay → Add-ons → Payment → Summary
     final steps = <Map<String, Object>>[
-      {'label': 'Stay', 'icon': Icons.hotel},
-      {'label': 'Add-ons', 'icon': Icons.extension},
-      {'label': 'Payment', 'icon': Icons.credit_card},
-      {'label': 'Summary', 'icon': Icons.receipt_long},
+      {'label': t.reservationStepStay, 'icon': Icons.hotel},
+      {'label': t.reservationStepAddOns, 'icon': Icons.extension},
+      {'label': t.reservationStepPayment, 'icon': Icons.credit_card},
+      {'label': t.reservationStepSummary, 'icon': Icons.receipt_long},
     ];
 
     final width = MediaQuery.of(context).size.width;
@@ -389,6 +393,7 @@ class _GuestReservationDetailsScreenState
   }
 
   Widget _buildRoomHeaderCard(
+    AppLocalizations t,
     HotelDetailsDto hotel,
     AvailableRoomTypeDto room,
   ) {
@@ -469,7 +474,7 @@ class _GuestReservationDetailsScreenState
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                '${images.length} photos',
+                                t.reservationPhotosCount(images.length),
                                 style: const TextStyle(
                                   fontSize: 11,
                                   color: Colors.white,
@@ -509,7 +514,7 @@ class _GuestReservationDetailsScreenState
                     _buildChip(
                       icon: Icons.person_outline,
                       label:
-                          'Sleeps ${room.capacity}${room.sizeM2 != null ? ' · ${room.sizeM2!.toStringAsFixed(0)} m²' : ''}',
+                          '${t.reservationSleeps(room.capacity)}${room.sizeM2 != null ? ' · ${room.sizeM2!.toStringAsFixed(0)} m²' : ''}',
                     ),
                     if (room.bedType != null && room.bedType!.isNotEmpty)
                       _buildChip(
@@ -521,8 +526,8 @@ class _GuestReservationDetailsScreenState
                           ? Icons.smoking_rooms
                           : Icons.smoke_free,
                       label: (room.isSmokingAllowed ?? false)
-                          ? 'Smoking'
-                          : 'Non-smoking',
+                          ? t.reservationSmoking
+                          : t.previewNonSmoking,
                     ),
                   ],
                 ),
@@ -538,16 +543,16 @@ class _GuestReservationDetailsScreenState
                       ),
                     ),
                     const SizedBox(width: 4),
-                    const Text(
-                      '/ night',
-                      style: TextStyle(fontSize: 12, color: _textMuted),
+                    Text(
+                      t.landingPerNight,
+                      style: const TextStyle(fontSize: 12, color: _textMuted),
                     ),
                     const Spacer(),
                     if (room.roomsLeft > 0)
                       Text(
                         room.roomsLeft <= 3
-                            ? 'Only ${room.roomsLeft} left'
-                            : '${room.roomsLeft} rooms left',
+                            ? t.previewRoomsLeftFew(room.roomsLeft)
+                            : t.previewRoomsLeft(room.roomsLeft),
                         style: const TextStyle(
                           fontSize: 12,
                           color: Colors.redAccent,
@@ -564,7 +569,7 @@ class _GuestReservationDetailsScreenState
     );
   }
 
-  Widget _buildStaySummaryCard() {
+  Widget _buildStaySummaryCard(AppLocalizations t) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -601,7 +606,7 @@ class _GuestReservationDetailsScreenState
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '$_nights night${_nights == 1 ? '' : 's'} · ${widget.guests} guest${widget.guests == 1 ? '' : 's'}',
+                  '${t.nightsLabel(_nights)} · ${t.guestsLabel(widget.guests)}',
                   style: const TextStyle(fontSize: 12, color: _textMuted),
                 ),
               ],
@@ -612,7 +617,7 @@ class _GuestReservationDetailsScreenState
     );
   }
 
-  Widget _buildAddOnsCard() {
+  Widget _buildAddOnsCard(AppLocalizations t) {
     final hotel = widget.hotel;
 
     return Container(
@@ -624,9 +629,9 @@ class _GuestReservationDetailsScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Add-ons',
-            style: TextStyle(
+          Text(
+            t.reservationAddOnsTitle,
+            style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
               color: _textPrimary,
@@ -634,11 +639,11 @@ class _GuestReservationDetailsScreenState
           ),
           const SizedBox(height: 4),
           if (hotel.addOns.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(bottom: 4),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
               child: Text(
-                'No add-ons available for this stay.',
-                style: TextStyle(fontSize: 12, color: _textMuted),
+                t.reservationAddOnsEmpty,
+                style: const TextStyle(fontSize: 12, color: _textMuted),
               ),
             )
           else
@@ -651,8 +656,9 @@ class _GuestReservationDetailsScreenState
                 final a = hotel.addOns[index];
                 final selected = _selectedAddonIds.contains(a.id);
 
+                final pricingModelLabel = _addonPricingLabel(t, a.pricingModel);
                 final priceLabel =
-                    '${a.price.toStringAsFixed(2)} ${a.currency} (${a.pricingModel})';
+                    '${a.price.toStringAsFixed(2)} ${a.currency}${pricingModelLabel != null ? ' · $pricingModelLabel' : ''}';
 
                 return InkWell(
                   onTap: () => _toggleAddon(a, !selected),
@@ -715,7 +721,7 @@ class _GuestReservationDetailsScreenState
     );
   }
 
-  Widget _buildPaymentMethodCard() {
+  Widget _buildPaymentMethodCard(AppLocalizations t) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -725,9 +731,9 @@ class _GuestReservationDetailsScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Payment method',
-            style: TextStyle(
+          Text(
+            t.reservationPaymentMethodTitle,
+            style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
               color: _textPrimary,
@@ -739,8 +745,8 @@ class _GuestReservationDetailsScreenState
               Expanded(
                 child: _paymentTile(
                   value: 'Card',
-                  label: 'Card',
-                  description: 'Pay now with card',
+                  label: t.paymentMethodCard,
+                  description: t.reservationPaymentCardDescription,
                   icon: Icons.credit_card,
                 ),
               ),
@@ -748,8 +754,8 @@ class _GuestReservationDetailsScreenState
               Expanded(
                 child: _paymentTile(
                   value: 'PayOnArrival',
-                  label: 'Pay at property',
-                  description: 'Pay on arrival',
+                  label: t.confirmPaymentStatusPayAtProperty,
+                  description: t.reservationPaymentPayOnArrivalDescription,
                   icon: Icons.meeting_room_outlined,
                 ),
               ),
@@ -822,7 +828,7 @@ class _GuestReservationDetailsScreenState
     );
   }
 
-  Widget _buildPriceSummaryCard() {
+  Widget _buildPriceSummaryCard(AppLocalizations t) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -833,7 +839,7 @@ class _GuestReservationDetailsScreenState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Price summary ($_nights night${_nights == 1 ? '' : 's'})',
+            t.reservationPriceSummaryTitle(t.nightsLabel(_nights)),
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
@@ -841,19 +847,19 @@ class _GuestReservationDetailsScreenState
             ),
           ),
           const SizedBox(height: 4),
-          _priceRow('Room', _roomTotal),
-          _priceRow('Add-ons', _addOnsTotal),
+          _priceRow(t.reservationPriceRoom, _roomTotal),
+          _priceRow(t.reservationPriceAddOns, _addOnsTotal),
           if (_loyaltyApplied > 0)
-            _priceRow('Loyalty discount', -_loyaltyApplied),
+            _priceRow(t.reservationPriceLoyalty, -_loyaltyApplied),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 6),
             child: Divider(height: 1),
           ),
-          _priceRow('Total (approx.)', _finalTotal, highlight: true),
+          _priceRow(t.reservationPriceTotalApprox, _finalTotal, highlight: true),
           const SizedBox(height: 4),
-          const Text(
-            'Final price may vary slightly depending on currency and fees.',
-            style: TextStyle(fontSize: 11, color: _textMuted),
+          Text(
+            t.reservationPriceNote,
+            style: const TextStyle(fontSize: 11, color: _textMuted),
           ),
         ],
       ),
@@ -886,6 +892,19 @@ class _GuestReservationDetailsScreenState
         ],
       ),
     );
+  }
+
+  String? _addonPricingLabel(AppLocalizations t, String pricingModel) {
+    switch (pricingModel) {
+      case 'PerNight':
+        return t.reservationAddOnPerNight;
+      case 'PerGuestPerNight':
+        return t.reservationAddOnPerGuestPerNight;
+      case 'PerStay':
+        return t.reservationAddOnPerStay;
+      default:
+        return null;
+    }
   }
 
   Widget _buildChip({required IconData icon, required String label}) {

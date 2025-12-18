@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:roomwise/core/api/roomwise_api_client.dart';
 import 'package:roomwise/core/models/reservation_dto.dart';
 import 'package:roomwise/core/models/review_dto.dart';
+import 'package:roomwise/l10n/app_localizations.dart';
 
 class GuestBookingDetailsScreen extends StatefulWidget {
   final ReservationDto reservation;
@@ -41,6 +42,7 @@ class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final r = widget.reservation;
     final dates = '${_formatDate(r.checkIn)} – ${_formatDate(r.checkOut)}';
 
@@ -50,9 +52,9 @@ class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
         backgroundColor: _bgColor,
         elevation: 0,
         centerTitle: false,
-        title: const Text(
-          'Booking details',
-          style: TextStyle(
+        title: Text(
+          t.bookingDetailsTitle,
+          style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: _textPrimary,
@@ -117,29 +119,31 @@ class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const _SectionTitle('Reservation details'),
+                              _SectionTitle(t.bookingDetailsReservation),
                               const SizedBox(height: 8),
                               _DetailRow(
-                                label: 'Guests',
-                                value:
-                                    '${r.guests} guest${r.guests == 1 ? '' : 's'}',
+                                label: t.bookingDetailsGuests,
+                                value: '${r.guests} ${t.guestsLabel(r.guests)}',
                               ),
-                              _DetailRow(label: 'Nights', value: '$_nights'),
+                              _DetailRow(
+                                label: t.bookingDetailsNights,
+                                value: '$_nights',
+                              ),
                               if (r.roomTypeName != null &&
                                   r.roomTypeName!.isNotEmpty)
                                 _DetailRow(
-                                  label: 'Room type',
+                                  label: t.bookingDetailsRoomType,
                                   value: r.roomTypeName!,
                                 ),
                               _DetailRow(
-                                label: 'Total amount',
+                                label: t.bookingDetailsTotal,
                                 value:
                                     '${r.currency} ${r.total.toStringAsFixed(2)}',
                                 highlight: true,
                               ),
                               if (r.confirmationNumber != null) ...[
                                 const SizedBox(height: 12),
-                                const _SectionTitle('Reference'),
+                                _SectionTitle(t.bookingDetailsReference),
                                 const SizedBox(height: 4),
                                 Text(
                                   r.confirmationNumber!,
@@ -150,9 +154,9 @@ class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 2),
-                                const Text(
-                                  'Use this confirmation number if the property requests it.',
-                                  style: TextStyle(
+                                Text(
+                                  t.bookingDetailsReferenceHint,
+                                  style: const TextStyle(
                                     fontSize: 11,
                                     color: _textMuted,
                                   ),
@@ -203,9 +207,9 @@ class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
                               height: 18,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Text(
-                              'Leave a review',
-                              style: TextStyle(
+                          : Text(
+                              t.bookingsLeaveReview,
+                              style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -231,6 +235,7 @@ class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
+        final t = AppLocalizations.of(context)!;
         final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
         return AnimatedPadding(
@@ -261,16 +266,18 @@ class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
                       ),
                     ),
                     Text(
-                      'Rate your stay at ${widget.reservation.hotelName ?? 'this property'}',
+                      t.reviewTitle(
+                        widget.reservation.hotelName ?? 'this property',
+                      ),
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
-                      'Your feedback helps other guests and the property improve.',
-                      style: TextStyle(fontSize: 12, color: _textMuted),
+                    Text(
+                      t.reviewSubtitle,
+                      style: const TextStyle(fontSize: 12, color: _textMuted),
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -295,7 +302,7 @@ class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
                       controller: controller,
                       maxLines: 4,
                       decoration: InputDecoration(
-                        labelText: 'Share your experience (optional)',
+                        labelText: t.reviewCommentLabel,
                         alignLabelWithHint: true,
                         filled: true,
                         fillColor: Colors.grey.shade100,
@@ -321,9 +328,9 @@ class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
                           Navigator.of(context).pop();
                           _submitReview(rating, controller.text.trim());
                         },
-                        child: const Text(
-                          'Submit review',
-                          style: TextStyle(
+                        child: Text(
+                          t.reviewSubmit,
+                          style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
                           ),
@@ -341,6 +348,7 @@ class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
   }
 
   Future<void> _submitReview(int rating, String comment) async {
+    final t = AppLocalizations.of(context)!;
     setState(() {
       _submittingReview = true;
       _error = null;
@@ -360,7 +368,7 @@ class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Review submitted. Thank you!')),
+        SnackBar(content: Text(t.reviewSubmitted)),
       );
     } on DioException catch (e) {
       final data = e.response?.data;
@@ -371,11 +379,11 @@ class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
             data['message']?.toString() ??
             data['error']?.toString() ??
             e.message ??
-            'Failed to submit review. Please try again.';
+            t.reviewSubmitFailed;
       } else if (data is String) {
         msg = data;
       } else {
-        msg = e.message ?? 'Failed to submit review. Please try again.';
+        msg = e.message ?? t.reviewSubmitFailed;
       }
 
       debugPrint(
@@ -389,7 +397,7 @@ class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'Failed to submit review. Please try again.';
+        _error = t.reviewSubmitFailed;
       });
     } finally {
       if (mounted) {

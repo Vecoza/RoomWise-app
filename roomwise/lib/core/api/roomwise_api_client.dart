@@ -62,14 +62,21 @@ class RoomWiseApiClient {
         onError: (error, handler) async {
           final statusCode = error.response?.statusCode;
           final path = error.requestOptions.path.toLowerCase();
-          final isAuthEndpoint = path.contains('/auth/login') ||
+          final alreadyRetried =
+              error.requestOptions.extra['auth_retry'] == true;
+          final isAuthEndpoint =
+              path.contains('/auth/login') ||
               path.contains('/auth/register') ||
               path.contains('/auth/refresh');
 
-          if (statusCode == 401 &&
+          final shouldAttemptRefresh =
+              !alreadyRetried &&
               !isAuthEndpoint &&
+              (statusCode == 401 || statusCode == 403) &&
               _authState != null &&
-              !_isRefreshing) {
+              _authState!.isLoggedIn;
+
+          if (shouldAttemptRefresh && !_isRefreshing) {
             _isRefreshing = true;
             _refreshCompleter = Completer<void>();
             final auth = _authState!;
@@ -78,26 +85,30 @@ class RoomWiseApiClient {
             _refreshCompleter = null;
             _isRefreshing = false;
 
-            if (didRefresh && auth.token != null) {
+            if (didRefresh && auth.token != null && auth.token!.isNotEmpty) {
               error.requestOptions.headers['Authorization'] =
                   'Bearer ${auth.token}';
+              error.requestOptions.extra['auth_retry'] = true;
               try {
                 final retryResponse = await _dio.fetch(error.requestOptions);
                 return handler.resolve(retryResponse);
-              } catch (e) {
-                return handler.reject(e as DioException);
+              } on DioException catch (e) {
+                return handler.reject(e);
               }
             }
-          } else if (_isRefreshing && _refreshCompleter != null) {
+          } else if (shouldAttemptRefresh &&
+              _isRefreshing &&
+              _refreshCompleter != null) {
             await _refreshCompleter!.future;
             if (_authState?.token != null) {
               error.requestOptions.headers['Authorization'] =
                   'Bearer ${_authState!.token}';
+              error.requestOptions.extra['auth_retry'] = true;
               try {
                 final retryResponse = await _dio.fetch(error.requestOptions);
                 return handler.resolve(retryResponse);
-              } catch (e) {
-                return handler.reject(e as DioException);
+              } on DioException catch (e) {
+                return handler.reject(e);
               }
             }
           }
@@ -158,9 +169,10 @@ class RoomWiseApiClient {
   Future<List<HotelSearchItemDto>> getRecommendations({int top = 5}) async {
     try {
       final response = await _dio.get(
-        '/Hotels/recommendations',
+        '/recommendations',
         queryParameters: {'top': top},
       );
+
       final data = _extractList(response.data);
       return data
           .map(
@@ -168,7 +180,6 @@ class RoomWiseApiClient {
           )
           .toList();
     } on DioException catch (e) {
-      // Treat 404 as "no recommendations available" instead of crashing UI.
       if (e.response?.statusCode == 404) return [];
       rethrow;
     }
@@ -639,7 +650,8 @@ class RoomWiseApiClient {
     final body = {
       'reservationId': reservationId,
       'paymentMethod': paymentMethod,
-      if (loyaltyPointsToRedeem != null) 'loyaltyPointsToRedeem': loyaltyPointsToRedeem,
+      if (loyaltyPointsToRedeem != null)
+        'loyaltyPointsToRedeem': loyaltyPointsToRedeem,
     };
 
     debugPrint('CREATE PAYMENT INTENT REQUEST: $body');

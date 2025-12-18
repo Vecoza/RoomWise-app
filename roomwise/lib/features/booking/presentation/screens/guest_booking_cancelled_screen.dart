@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:roomwise/core/models/guest_booking_list_item_dto.dart';
+import 'package:roomwise/l10n/app_localizations.dart';
 
 class GuestBookingCancelledScreen extends StatelessWidget {
   final GuestBookingListItemDto booking;
@@ -18,6 +19,7 @@ class GuestBookingCancelledScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final dateRange =
         '${_formatDate(booking.checkIn)} – ${_formatDate(booking.checkOut)}';
 
@@ -27,9 +29,9 @@ class GuestBookingCancelledScreen extends StatelessWidget {
         backgroundColor: _bgColor,
         elevation: 0,
         centerTitle: false,
-        title: const Text(
-          'Cancelled reservation',
-          style: TextStyle(
+        title: Text(
+          t.bookingCancelledTitle,
+          style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: _textPrimary,
@@ -75,29 +77,29 @@ class GuestBookingCancelledScreen extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const _SectionTitle('Reservation summary'),
+                                  _SectionTitle(t.bookingCancelledSummary),
                                   const SizedBox(height: 8),
                                   _DetailRow(
-                                    label: 'Room type',
+                                    label: t.bookingDetailsRoomType,
                                     value: booking.roomTypeName,
                                   ),
                                   _DetailRow(
-                                    label: 'Guests',
+                                    label: t.bookingDetailsGuests,
                                     value:
-                                        '${booking.guests} guest${booking.guests == 1 ? '' : 's'}',
+                                        '${booking.guests} ${t.guestsLabel(booking.guests)}',
                                   ),
                                   _DetailRow(
-                                    label: 'Nights',
+                                    label: t.bookingDetailsNights,
                                     value: '$_nights',
                                   ),
                                   _DetailRow(
-                                    label: 'Original total',
+                                    label: t.bookingCancelledOriginalTotal,
                                     value:
                                         '${booking.currency} ${booking.total.toStringAsFixed(2)}',
                                     highlight: true,
                                   ),
                                   const SizedBox(height: 16),
-                                  const _SectionTitle('Status'),
+                                  _SectionTitle(t.bookingPastStatusTitle),
                                   const SizedBox(height: 8),
                                   Row(
                                     children: [
@@ -116,16 +118,16 @@ class GuestBookingCancelledScreen extends StatelessWidget {
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
-                                          children: const [
-                                            Icon(
+                                          children: [
+                                            const Icon(
                                               Icons.cancel_outlined,
                                               size: 16,
                                               color: Colors.redAccent,
                                             ),
-                                            SizedBox(width: 6),
+                                            const SizedBox(width: 6),
                                             Text(
-                                              'Cancelled',
-                                              style: TextStyle(
+                                              t.bookingStatusCancelled,
+                                              style: const TextStyle(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w600,
                                                 color: Colors.redAccent,
@@ -137,10 +139,9 @@ class GuestBookingCancelledScreen extends StatelessWidget {
                                     ],
                                   ),
                                   const SizedBox(height: 10),
-                                  const Text(
-                                    'This reservation was cancelled. Refunds or charges depend on '
-                                    'the property’s cancellation policy and the time of cancellation.',
-                                    style: TextStyle(
+                                  Text(
+                                    t.bookingCancelledMessage,
+                                    style: const TextStyle(
                                       fontSize: 13,
                                       color: _textMuted,
                                       height: 1.4,
@@ -177,11 +178,12 @@ class GuestBookingCancelledScreen extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Align(
+                    Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        'Changed your mind?',
-                        style: TextStyle(fontSize: 12, color: _textMuted),
+                        t.bookingCancelledChangedMind,
+                        style:
+                            const TextStyle(fontSize: 12, color: _textMuted),
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -200,9 +202,9 @@ class GuestBookingCancelledScreen extends StatelessWidget {
                           // TODO: navigate to hotel preview / search screen prefilled
                           Navigator.pop(context);
                         },
-                        child: const Text(
-                          'Search this hotel again',
-                          style: TextStyle(
+                        child: Text(
+                          t.bookingCancelledSearchAgain,
+                          style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 15,
                           ),

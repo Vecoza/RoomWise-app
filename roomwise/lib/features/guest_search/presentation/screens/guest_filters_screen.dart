@@ -5,6 +5,7 @@ import 'package:roomwise/core/models/city_dto.dart';
 import 'package:roomwise/core/models/addon_dto.dart';
 import 'package:roomwise/core/models/facility_dto.dart';
 import 'package:roomwise/features/guest_search/domain/guest_search_filters.dart';
+import 'package:roomwise/l10n/app_localizations.dart';
 
 class GuestFiltersScreen extends StatefulWidget {
   final GuestSearchFilters? initialFilters;
@@ -197,9 +198,10 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final body = _loading
         ? const Center(child: CircularProgressIndicator())
-        : _buildContent();
+        : _buildContent(t);
 
     return Scaffold(
       backgroundColor: _bgColor,
@@ -207,9 +209,9 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
         backgroundColor: _bgColor,
         elevation: 0,
         titleSpacing: 16,
-        title: const Text(
-          'Filters',
-          style: TextStyle(
+        title: Text(
+          t.filtersTitle,
+          style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w700,
             color: _textPrimary,
@@ -218,9 +220,9 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
         actions: [
           TextButton(
             onPressed: _resetFilters,
-            child: const Text(
-              'Clear all',
-              style: TextStyle(
+            child: Text(
+              t.filtersClearAll,
+              style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: _textMuted,
@@ -260,7 +262,7 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
                     ),
                     TextButton(
                       onPressed: _loadData,
-                      child: const Text('Retry'),
+                      child: Text(t.retry),
                     ),
                   ],
                 ),
@@ -294,9 +296,9 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
                             minimumSize: const Size.fromHeight(48),
                           ),
                           onPressed: _resetFilters,
-                          child: const Text(
-                            'Reset',
-                            style: TextStyle(
+                          child: Text(
+                            t.filtersReset,
+                            style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                             ),
@@ -318,9 +320,9 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Text(
-                                'Apply',
-                                style: TextStyle(
+                              Text(
+                                t.filtersApply,
+                                style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -360,7 +362,7 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
     );
   }
 
-  Widget _buildContent() {
+  Widget _buildContent(AppLocalizations t) {
     return LayoutBuilder(
       builder: (context, constraints) {
         return Center(
@@ -371,17 +373,17 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildCityCard(),
+                  _buildCityCard(t),
                   const SizedBox(height: 12),
-                  _buildPriceCard(),
+                  _buildPriceCard(t),
                   const SizedBox(height: 12),
-                  _buildRatingCard(),
+                  _buildRatingCard(t),
                   const SizedBox(height: 12),
-                  _buildDatesAndGuestsCard(),
+                  _buildDatesAndGuestsCard(t),
                   const SizedBox(height: 12),
-                  if (_addons.isNotEmpty) _buildAddOnsCard(),
+                  if (_addons.isNotEmpty) _buildAddOnsCard(t),
                   if (_addons.isNotEmpty) const SizedBox(height: 12),
-                  if (_facilities.isNotEmpty) _buildFacilitiesCard(),
+                  if (_facilities.isNotEmpty) _buildFacilitiesCard(t),
                 ],
               ),
             ),
@@ -393,10 +395,10 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
 
   // --- CARDS ---
 
-  Widget _buildCityCard() {
+  Widget _buildCityCard(AppLocalizations t) {
     return _FilterCard(
-      title: 'City',
-      subtitle: 'Choose where you want to stay',
+      title: t.filtersCityTitle,
+      subtitle: t.filtersCitySubtitle,
       child: DropdownButtonFormField<int>(
         isExpanded: true,
         value: _selectedCityId,
@@ -413,7 +415,7 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
           ),
           prefixIcon: const Icon(Icons.location_city_outlined, size: 20),
         ),
-        hint: const Text('Any city'),
+        hint: Text(t.filtersCityAny),
         items: _cities
             .map(
               (c) => DropdownMenuItem<int>(
@@ -431,22 +433,22 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
     );
   }
 
-  Widget _buildPriceCard() {
+  Widget _buildPriceCard(AppLocalizations t) {
     return _FilterCard(
-      title: 'Price per night',
-      subtitle: 'Set your preferred budget range',
+      title: t.filtersPriceTitle,
+      subtitle: t.filtersPriceSubtitle,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               _PricePill(
-                label: 'Min',
+                label: t.filtersPriceMin,
                 value: '€${_priceRange.start.toStringAsFixed(0)}',
               ),
               const SizedBox(width: 8),
               _PricePill(
-                label: 'Max',
+                label: t.filtersPriceMax,
                 value: '€${_priceRange.end.toStringAsFixed(0)}',
               ),
               const Spacer(),
@@ -474,10 +476,10 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
     );
   }
 
-  Widget _buildRatingCard() {
+  Widget _buildRatingCard(AppLocalizations t) {
     return _FilterCard(
-      title: 'Minimum rating',
-      subtitle: 'See only hotels above a certain score',
+      title: t.filtersRatingTitle,
+      subtitle: t.filtersRatingSubtitle,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -512,10 +514,10 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
     );
   }
 
-  Widget _buildDatesAndGuestsCard() {
+  Widget _buildDatesAndGuestsCard(AppLocalizations t) {
     return _FilterCard(
-      title: 'Trip details',
-      subtitle: 'Choose your dates and number of guests',
+      title: t.filtersTripTitle,
+      subtitle: t.filtersTripSubtitle,
       child: Column(
         children: [
           // Dates row
@@ -539,7 +541,7 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
                   Expanded(
                     child: Text(
                       _dateRange == null
-                          ? 'Select dates'
+                          ? t.landingSelectDatesLabel
                           : '${_formatDate(_dateRange!.start)} – ${_formatDate(_dateRange!.end)}',
                       style: const TextStyle(
                         fontSize: 13,
@@ -565,7 +567,7 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
                 const Icon(Icons.people_outline, size: 18, color: _textMuted),
                 const SizedBox(width: 8),
                 Text(
-                  '$_guests guest${_guests == 1 ? '' : 's'}',
+                  t.guestsLabel(_guests),
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -592,10 +594,10 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
     );
   }
 
-  Widget _buildAddOnsCard() {
+  Widget _buildAddOnsCard(AppLocalizations t) {
     return _FilterCard(
-      title: 'Add-ons',
-      subtitle: 'Enhance your stay with extras',
+      title: t.reservationAddOnsTitle,
+      subtitle: t.filtersAddOnsSubtitle,
       child: Wrap(
         spacing: 8,
         runSpacing: 8,
@@ -619,10 +621,10 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
     );
   }
 
-  Widget _buildFacilitiesCard() {
+  Widget _buildFacilitiesCard(AppLocalizations t) {
     return _FilterCard(
-      title: 'Facilities',
-      subtitle: 'Pick what matters most to you',
+      title: t.filtersFacilitiesTitle,
+      subtitle: t.filtersFacilitiesSubtitle,
       child: Wrap(
         spacing: 8,
         runSpacing: 8,

@@ -10,6 +10,7 @@ import 'package:roomwise/core/models/available_room_type_dto.dart';
 import 'package:roomwise/core/models/reservation_addOn_item_dto.dart';
 import 'package:roomwise/core/models/reservation_dto.dart' show CreateReservationRequestDto;
 import 'package:roomwise/features/guest_reservation/presentation/screens/guest_reservation_preview.dart';
+import 'package:roomwise/l10n/app_localizations.dart';
 
 class GuestPaymentScreen extends StatefulWidget {
   final CreateReservationRequestDto request;
@@ -74,9 +75,10 @@ class _GuestPaymentScreenState extends State<GuestPaymentScreen> {
   }
 
   Future<void> _onContinueToPreview() async {
+    final t = AppLocalizations.of(context)!;
     if (_cardDetails?.complete != true) {
       setState(() {
-        _error = 'Please enter complete card details.';
+        _error = t.paymentCardIncomplete;
       });
       return;
     }
@@ -96,7 +98,7 @@ class _GuestPaymentScreenState extends State<GuestPaymentScreen> {
             request: widget.request,
             hotel: widget.hotel,
             roomType: widget.roomType,
-            paymentMethod: 'Card',
+            paymentMethod: t.paymentMethodCard,
             cardHolderName: _cardHolderController.text.trim(),
           ),
         ),
@@ -166,15 +168,16 @@ class _GuestPaymentScreenState extends State<GuestPaymentScreen> {
     final finalTotal = (baseTotal - loyaltyApplied).clamp(0, 1e12);
     final totalText = '$currency ${finalTotal.toStringAsFixed(2)}';
     final dateRange = '${_formatDate(req.checkIn)} – ${_formatDate(req.checkOut)}';
+    final t = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: _bgColor,
       appBar: AppBar(
         backgroundColor: _bgColor,
         elevation: 0,
-        title: const Text(
-          'Payment',
-          style: TextStyle(
+        title: Text(
+          t.paymentTitle,
+          style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w700,
             color: _textPrimary,
@@ -224,16 +227,16 @@ class _GuestPaymentScreenState extends State<GuestPaymentScreen> {
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
-                                    children: const [
-                                      Icon(
+                                    children: [
+                                      const Icon(
                                         Icons.lock_rounded,
                                         size: 14,
                                         color: _primaryGreen,
                                       ),
-                                      SizedBox(width: 6),
+                                      const SizedBox(width: 6),
                                       Text(
-                                        'Secure payment with Stripe',
-                                        style: TextStyle(
+                                        t.paymentSecureStripe,
+                                        style: const TextStyle(
                                           fontSize: 11,
                                           fontWeight: FontWeight.w600,
                                           color: _textPrimary,
@@ -300,7 +303,7 @@ class _GuestPaymentScreenState extends State<GuestPaymentScreen> {
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
-                                        '$nights night${nights == 1 ? '' : 's'}',
+                                        '${t.nightsLabel(nights)}',
                                         style: const TextStyle(
                                           fontSize: 12,
                                           color: _textMuted,
@@ -314,9 +317,9 @@ class _GuestPaymentScreenState extends State<GuestPaymentScreen> {
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
                                     children: [
-                                      const Text(
-                                        'Total to pay',
-                                        style: TextStyle(
+                                      Text(
+                                        t.paymentTotalToPay,
+                                        style: const TextStyle(
                                           fontSize: 13,
                                           color: _textMuted,
                                           fontWeight: FontWeight.w500,
@@ -356,18 +359,18 @@ class _GuestPaymentScreenState extends State<GuestPaymentScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
-                                    'Card details',
-                                    style: TextStyle(
+                                  Text(
+                                    t.paymentCardTitle,
+                                    style: const TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w700,
                                       color: _textPrimary,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
-                                  const Text(
-                                    'We won’t charge your card until you confirm on the next step.',
-                                    style: TextStyle(
+                                  Text(
+                                    t.paymentCardSubtitle,
+                                    style: const TextStyle(
                                       fontSize: 12,
                                       color: _textMuted,
                                     ),
@@ -378,7 +381,7 @@ class _GuestPaymentScreenState extends State<GuestPaymentScreen> {
                                     textCapitalization:
                                         TextCapitalization.words,
                                     decoration: InputDecoration(
-                                      labelText: 'Name on card (optional)',
+                                      labelText: t.paymentCardNameOptional,
                                       labelStyle: const TextStyle(
                                         fontSize: 13,
                                         color: _textMuted,
@@ -411,17 +414,17 @@ class _GuestPaymentScreenState extends State<GuestPaymentScreen> {
                                   ),
                                   const SizedBox(height: 8),
                                   Row(
-                                    children: const [
-                                      Icon(
+                                    children: [
+                                      const Icon(
                                         Icons.info_outline,
                                         size: 14,
                                         color: _textMuted,
                                       ),
-                                      SizedBox(width: 6),
+                                      const SizedBox(width: 6),
                                       Expanded(
                                         child: Text(
-                                          'Your card details are processed securely by Stripe. RoomWise never stores full card numbers.',
-                                          style: TextStyle(
+                                          t.paymentCardInfo,
+                                          style: const TextStyle(
                                             fontSize: 11,
                                             color: _textMuted,
                                           ),
@@ -445,15 +448,15 @@ class _GuestPaymentScreenState extends State<GuestPaymentScreen> {
                                     color: Colors.redAccent.withOpacity(0.5),
                                   ),
                                 ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Icon(
-                                      Icons.error_outline,
-                                      size: 18,
-                                      color: Colors.redAccent,
-                                    ),
-                                    const SizedBox(width: 8),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(
+                                    Icons.error_outline,
+                                    size: 18,
+                                    color: Colors.redAccent,
+                                  ),
+                                  const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
                                         _error!,
@@ -492,20 +495,20 @@ class _GuestPaymentScreenState extends State<GuestPaymentScreen> {
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 640),
                       child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Text(
-                                  'Total',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: _textMuted,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    t.paymentTotalLabel,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: _textMuted,
+                                    ),
                                   ),
-                                ),
-                                Text(
+                                  Text(
                                   totalText,
                                   style: const TextStyle(
                                     fontSize: 16,
@@ -541,9 +544,9 @@ class _GuestPaymentScreenState extends State<GuestPaymentScreen> {
                                           color: Colors.white,
                                         ),
                                       )
-                                    : const Text(
-                                        'Continue to preview',
-                                        style: TextStyle(
+                                    : Text(
+                                        t.paymentContinue,
+                                        style: const TextStyle(
                                           fontSize: 15,
                                           fontWeight: FontWeight.w600,
                                         ),

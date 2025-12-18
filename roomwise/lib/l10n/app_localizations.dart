@@ -8,59 +8,6 @@ import 'package:intl/intl.dart' as intl;
 import 'app_localizations_bs.dart';
 import 'app_localizations_en.dart';
 
-// ignore_for_file: type=lint
-
-/// Callers can lookup localized strings with an instance of AppLocalizations
-/// returned by `AppLocalizations.of(context)`.
-///
-/// Applications need to include `AppLocalizations.delegate()` in their app's
-/// `localizationDelegates` list, and the locales they support in the app's
-/// `supportedLocales` list. For example:
-///
-/// ```dart
-/// import 'l10n/app_localizations.dart';
-///
-/// return MaterialApp(
-///   localizationsDelegates: AppLocalizations.localizationsDelegates,
-///   supportedLocales: AppLocalizations.supportedLocales,
-///   home: MyApplicationHome(),
-/// );
-/// ```
-///
-/// ## Update pubspec.yaml
-///
-/// Please make sure to update your pubspec.yaml to include the following
-/// packages:
-///
-/// ```yaml
-/// dependencies:
-///   # Internationalization support.
-///   flutter_localizations:
-///     sdk: flutter
-///   intl: any # Use the pinned version from flutter_localizations
-///
-///   # Rest of dependencies
-/// ```
-///
-/// ## iOS Applications
-///
-/// iOS applications define key application metadata, including supported
-/// locales, in an Info.plist file that is built into the application bundle.
-/// To configure the locales supported by your app, you’ll need to edit this
-/// file.
-///
-/// First, open your project’s ios/Runner.xcworkspace Xcode workspace file.
-/// Then, in the Project Navigator, open the Info.plist file under the Runner
-/// project’s Runner folder.
-///
-/// Next, select the Information Property List item, select Add Item from the
-/// Editor menu, then select Localizations from the pop-up menu.
-///
-/// Select and expand the newly-created Localizations item then, for each
-/// locale your application supports, add a new item and select the locale
-/// you wish to add from the pop-up menu in the Value field. This list should
-/// be consistent with the languages listed in the AppLocalizations.supportedLocales
-/// property.
 abstract class AppLocalizations {
   AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
@@ -72,16 +19,6 @@ abstract class AppLocalizations {
 
   static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
 
-  /// A list of this localizations delegate along with the default localizations
-  /// delegates.
-  ///
-  /// Returns a list of localizations delegates containing this delegate along with
-  /// GlobalMaterialLocalizations.delegate, GlobalCupertinoLocalizations.delegate,
-  /// and GlobalWidgetsLocalizations.delegate.
-  ///
-  /// Additional delegates can be added by appending to this list in
-  /// MaterialApp. This list does not have to be used at all if a custom list
-  /// of delegates is preferred or required.
   static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
     delegate,
     GlobalMaterialLocalizations.delegate,
@@ -89,287 +26,598 @@ abstract class AppLocalizations {
     GlobalWidgetsLocalizations.delegate,
   ];
 
-  /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('bs'),
     Locale('en')
   ];
 
-  /// No description provided for @appTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Roomwise'**
   String get appTitle;
 
-  /// No description provided for @settingsTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Settings'**
   String get settingsTitle;
 
-  /// No description provided for @languageLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Language'**
   String get languageLabel;
 
-  /// No description provided for @english.
-  ///
-  /// In en, this message translates to:
-  /// **'English'**
   String get english;
 
-  /// No description provided for @bosnian.
-  ///
-  /// In en, this message translates to:
-  /// **'Bosnian'**
   String get bosnian;
 
-  /// No description provided for @loyaltyTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Loyalty'**
   String get loyaltyTitle;
 
-  /// No description provided for @loyaltyViewPoints.
-  ///
-  /// In en, this message translates to:
-  /// **'View your points'**
   String get loyaltyViewPoints;
 
-  /// No description provided for @view.
-  ///
-  /// In en, this message translates to:
-  /// **'View'**
   String get view;
 
-  /// No description provided for @securityTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Security'**
   String get securityTitle;
 
-  /// No description provided for @securitySubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Update your password regularly to keep your account safe.'**
   String get securitySubtitle;
 
-  /// No description provided for @logout.
-  ///
-  /// In en, this message translates to:
-  /// **'Log out'**
   String get logout;
 
-  /// No description provided for @reviewYourStay.
-  ///
-  /// In en, this message translates to:
-  /// **'Review your stay'**
+  String get wishlistTitle;
+
+  String get wishlistLoggedOutTitle;
+
+  String get wishlistLoggedOutSubtitle;
+
+  String get wishlistCreateAccount;
+
+  String get wishlistLoginAgain;
+
+  String get wishlistLoadFailed;
+
+  String get wishlistUpdateLogin;
+
+  String get wishlistUpdateFailed;
+
+  String get wishlistRemoved;
+
+  String get wishlistNoFavouritesTitle;
+
+  String get wishlistNoFavouritesSubtitle;
+
+  String get createAccount;
+
+  String get bookingsTitle;
+
+  String get bookingsLoggedOutTitle;
+
+  String get bookingsLoggedOutSubtitle;
+
+  String get bookingsNoStays;
+
+  String bookingsTotal(int total);
+
+  String get bookingsTabCurrent;
+
+  String get bookingsTabPast;
+
+  String get bookingsTabCancelled;
+
+  String get bookingsEmptyCurrentTitle;
+
+  String get bookingsEmptyCurrentSubtitle;
+
+  String get bookingsEmptyPastTitle;
+
+  String get bookingsEmptyPastSubtitle;
+
+  String get bookingsEmptyCancelledTitle;
+
+  String get bookingsEmptyCancelledSubtitle;
+
+  String get bookingsStatusUpcoming;
+
+  String get bookingsStatusCompleted;
+
+  String get bookingsStatusCancelled;
+
+  String get bookingStatusCancelled;
+
+  String get bookingsTotalPrice;
+
+  String get bookingsLeaveReview;
+
+  String get bookingsLoadFailed;
+
+  String nightsLabel(int nights);
+
+  String guestsLabel(int guests);
+
+  String get landingLoadFailed;
+
+  String get landingRecommendationsFailed;
+
+  String get landingSnackSelectDates;
+
+  String get landingSnackGuests;
+
+  String get landingHeroTitle;
+
+  String get landingHeroSubtitle;
+
+  String get landingSearchHint;
+
+  String get landingSelectDatesLabel;
+
+  String get landingGuestsLabel;
+
+  String get landingSearchButton;
+
+  String get landingExploreTitle;
+
+  String get landingExploreCaption;
+
+  String get landingHotDealsTitle;
+
+  String get landingHotDealsCaption;
+
+  String get landingSeeAll;
+
+  String get landingRecommendedTitle;
+
+  String get landingRecommendedCaption;
+
+  String get landingRecommendedEmpty;
+
+  String get landingThemeTitle;
+
+  String get landingThemeCaption;
+
+  String get landingQuickPicks;
+
+  String get landingTagCTA;
+
+  String get landingHotDealBadge;
+
+  String get landingLimitedOffer;
+
+  String landingFromPrice(String currency, String price);
+
+  String get landingPerNight;
+
+  String get landingForYouBadge;
+
+  String get landingTagLoadFailed;
+
+  String get landingTagNoHotels;
+
   String get reviewYourStay;
 
-  /// No description provided for @retry.
-  ///
-  /// In en, this message translates to:
-  /// **'Retry'**
   String get retry;
 
-  /// No description provided for @guestProfile.
-  ///
-  /// In en, this message translates to:
-  /// **'Guest profile'**
   String get guestProfile;
 
-  /// No description provided for @notifications.
-  ///
-  /// In en, this message translates to:
-  /// **'Notifications'**
   String get notifications;
 
-  /// No description provided for @personalInfoTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Personal information'**
+  String get hotDealsTitle;
+
+  String get hotDealsLoadFailed;
+
+  String get hotDealsHeaderTitle;
+
+  String get hotDealsHeaderEmptySubtitle;
+
+  String hotDealsHeaderCount(int total);
+
+  String hotDealsHeaderFiltered(int visible, int total);
+
+  String get hotDealsSortLabel;
+
+  String get hotDealsSortLowest;
+
+  String get hotDealsSortHighest;
+
+  String get hotDealsEmptyTitle;
+
+  String get hotDealsEmptySubtitle;
+
+  String get hotDealsFromLabel;
+
+  String get notificationsHeaderTitle;
+
+  String get notificationsAllCaughtUp;
+
+  String notificationsUnreadCount(int unread);
+
+  String get notificationsFilterAll;
+
+  String get notificationsFilterUnread;
+
+  String get notificationsMarkAllRead;
+
+  String get notificationsLoggedOutTitle;
+
+  String get notificationsLoggedOutSubtitle;
+
+  String get notificationsLoginButton;
+
+  String get notificationsEmptySubtitle;
+
+  String get notificationsBadgeNew;
+
+  String get notificationsPillReservation;
+
+  String get notificationsPillCancelled;
+
+  String get notificationsPillPayment;
+
+  String get notificationsMessageReservationCreated;
+
+  String get notificationsMessageReservationCancelled;
+
+  String get notificationsMessagePaymentSucceeded;
+
+  String get previewLoadFailed;
+
+  String get previewSelectionTitle;
+
+  String get previewContinue;
+
+  String previewGuestsCount(int guests);
+
+  String get previewSectionAbout;
+
+  String get previewSectionFacilities;
+
+  String get previewSectionAddOns;
+
+  String get previewRoomsTitle;
+
+  String get previewNoRooms;
+
+  String get previewReviewsTitle;
+
+  String get previewReviewsLoadFailed;
+
+  String get previewReviewsEmpty;
+
+  String get previewLoadMore;
+
+  String previewReviewsCount(int count);
+
+  String get previewHotelNotFound;
+
+  String get previewHeaderFallback;
+
+  String get previewWishlistAdded;
+
+  String get previewNonSmoking;
+
+  String previewRoomsLeftFew(int count);
+
+  String previewRoomsLeft(int count);
+
+  String get previewSelect;
+
+  String get paymentTitle;
+
+  String get paymentSecureStripe;
+
+  String get paymentTotalToPay;
+
+  String get paymentCardTitle;
+
+  String get paymentCardSubtitle;
+
+  String get paymentCardNameOptional;
+
+  String get paymentCardInfo;
+
+  String get paymentCardIncomplete;
+
+  String get paymentTotalLabel;
+
+  String get paymentContinue;
+
+  String get paymentMethodCard;
+
+  String get confirmTitle;
+
+  String get confirmHeading;
+
+  String get confirmSubheading;
+
+  String get confirmStayDetails;
+
+  String get confirmPaymentStatusPayAtProperty;
+
+  String get confirmPaymentCompleted;
+
+  String get confirmPaymentProcessing;
+
+  String get confirmPaymentActionRequired;
+
+  String confirmPaymentStatusGeneric(String status);
+
+  String get confirmTotalPaid;
+
+  String get confirmConfirmationNumber;
+
+  String get confirmManageInfo;
+
+  String get confirmBackHome;
+
+  String get reservationLoginPrompt;
+
+  String get reservationContinue;
+
+  String get reservationStepStay;
+
+  String get reservationStepAddOns;
+
+  String get reservationStepPayment;
+
+  String get reservationStepSummary;
+
+  String reservationSleeps(int count);
+
+  String get reservationSmoking;
+
+  String get reservationAddOnsTitle;
+
+  String get reservationAddOnsEmpty;
+
+  String get reservationAddOnPerNight;
+
+  String get reservationAddOnPerGuestPerNight;
+
+  String get reservationAddOnPerStay;
+
+  String get reservationPaymentMethodTitle;
+
+  String get reservationPaymentCardDescription;
+
+  String get reservationPaymentPayOnArrivalDescription;
+
+  String reservationPriceSummaryTitle(String nights);
+
+  String get reservationPriceRoom;
+
+  String get reservationPriceAddOns;
+
+  String get reservationPriceLoyalty;
+
+  String get reservationPriceTotalApprox;
+
+  String get reservationPriceNote;
+
+  String reservationPhotosCount(int count);
+
+  String get filtersTitle;
+
+  String get filtersClearAll;
+
+  String get filtersLoadWarning;
+
+  String get filtersReset;
+
+  String get filtersApply;
+
+  String get filtersCityTitle;
+
+  String get filtersCitySubtitle;
+
+  String get filtersCityAny;
+
+  String get filtersPriceTitle;
+
+  String get filtersPriceSubtitle;
+
+  String get filtersPriceMin;
+
+  String get filtersPriceMax;
+
+  String get filtersRatingTitle;
+
+  String get filtersRatingSubtitle;
+
+  String get filtersTripTitle;
+
+  String get filtersTripSubtitle;
+
+  String get filtersAddOnsSubtitle;
+
+  String get filtersFacilitiesTitle;
+
+  String get filtersFacilitiesSubtitle;
+
+  String get searchFlexibleDates;
+
+  String get searchTitle;
+
+  String searchErrorCity(String city);
+
+  String searchEmptyTitle(String city);
+
+  String get searchEmptySubtitle;
+
+  String searchCount(int count);
+
+  String get searchPerNightTaxes;
+
+  String get searchViewDetails;
+
+  String get searchNoResultsTitle;
+
+  String searchReviewsCount(int count);
+
+  String get searchPerNightEstimate;
+
+  String get searchRefine;
+
+  String get previewYouWillPay;
+
+  String get previewConfirmPay;
+
+  String get previewConfirmReservation;
+
+  String get previewStepReview;
+
+  String get previewHeroTitle;
+
+  String get previewPaymentCardPill;
+
+  String get previewPaymentPayOnPropertyPill;
+
+  String previewGuestsPill(int guests);
+
+  String get previewCheckIn;
+
+  String get previewCheckOut;
+
+  String get previewPaymentCardTitle;
+
+  String get previewPaymentPayOnPropertyTitle;
+
+  String previewPaymentCardSubtitle(String total);
+
+  String previewPaymentPayOnPropertySubtitle(String total);
+
+  String get previewFinePrint;
+
   String get personalInfoTitle;
 
-  /// No description provided for @personalInfoSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Edit your basic details used for bookings and communication.'**
   String get personalInfoSubtitle;
 
-  /// No description provided for @firstName.
-  ///
-  /// In en, this message translates to:
-  /// **'First name'**
   String get firstName;
 
-  /// No description provided for @firstNameError.
-  ///
-  /// In en, this message translates to:
-  /// **'Please enter your first name.'**
   String get firstNameError;
 
-  /// No description provided for @lastName.
-  ///
-  /// In en, this message translates to:
-  /// **'Last name'**
   String get lastName;
 
-  /// No description provided for @phoneOptional.
-  ///
-  /// In en, this message translates to:
-  /// **'Phone (optional)'**
   String get phoneOptional;
 
-  /// No description provided for @saveChanges.
-  ///
-  /// In en, this message translates to:
-  /// **'Save changes'**
   String get saveChanges;
 
-  /// No description provided for @currentPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'Current password'**
   String get currentPassword;
 
-  /// No description provided for @currentPasswordError.
-  ///
-  /// In en, this message translates to:
-  /// **'Please enter your current password.'**
   String get currentPasswordError;
 
-  /// No description provided for @newPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'New password'**
   String get newPassword;
 
-  /// No description provided for @newPasswordError.
-  ///
-  /// In en, this message translates to:
-  /// **'Password should be at least 6 characters.'**
   String get newPasswordError;
 
-  /// No description provided for @confirmPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'Confirm new password'**
   String get confirmPassword;
 
-  /// No description provided for @confirmPasswordError.
-  ///
-  /// In en, this message translates to:
-  /// **'Passwords do not match.'**
   String get confirmPasswordError;
 
-  /// No description provided for @changePassword.
-  ///
-  /// In en, this message translates to:
-  /// **'Change password'**
   String get changePassword;
 
-  /// No description provided for @supportTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Support & FAQ'**
   String get supportTitle;
 
-  /// No description provided for @supportSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Find answers and contact our support team.'**
   String get supportSubtitle;
 
-  /// No description provided for @alreadyAccount.
-  ///
-  /// In en, this message translates to:
-  /// **'I already have an account'**
   String get alreadyAccount;
 
-  /// No description provided for @supportHeaderTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'How can we help?'**
   String get supportHeaderTitle;
 
-  /// No description provided for @supportHeaderSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Browse common questions or reach out to our support team if something is unclear.'**
   String get supportHeaderSubtitle;
 
-  /// No description provided for @faqTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Frequently asked questions'**
   String get faqTitle;
 
-  /// No description provided for @faqSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Tap a question to see more details.'**
   String get faqSubtitle;
 
-  /// No description provided for @faqQ1.
-  ///
-  /// In en, this message translates to:
-  /// **'How do I change or cancel my reservation?'**
   String get faqQ1;
 
-  /// No description provided for @faqA1.
-  ///
-  /// In en, this message translates to:
-  /// **'You can manage your stays from the Bookings tab. Tap on a reservation to view details and see the available options.'**
   String get faqA1;
 
-  /// No description provided for @faqQ2.
-  ///
-  /// In en, this message translates to:
-  /// **'Where can I see my loyalty points?'**
   String get faqQ2;
 
-  /// No description provided for @faqA2.
-  ///
-  /// In en, this message translates to:
-  /// **'Your current point balance is visible in the Profile section under “Loyalty points”.'**
   String get faqA2;
 
-  /// No description provided for @faqQ3.
-  ///
-  /// In en, this message translates to:
-  /// **'What payment methods are supported?'**
   String get faqQ3;
 
-  /// No description provided for @faqA3.
-  ///
-  /// In en, this message translates to:
-  /// **'You can usually pay by card via Stripe. Availability of other methods depends on the hotel and your country.'**
   String get faqA3;
 
-  /// No description provided for @faqQ4.
-  ///
-  /// In en, this message translates to:
-  /// **'I found an issue with my booking. What should I do?'**
   String get faqQ4;
 
-  /// No description provided for @faqA4.
-  ///
-  /// In en, this message translates to:
-  /// **'If something looks wrong, please contact our support team with your booking reference so we can help as soon as possible.'**
   String get faqA4;
 
-  /// No description provided for @supportContactTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Contact support'**
   String get supportContactTitle;
 
-  /// No description provided for @supportContactSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Didn’t find what you were looking for? Reach out and we’ll get back to you as soon as possible.'**
   String get supportContactSubtitle;
+
+  String get reviewRatingRequired;
+
+  String get reviewMissingHotel;
+
+  String get reviewSubmitted;
+
+  String get reviewSubmitFailed;
+
+  String reviewTitle(String hotelName);
+
+  String get reviewSubtitle;
+
+  String get reviewCommentLabel;
+
+  String get reviewSubmit;
+
+  String get navExplore;
+
+  String get navBookings;
+
+  String get navWishlist;
+
+  String get navProfile;
+
+  String get bookingDetailsTitle;
+
+  String get bookingDetailsReservation;
+
+  String get bookingDetailsGuests;
+
+  String get bookingDetailsNights;
+
+  String get bookingDetailsRoomType;
+
+  String get bookingDetailsTotal;
+
+  String get bookingDetailsReference;
+
+  String get bookingDetailsReferenceHint;
+
+  String get bookingCancelledTitle;
+
+  String get bookingCancelledSummary;
+
+  String get bookingCancelledOriginalTotal;
+
+  String get bookingCancelledMessage;
+
+  String get bookingCancelledChangedMind;
+
+  String get bookingCancelledSearchAgain;
+
+  String get bookingCurrentStayDetails;
+
+  String get bookingCurrentStatusUpcoming;
+
+  String get bookingCurrentToday;
+
+  String bookingCurrentCountdown(String date, int days);
+
+  String get bookingCurrentImportant;
+
+  String get bookingCurrentImportantText;
+
+  String get bookingCurrentChangePlans;
+
+  String get bookingCurrentCancel;
+
+  String get bookingPastTitle;
+
+  String get bookingPastStaySummary;
+
+  String get bookingPastTotalPaid;
+
+  String get bookingPastStatusTitle;
+
+  String get bookingPastStatusCompleted;
+
+  String get bookingPastMessage;
+
+  String get bookingPastTip;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
@@ -390,14 +638,13 @@ class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> 
 AppLocalizations lookupAppLocalizations(Locale locale) {
 
 
-  // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
     case 'bs': return AppLocalizationsBs();
     case 'en': return AppLocalizationsEn();
   }
 
   throw FlutterError(
-    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+    'AppLocalizations.delegate failed to load unsupported locale \"$locale\". This is likely '
     'an issue with the localizations generation tool. Please file an issue '
     'on GitHub with a reproducible sample app and the gen-l10n configuration '
     'that was used.'

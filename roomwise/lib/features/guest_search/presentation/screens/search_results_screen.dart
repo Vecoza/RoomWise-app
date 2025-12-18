@@ -5,6 +5,7 @@ import 'package:roomwise/core/models/hotel_search_item_dto.dart';
 import 'package:roomwise/features/guest_hotel/presentation/screens/guest_hotel_preview_screen.dart';
 import 'package:roomwise/features/guest_search/domain/guest_search_filters.dart';
 import 'package:roomwise/features/guest_search/presentation/screens/guest_filters_screen.dart';
+import 'package:roomwise/l10n/app_localizations.dart';
 
 const _primaryGreen = Color(0xFF05A87A);
 const _accentOrange = Color(0xFFFF7A3C);
@@ -194,6 +195,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
 
   /// Small row under the search bar showing the selected dates & guests.
   Widget _buildActiveFiltersSummary() {
+    final t = AppLocalizations.of(context)!;
     final dateRange = _currentFilters.dateRange ?? widget.dateRange;
     final guests = _currentFilters.guests ?? widget.guests;
 
@@ -208,7 +210,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       );
     }
     if (guests != null) {
-      textParts.add('$guests guest${guests == 1 ? '' : 's'}');
+      textParts.add(t.guestsLabel(guests));
     }
 
     return Padding(
@@ -230,7 +232,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
           if (_hasAnyFilter(_currentFilters))
             TextButton(
               onPressed: _openFilters,
-              child: const Text('Refine', style: TextStyle(fontSize: 12)),
+              child: Text(t.searchRefine, style: const TextStyle(fontSize: 12)),
             ),
         ],
       ),
@@ -257,6 +259,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     Widget listBody;
 
     if (_loading) {
@@ -280,7 +283,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                 style: const TextStyle(color: Colors.redAccent, fontSize: 14),
               ),
               const SizedBox(height: 8),
-              TextButton(onPressed: _loadResults, child: const Text('Retry')),
+              TextButton(onPressed: _loadResults, child: Text(t.retry)),
             ],
           ),
         ),
@@ -291,13 +294,13 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(Icons.travel_explore_outlined, size: 40, color: _textMuted),
-              SizedBox(height: 12),
+            children: [
+              const Icon(Icons.travel_explore_outlined, size: 40, color: _textMuted),
+              const SizedBox(height: 12),
               Text(
-                'No stays match your search.\nTry adjusting filters or dates.',
+                t.searchNoResultsTitle,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: _textPrimary),
+                style: const TextStyle(fontSize: 14, color: _textPrimary),
               ),
             ],
           ),
@@ -343,9 +346,9 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         elevation: 0,
         centerTitle: false,
         titleSpacing: 16,
-        title: const Text(
-          'Search stays',
-          style: TextStyle(
+        title: Text(
+          t.searchTitle,
+          style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w700,
             color: _textPrimary,
@@ -361,7 +364,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                   child: TextField(
                     controller: _searchCtrl,
                     decoration: InputDecoration(
-                      hintText: 'Search by hotel or city',
+                      hintText: t.landingSearchHint,
                       hintStyle: const TextStyle(fontSize: 13),
                       prefixIcon: const Icon(Icons.search, size: 20),
                       filled: true,
@@ -494,7 +497,12 @@ class _HotelResultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasRating = hotel.reviewCount > 0;
-    final priceText = 'From €${hotel.fromPrice.toStringAsFixed(0)}';
+    final t = AppLocalizations.of(context)!;
+    final currency = hotel.currency.isNotEmpty ? hotel.currency : '€';
+    final priceText = t.landingFromPrice(
+      currency,
+      hotel.fromPrice.toStringAsFixed(0),
+    );
 
     return InkWell(
       borderRadius: BorderRadius.circular(18),
@@ -615,7 +623,7 @@ class _HotelResultCard extends StatelessWidget {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              '${hotel.reviewCount} review${hotel.reviewCount == 1 ? '' : 's'}',
+                              t.searchReviewsCount(hotel.reviewCount),
                               style: const TextStyle(
                                 fontSize: 11,
                                 color: _textMuted,
@@ -663,9 +671,9 @@ class _HotelResultCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 2),
-                          const Text(
-                            'per night · est.',
-                            style: TextStyle(fontSize: 11, color: _textMuted),
+                          Text(
+                            t.searchPerNightEstimate,
+                            style: const TextStyle(fontSize: 11, color: _textMuted),
                           ),
                         ],
                       ),
@@ -681,16 +689,16 @@ class _HotelResultCard extends StatelessWidget {
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            Icon(
+                          children: [
+                            const Icon(
                               Icons.arrow_forward_rounded,
                               size: 14,
                               color: _primaryGreen,
                             ),
-                            SizedBox(width: 4),
+                            const SizedBox(width: 4),
                             Text(
-                              'View details',
-                              style: TextStyle(
+                              t.searchViewDetails,
+                              style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 color: _primaryGreen,
