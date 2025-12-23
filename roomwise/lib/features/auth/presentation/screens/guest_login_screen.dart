@@ -24,7 +24,6 @@ class GuestLoginScreen extends StatefulWidget {
 class _GuestLoginScreenState extends State<GuestLoginScreen> {
   // Same design tokens as register screen
   static const _primaryGreen = Color(0xFF05A87A);
-  static const _accentOrange = Color(0xFFFF7A3C);
   static const _radius = 16.0;
 
   final _formKey = GlobalKey<FormState>();
@@ -113,10 +112,11 @@ class _GuestLoginScreenState extends State<GuestLoginScreen> {
       if (!mounted) return;
 
       final code = e.response?.statusCode;
-      final msg =
-          (code == 401 || code == 403)
-              ? 'Invalid email or password.'
-              : (code != null ? 'Login failed (HTTP $code).' : 'Cannot reach the server.');
+      final msg = (code == 401 || code == 403)
+          ? 'Invalid email or password.'
+          : (code != null
+                ? 'Login failed (HTTP $code).'
+                : 'Cannot reach the server.');
       setState(() {
         _error = msg;
       });

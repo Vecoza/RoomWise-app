@@ -12,7 +12,7 @@ import 'package:roomwise/core/models/reservation_addOn_item_dto.dart';
 import 'package:roomwise/core/models/reservation_dto.dart';
 import 'package:roomwise/features/guest/booking/sync/bookings_sync.dart';
 import 'package:roomwise/features/guest/guest_reservation/presentation/screens/guest_reservation_preview.dart';
-import 'package:roomwise/features/guest/onboarding/presentation/screens/guest_login_screen.dart';
+import 'package:roomwise/features/auth/presentation/screens/guest_login_screen.dart';
 import 'package:roomwise/features/guest/guest_reservation/presentation/screens/guest_payment_screen.dart';
 import 'package:roomwise/l10n/app_localizations.dart';
 

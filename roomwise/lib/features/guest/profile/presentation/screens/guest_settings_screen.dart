@@ -12,7 +12,7 @@ import 'package:roomwise/core/models/loyalty_summary_dto.dart';
 import 'package:roomwise/core/models/me_profile_dto.dart';
 import 'package:roomwise/features/guest/booking/sync/bookings_sync.dart';
 import 'package:roomwise/features/auth/presentation/screens/guest_register_screen.dart';
-import 'package:roomwise/features/guest/onboarding/presentation/screens/guest_login_screen.dart';
+import 'package:roomwise/features/auth/presentation/screens/guest_login_screen.dart';
 import 'package:roomwise/features/guest/profile/presentation/screens/guest_settings_support_screen.dart';
 import 'package:roomwise/features/guest/notifications/domain/notification_controller.dart';
 import 'package:roomwise/features/guest/notifications/presentation/notifications_screen.dart';

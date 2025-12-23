@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:roomwise/core/auth/auth_state.dart';
-import 'package:roomwise/features/guest/onboarding/presentation/screens/guest_login_screen.dart';
+import 'package:roomwise/features/admin/presentation/screens/admin_shell.dart';
+import 'package:roomwise/features/auth/presentation/screens/guest_login_screen.dart';
 
 class AdminRootShell extends StatelessWidget {
   const AdminRootShell({super.key});
@@ -18,7 +19,7 @@ class AdminRootShell extends StatelessWidget {
       return const _AdminNotAuthorized();
     }
 
-    return const _AdminHome();
+    return const AdminShell();
   }
 }
 
@@ -135,61 +136,20 @@ class _AdminNotAuthorized extends StatelessWidget {
                     style: TextStyle(color: Colors.black54),
                   ),
                   const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 46,
-                    child: OutlinedButton(
-                      onPressed: () async {
-                        await context.read<AuthState>().logout();
-                      },
-                      child: const Text('Log out'),
-                    ),
-                  ),
+                  // SizedBox(
+                  //   width: double.infinity,
+                  //   height: 46,
+                  //   child: OutlinedButton(
+                  //     onPressed: () async {
+                  //       await context.read<AuthState>().logout();
+                  //     },
+                  //     child: const Text('Log out'),
+                  //   ),
+                  // ),
                 ],
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AdminHome extends StatelessWidget {
-  const _AdminHome();
-
-  @override
-  Widget build(BuildContext context) {
-    final auth = context.watch<AuthState>();
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6),
-      appBar: AppBar(
-        title: const Text('Admin panel'),
-        backgroundColor: const Color(0xFFF3F4F6),
-        elevation: 0,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: Center(
-              child: Text(
-                auth.email ?? '',
-                style: const TextStyle(color: Colors.black54),
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              await context.read<AuthState>().logout();
-            },
-            child: const Text('Log out'),
-          ),
-        ],
-      ),
-      body: const Center(
-        child: Text(
-          'Admin UI goes here (dashboard, hotels, reservations, users…).',
-          style: TextStyle(color: Colors.black54),
         ),
       ),
     );

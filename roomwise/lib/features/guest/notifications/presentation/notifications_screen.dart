@@ -4,7 +4,7 @@ import 'package:roomwise/core/auth/auth_state.dart';
 import 'package:roomwise/core/models/notification_dto.dart';
 
 import 'package:roomwise/features/guest/notifications/domain/notification_controller.dart';
-import 'package:roomwise/features/guest/onboarding/presentation/screens/guest_login_screen.dart';
+import 'package:roomwise/features/auth/presentation/screens/guest_login_screen.dart';
 import 'package:roomwise/l10n/app_localizations.dart';
 
 class NotificationsScreen extends StatefulWidget {

@@ -23,5 +23,5 @@ Admin (desktop):
 
 ## Notes
 
-- The admin UI is currently a placeholder `AdminRootShell` that requires an
-  authenticated user with the **Administrator** role.
+- The admin app uses `AdminRootShell`, which gates access to the admin UI and
+  requires an authenticated user with the **Administrator** role.

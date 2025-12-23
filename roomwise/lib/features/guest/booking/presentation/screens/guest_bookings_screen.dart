@@ -10,7 +10,7 @@ import 'package:roomwise/features/guest/booking/presentation/screens/guest_booki
 import 'package:roomwise/features/guest/booking/presentation/screens/guest_booking_current_screen.dart';
 import 'package:roomwise/features/guest/booking/presentation/screens/guest_booking_past_screen.dart';
 import 'package:roomwise/features/guest/booking/sync/bookings_sync.dart';
-import 'package:roomwise/features/guest/onboarding/presentation/screens/guest_login_screen.dart';
+import 'package:roomwise/features/auth/presentation/screens/guest_login_screen.dart';
 import 'package:roomwise/l10n/app_localizations.dart';
 
 class GuestBookingsScreen extends StatefulWidget {

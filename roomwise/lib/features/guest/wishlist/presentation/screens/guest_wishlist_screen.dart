@@ -6,7 +6,7 @@ import 'package:roomwise/core/auth/auth_state.dart';
 import 'package:roomwise/core/models/hotel_search_item_dto.dart';
 import 'package:roomwise/core/models/wishlist_item_dto.dart';
 import 'package:roomwise/features/auth/presentation/screens/guest_register_screen.dart';
-import 'package:roomwise/features/guest/onboarding/presentation/screens/guest_login_screen.dart';
+import 'package:roomwise/features/auth/presentation/screens/guest_login_screen.dart';
 import 'package:roomwise/features/guest/guest_hotel/presentation/screens/guest_hotel_preview_screen.dart';
 import 'package:roomwise/features/guest/wishlist/wishlist_sync.dart';
 import 'package:roomwise/l10n/app_localizations.dart';

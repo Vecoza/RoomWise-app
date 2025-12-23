@@ -18,6 +18,18 @@ import 'package:roomwise/core/models/paged_result.dart';
 import 'package:roomwise/core/models/loyalty_dtos.dart';
 import 'package:roomwise/core/models/review_response_dto.dart';
 import 'package:roomwise/core/models/tag_dto.dart';
+import 'package:roomwise/core/models/admin_stats_dto.dart';
+import 'package:roomwise/core/models/admin_reservation_dto.dart';
+import 'package:roomwise/core/models/admin_room_type_dto.dart';
+import 'package:roomwise/core/models/admin_room_rate_dto.dart';
+import 'package:roomwise/core/models/admin_room_availability_dto.dart';
+import 'package:roomwise/core/models/admin_hotel_image_dto.dart';
+import 'package:roomwise/core/models/admin_room_type_image_dto.dart';
+import 'package:roomwise/core/models/admin_addon_upsert.dart';
+import 'package:roomwise/core/models/admin_promotion_dto.dart';
+import 'package:roomwise/core/models/admin_reservation_summary_dto.dart';
+import 'package:roomwise/core/models/admin_user_dto.dart';
+import 'package:roomwise/core/models/review_dto.dart';
 import 'api_config.dart';
 import '../models/city_dto.dart';
 import '../models/hotel_search_item_dto.dart';
@@ -751,6 +763,360 @@ class RoomWiseApiClient {
       );
       rethrow;
     }
+  }
+
+  // ---- ADMIN STATS ----
+
+  Future<AdminOverviewStatsDto> getAdminStatsOverview() async {
+    final response = await _dio.get('/admin/stats/overview');
+    if (response.data is Map<String, dynamic>) {
+      return AdminOverviewStatsDto.fromJson(
+        response.data as Map<String, dynamic>,
+      );
+    }
+
+    debugPrint('Unexpected admin overview payload: ${response.data}');
+    return AdminOverviewStatsDto.empty;
+  }
+
+  Future<List<MonthlyRevenuePointDto>> getAdminRevenueByMonth({int? year}) async {
+    final qp = <String, dynamic>{};
+    if (year != null) qp['year'] = year;
+
+    final response = await _dio.get(
+      '/admin/stats/revenue-by-month',
+      queryParameters: qp.isEmpty ? null : qp,
+    );
+    final data = _extractList(response.data);
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(MonthlyRevenuePointDto.fromJson)
+        .toList();
+  }
+
+  Future<List<AdminTopHotelDto>> getAdminTopHotels() async {
+    final response = await _dio.get('/admin/stats/top-hotels');
+    final data = _extractList(response.data);
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(AdminTopHotelDto.fromJson)
+        .toList();
+  }
+
+  Future<List<AdminTopUserDto>> getAdminTopUsers() async {
+    final response = await _dio.get('/admin/stats/top-users');
+    final data = _extractList(response.data);
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(AdminTopUserDto.fromJson)
+        .toList();
+  }
+
+  // ---- ADMIN RESERVATIONS ----
+
+  Future<List<AdminReservationDto>> getAdminReservations({
+    String? status,
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    final qp = <String, dynamic>{};
+    if (status != null && status.isNotEmpty) qp['status'] = status;
+    if (from != null) qp['from'] = from.toIso8601String();
+    if (to != null) qp['to'] = to.toIso8601String();
+
+    final response = await _dio.get(
+      '/Reservations',
+      queryParameters: qp.isEmpty ? null : qp,
+    );
+
+    final data = _extractList(response.data);
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(AdminReservationDto.fromJson)
+        .toList();
+  }
+
+  Future<AdminReservationDto> getAdminReservation(int id) async {
+    final response = await _dio.get('/Reservations/$id');
+    return AdminReservationDto.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<void> cancelAdminReservation(int id) async {
+    await _dio.delete('/Reservations/$id');
+  }
+
+  // ---- ADMIN HOTEL / ROOMS ----
+
+  Future<Map<String, dynamic>> getAdminHotel(int hotelId) async {
+    final response = await _dio.get('/hotels/$hotelId');
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  Future<List<AdminRoomTypeDto>> getAdminRoomTypes() async {
+    final response = await _dio.get('/RoomTypes');
+    final data = _extractList(response.data);
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(AdminRoomTypeDto.fromJson)
+        .toList();
+  }
+
+  Future<AdminRoomTypeDto> createAdminRoomType(
+    AdminRoomTypeUpsertRequest request,
+  ) async {
+    final response = await _dio.post('/RoomTypes', data: request.toJson());
+    return AdminRoomTypeDto.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<AdminRoomTypeDto> updateAdminRoomType(
+    int id,
+    AdminRoomTypeUpsertRequest request,
+  ) async {
+    final response = await _dio.put('/RoomTypes/$id', data: request.toJson());
+    return AdminRoomTypeDto.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<List<AdminRoomRateDto>> getAdminRoomRates({
+    int? roomTypeId,
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    final qp = <String, dynamic>{};
+    if (roomTypeId != null) qp['roomTypeId'] = roomTypeId;
+    if (from != null) qp['from'] = from.toIso8601String();
+    if (to != null) qp['to'] = to.toIso8601String();
+
+    final response = await _dio.get(
+      '/RoomRates',
+      queryParameters: qp.isEmpty ? null : qp,
+    );
+    final data = _extractList(response.data);
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(AdminRoomRateDto.fromJson)
+        .toList();
+  }
+
+  Future<AdminRoomRateDto> createAdminRoomRate(
+    AdminRoomRateUpsertRequest request,
+  ) async {
+    final response = await _dio.post('/RoomRates', data: request.toJson());
+    return AdminRoomRateDto.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<AdminRoomRateDto> updateAdminRoomRate(
+    int id,
+    AdminRoomRateUpsertRequest request,
+  ) async {
+    final response = await _dio.put('/RoomRates/$id', data: request.toJson());
+    return AdminRoomRateDto.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<void> deleteAdminRoomRate(int id) async {
+    await _dio.delete('/RoomRates/$id');
+  }
+
+  Future<List<AdminRoomAvailabilityDto>> getAdminRoomAvailabilities({
+    int? roomTypeId,
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    final qp = <String, dynamic>{};
+    if (roomTypeId != null) qp['roomTypeId'] = roomTypeId;
+    if (from != null) qp['from'] = from.toIso8601String();
+    if (to != null) qp['to'] = to.toIso8601String();
+
+    final response = await _dio.get(
+      '/RoomAvailabilities',
+      queryParameters: qp.isEmpty ? null : qp,
+    );
+    final data = _extractList(response.data);
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(AdminRoomAvailabilityDto.fromJson)
+        .toList();
+  }
+
+  Future<AdminRoomAvailabilityDto> createAdminRoomAvailability(
+    AdminRoomAvailabilityUpsertRequest request,
+  ) async {
+    final response =
+        await _dio.post('/RoomAvailabilities', data: request.toJson());
+    return AdminRoomAvailabilityDto.fromJson(
+      response.data as Map<String, dynamic>,
+    );
+  }
+
+  Future<AdminRoomAvailabilityDto> updateAdminRoomAvailability(
+    int id,
+    AdminRoomAvailabilityUpsertRequest request,
+  ) async {
+    final response =
+        await _dio.put('/RoomAvailabilities/$id', data: request.toJson());
+    return AdminRoomAvailabilityDto.fromJson(
+      response.data as Map<String, dynamic>,
+    );
+  }
+
+  Future<void> deleteAdminRoomAvailability(int id) async {
+    await _dio.delete('/RoomAvailabilities/$id');
+  }
+
+  Future<List<AdminHotelImageDto>> getAdminHotelImages() async {
+    final response = await _dio.get('/HotelImages');
+    final data = _extractList(response.data);
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(AdminHotelImageDto.fromJson)
+        .toList();
+  }
+
+  Future<AdminHotelImageDto> createAdminHotelImage(
+    AdminHotelImageUpsertRequest request,
+  ) async {
+    final response = await _dio.post('/HotelImages', data: request.toJson());
+    return AdminHotelImageDto.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<AdminHotelImageDto> updateAdminHotelImage(
+    int id,
+    AdminHotelImageUpsertRequest request,
+  ) async {
+    final response = await _dio.put('/HotelImages/$id', data: request.toJson());
+    return AdminHotelImageDto.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<void> deleteAdminHotelImage(int id) async {
+    await _dio.delete('/HotelImages/$id');
+  }
+
+  // ---- ADMIN ROOM TYPE IMAGES ----
+
+  Future<List<AdminRoomTypeImageDto>> getAdminRoomTypeImages({
+    int? roomTypeId,
+  }) async {
+    final qp = <String, dynamic>{};
+    if (roomTypeId != null) qp['roomTypeId'] = roomTypeId;
+
+    final response = await _dio.get(
+      '/RoomTypeImages',
+      queryParameters: qp.isEmpty ? null : qp,
+    );
+    final data = _extractList(response.data);
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(AdminRoomTypeImageDto.fromJson)
+        .toList();
+  }
+
+  Future<AdminRoomTypeImageDto> createAdminRoomTypeImage(
+    AdminRoomTypeImageUpsertRequest request,
+  ) async {
+    final response = await _dio.post('/RoomTypeImages', data: request.toJson());
+    return AdminRoomTypeImageDto.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<AdminRoomTypeImageDto> updateAdminRoomTypeImage(
+    int id,
+    AdminRoomTypeImageUpsertRequest request,
+  ) async {
+    final response =
+        await _dio.put('/RoomTypeImages/$id', data: request.toJson());
+    return AdminRoomTypeImageDto.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<void> deleteAdminRoomTypeImage(int id) async {
+    await _dio.delete('/RoomTypeImages/$id');
+  }
+
+  Future<void> reorderAdminRoomTypeImages(
+    List<AdminRoomTypeImageReorderItem> items,
+  ) async {
+    await _dio.put('/RoomTypeImages/reorder', data: {
+      'items': items.map((e) => e.toJson()).toList(),
+    });
+  }
+
+  Future<void> reorderAdminHotelImages(List<AdminHotelImageDto> items) async {
+    await _dio.put('/HotelImages/reorder', data: {
+      'items': items
+          .map((e) => {'id': e.id, 'sortOrder': e.sortOrder})
+          .toList(growable: false),
+    });
+  }
+
+  Future<List<AddonDto>> getAdminAddOns() async {
+    final response = await _dio.get('/AddOns');
+    final data = _extractList(response.data);
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map((json) => AddonDto.fromJson(json))
+        .toList();
+  }
+
+  Future<AddonDto> createAdminAddOn(AdminAddonUpsertRequest request) async {
+    final response = await _dio.post('/AddOns', data: request.toJson());
+    return AddonDto.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<AddonDto> updateAdminAddOn(int id, AdminAddonUpsertRequest request) async {
+    final response = await _dio.put('/AddOns/$id', data: request.toJson());
+    return AddonDto.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<List<AdminPromotionDto>> getAdminPromotions() async {
+    final response = await _dio.get('/Promotions');
+    final data = _extractList(response.data);
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(AdminPromotionDto.fromJson)
+        .toList();
+  }
+
+  Future<AdminPromotionDto> createAdminPromotion(
+    AdminPromotionUpsertRequest request,
+  ) async {
+    final response = await _dio.post('/Promotions', data: request.toJson());
+    return AdminPromotionDto.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<AdminPromotionDto> updateAdminPromotion(
+    int id,
+    AdminPromotionUpsertRequest request,
+  ) async {
+    final response = await _dio.put('/Promotions/$id', data: request.toJson());
+    return AdminPromotionDto.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<AdminReservationSummaryDto> getAdminReservationSummary() async {
+    final response = await _dio.get('/reports/reservations-summary');
+    return AdminReservationSummaryDto.fromJson(
+      response.data as Map<String, dynamic>,
+    );
+  }
+
+  Future<List<AdminUserSummaryDto>> getAdminUsers() async {
+    final response = await _dio.get('/admin/users');
+    final data = _extractList(response.data);
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(AdminUserSummaryDto.fromJson)
+        .toList();
+  }
+
+  Future<AdminUserLoyaltyDto> getAdminUserLoyalty(String userId) async {
+    final response = await _dio.get('/admin/users/$userId/loyalty');
+    return AdminUserLoyaltyDto.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<List<ReviewDto>> getAdminHotelReviews(int hotelId) async {
+    final response = await _dio.get('/hotels/$hotelId/reviews');
+    final items = (response.data as Map?)?['items'] as List<dynamic>? ??
+        _extractList(response.data);
+    return items
+        .whereType<Map<String, dynamic>>()
+        .map(ReviewDto.fromJson)
+        .toList();
   }
 
   List<dynamic> _extractList(dynamic raw) {
