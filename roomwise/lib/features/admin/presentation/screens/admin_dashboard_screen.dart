@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:roomwise/core/api/roomwise_api_client.dart';
 import 'package:roomwise/core/auth/auth_state.dart';
 import 'package:roomwise/core/models/admin_promotion_dto.dart';
+import 'package:roomwise/core/models/admin_reservation_summary_dto.dart';
 import 'package:roomwise/core/models/admin_stats_dto.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -17,9 +19,6 @@ class AdminDashboardScreen extends StatefulWidget {
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
-  static const _textPrimary = Color(0xFF111827);
-  static const _textMuted = Color(0xFF6B7280);
-
   bool _loading = true;
   String? _error;
   AdminOverviewStatsDto _overview = AdminOverviewStatsDto.empty;
@@ -48,13 +47,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final api = context.read<RoomWiseApiClient>();
     try {
       final currentYear = _year;
-      final results = await Future.wait([
+      final summaryFuture = api
+          .getAdminReservationSummary()
+          .then<AdminReservationSummaryDto?>((value) => value)
+          .catchError((_) => null);
+      final results = await Future.wait<Object?>([
         api.getAdminStatsOverview(),
         api.getAdminRevenueByMonth(year: currentYear),
         api.getAdminPromotions(),
         api.getAdminTopUsers(),
+        summaryFuture,
       ]);
+      final overview = results[0] as AdminOverviewStatsDto;
       var revenue = results[1] as List<MonthlyRevenuePointDto>;
+      final summary = results[4] as AdminReservationSummaryDto?;
       if (revenue.every((p) => p.revenue == 0) && currentYear > 2000) {
         final prevYear = currentYear - 1;
         try {
@@ -67,8 +73,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       }
 
       if (!mounted) return;
+      final mergedOverview = summary == null
+          ? overview
+          : AdminOverviewStatsDto(
+              totalRevenue: summary.totalRevenue,
+              totalReservations: summary.totalReservations,
+              totalUsers: overview.totalUsers,
+              avgStayLengthNights: overview.avgStayLengthNights,
+              occupancyRateLast30Days: overview.occupancyRateLast30Days,
+            );
       setState(() {
-        _overview = results[0] as AdminOverviewStatsDto;
+        _overview = mergedOverview;
         _revenue = revenue;
         _promotions =
             (results[2] as List<AdminPromotionDto>)
@@ -125,127 +140,224 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final isWide = w >= 1100;
     final twoCol = w >= 980;
 
-    Widget body;
-    if (_error != null) {
-      body = _ErrorCard(message: _error!, onRetry: _load);
-    } else {
-      body = Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFFE8ECFF), Color(0xFFEFFBF6)],
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 60),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _StaggeredIn(
+              index: 0,
+              child: _DashboardHeroHeader(
+                title: 'Dashboard',
+                subtitle: 'Overview of your hotel performance.',
+                loading: _loading,
+                onRefresh: _load,
               ),
-              borderRadius: BorderRadius.circular(22),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: const [
-                    Text(
-                      'Dashboard',
-                      style: TextStyle(
+            const SizedBox(height: 14),
+            if (_error != null)
+              _StaggeredIn(
+                index: 1,
+                child: _ErrorCard(message: _error!, onRetry: _load),
+              )
+            else ...[
+              _StaggeredIn(
+                index: 1,
+                child: _StatGrid(
+                  overview: _overview,
+                  currency: _currency,
+                  loading: _loading,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _StaggeredIn(
+                index: 2,
+                child: isWide
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: _ProfitMarginCard(
+                              revenue: _revenue,
+                              loading: _loading,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _TopPackagesCard(
+                              promotions: _promotions,
+                              loading: _loading,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Column(
+                        children: [
+                          _ProfitMarginCard(
+                            revenue: _revenue,
+                            loading: _loading,
+                          ),
+                          const SizedBox(height: 16),
+                          _TopPackagesCard(
+                            promotions: _promotions,
+                            loading: _loading,
+                          ),
+                        ],
+                      ),
+              ),
+              const SizedBox(height: 16),
+              _StaggeredIn(
+                index: 3,
+                child: twoCol
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: _TopUsersTableCard(
+                              users: _topUsers,
+                              loading: _loading,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _TotalIncomeCard(
+                              netIncome: _netIncome,
+                              commission: _commission,
+                              currency: _currency,
+                              loading: _loading,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Column(
+                        children: [
+                          _TopUsersTableCard(
+                            users: _topUsers,
+                            loading: _loading,
+                          ),
+                          const SizedBox(height: 16),
+                          _TotalIncomeCard(
+                            netIncome: _netIncome,
+                            commission: _commission,
+                            currency: _currency,
+                            loading: _loading,
+                          ),
+                        ],
+                      ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DashboardHeroHeader extends StatelessWidget {
+  static const _textPrimary = Color(0xFF111827);
+  static const _textMuted = Color(0xFF6B7280);
+
+  final String title;
+  final String subtitle;
+  final bool loading;
+  final VoidCallback onRefresh;
+
+  const _DashboardHeroHeader({
+    required this.title,
+    required this.subtitle,
+    required this.loading,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFE8ECFF), Color(0xFFEFFBF6)],
+        ),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(painter: _SoftCirclesPainter()),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.dashboard_outlined, color: _textPrimary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.w900,
                         color: _textPrimary,
                       ),
                     ),
-                    SizedBox(width: 10),
-                    _PillChip(label: 'Live', active: true),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Overview of your hotel performance.',
-                  style: TextStyle(color: _textMuted),
-                ),
-                const SizedBox(height: 14),
-                _StatGrid(
-                  overview: _overview,
-                  currency: _currency,
-                  loading: _loading,
-                ),
-              ],
-            ),
+                  ),
+                  const SizedBox(width: 10),
+                  const _PillChip(label: 'Live', active: true),
+                  const SizedBox(width: 10),
+                  FilledButton.tonalIcon(
+                    onPressed: loading ? null : onRefresh,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Refresh'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(subtitle, style: const TextStyle(color: _textMuted)),
+              const SizedBox(height: 10),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                child: loading
+                    ? const LinearProgressIndicator(
+                        key: ValueKey('progress'),
+                        minHeight: 3,
+                      )
+                    : const SizedBox(key: ValueKey('no-progress'), height: 3),
+              ),
+            ],
           ),
-          const SizedBox(height: 18),
-          if (isWide)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: _ProfitMarginCard(
-                    revenue: _revenue,
-                    loading: _loading,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _TopPackagesCard(
-                    promotions: _promotions,
-                    loading: _loading,
-                  ),
-                ),
-              ],
-            )
-          else ...[
-            _ProfitMarginCard(revenue: _revenue, loading: _loading),
-            const SizedBox(height: 16),
-            _TopPackagesCard(promotions: _promotions, loading: _loading),
-          ],
-          const SizedBox(height: 16),
-          if (twoCol)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: _TopUsersTableCard(
-                    users: _topUsers,
-                    loading: _loading,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _TotalIncomeCard(
-                    netIncome: _netIncome,
-                    commission: _commission,
-                    currency: _currency,
-                    loading: _loading,
-                  ),
-                ),
-              ],
-            )
-          else ...[
-            _TopUsersTableCard(users: _topUsers, loading: _loading),
-            const SizedBox(height: 16),
-            _TotalIncomeCard(
-              netIncome: _netIncome,
-              commission: _commission,
-              currency: _currency,
-              loading: _loading,
-            ),
-          ],
         ],
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 60),
-        child: body,
       ),
     );
   }
+}
+
+class _SoftCirclesPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    paint.color = const Color(0xFF3B82F6).withOpacity(0.10);
+    canvas.drawCircle(Offset(size.width * 0.85, size.height * 0.25), 70, paint);
+
+    paint.color = const Color(0xFF05A87A).withOpacity(0.10);
+    canvas.drawCircle(Offset(size.width * 0.20, size.height * 0.05), 55, paint);
+
+    paint.color = Colors.white.withOpacity(0.35);
+    canvas.drawCircle(Offset(size.width * 0.55, size.height * 0.95), 90, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _ErrorCard extends StatelessWidget {
@@ -322,58 +434,103 @@ class _StatGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxWidth = MediaQuery.of(context).size.width;
-    final crossAxisCount = maxWidth >= 1200 ? 4 : (maxWidth >= 880 ? 2 : 1);
-    final spacing = 12.0;
+    final revenueValue = loading
+        ? const _SkeletonBar(width: 96, height: 18)
+        : _CountUpText.currency(
+            value: overview.totalRevenue,
+            currency: currency,
+          );
+    final reservationsValue = loading
+        ? const _SkeletonBar(width: 56, height: 18)
+        : _CountUpText.int(value: overview.totalReservations);
+    final usersValue = loading
+        ? const _SkeletonBar(width: 56, height: 18)
+        : _CountUpText.int(value: overview.totalUsers);
+    final earningsValue = loading
+        ? const _SkeletonBar(width: 88, height: 18)
+        : _CountUpText.currency(value: overview.earnings, currency: currency);
 
-    final items = [
-      _StatCardData(
-        title: 'Total revenue',
-        value: currency.format(overview.totalRevenue),
+    final tiles = [
+      _KpiTile(
         icon: Icons.show_chart,
-        colorA: const Color(0xFF7C5CFC),
-        colorB: const Color(0xFF9B8CFF),
+        label: 'Total revenue',
+        value: revenueValue,
+        hint: loading ? null : 'Gross for the period',
+        accent: const Color(0xFF7C5CFC),
       ),
-      _StatCardData(
-        title: 'Total reservations',
-        value: overview.totalReservations.toString(),
+      _KpiTile(
         icon: Icons.home_outlined,
-        colorA: const Color(0xFFFF7A3C),
-        colorB: const Color(0xFFFFA169),
+        label: 'Reservations',
+        value: reservationsValue,
+        hint: loading ? null : 'Total bookings',
+        accent: const Color(0xFFFF7A3C),
       ),
-      _StatCardData(
-        title: 'Total users',
-        value: overview.totalUsers.toString(),
+      _KpiTile(
         icon: Icons.group_outlined,
-        colorA: const Color(0xFF05A87A),
-        colorB: const Color(0xFF38D39F),
+        label: 'Users',
+        value: usersValue,
+        hint: loading ? null : 'Registered guests',
+        accent: const Color(0xFF05A87A),
       ),
-      _StatCardData(
-        title: 'Earnings',
-        value: currency.format(overview.earnings),
+      _KpiTile(
         icon: Icons.account_balance_wallet_outlined,
-        colorA: const Color(0xFF1D4ED8),
-        colorB: const Color(0xFF3B82F6),
+        label: 'Earnings',
+        value: earningsValue,
+        hint: loading ? null : 'Net after commission',
+        accent: const Color(0xFF1D4ED8),
       ),
     ];
 
     return LayoutBuilder(
-      builder: (context, constraints) {
-        final itemWidth =
-            (constraints.maxWidth - spacing * (crossAxisCount - 1)) /
-            crossAxisCount;
+      builder: (context, c) {
+        final fourCol = c.maxWidth >= 1100;
+        final twoCol = c.maxWidth >= 560;
 
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          children: [
-            for (final item in items)
-              SizedBox(
-                width: itemWidth,
-                child: loading
-                    ? const _StatCardLoading()
-                    : _StatCard(data: item),
+        if (fourCol) {
+          return Row(
+            children: [
+              Expanded(child: tiles[0]),
+              const SizedBox(width: 10),
+              Expanded(child: tiles[1]),
+              const SizedBox(width: 10),
+              Expanded(child: tiles[2]),
+              const SizedBox(width: 10),
+              Expanded(child: tiles[3]),
+            ],
+          );
+        }
+
+        if (twoCol) {
+          return Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(child: tiles[0]),
+                  const SizedBox(width: 10),
+                  Expanded(child: tiles[1]),
+                ],
               ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(child: tiles[2]),
+                  const SizedBox(width: 10),
+                  Expanded(child: tiles[3]),
+                ],
+              ),
+            ],
+          );
+        }
+
+        return Column(
+          children: [
+            tiles[0],
+            const SizedBox(height: 10),
+            tiles[1],
+            const SizedBox(height: 10),
+            tiles[2],
+            const SizedBox(height: 10),
+            tiles[3],
           ],
         );
       },
@@ -381,85 +538,73 @@ class _StatGrid extends StatelessWidget {
   }
 }
 
-class _StatCardData {
-  final String title;
-  final String value;
+class _KpiTile extends StatelessWidget {
+  static const _textPrimary = Color(0xFF111827);
+  static const _textMuted = Color(0xFF6B7280);
+
   final IconData icon;
-  final Color colorA;
-  final Color colorB;
+  final String label;
+  final Widget value;
+  final String? hint;
+  final Color accent;
 
-  const _StatCardData({
-    required this.title,
-    required this.value,
+  const _KpiTile({
     required this.icon,
-    required this.colorA,
-    required this.colorB,
+    required this.label,
+    required this.value,
+    required this.accent,
+    this.hint,
   });
-}
-
-class _StatCard extends StatelessWidget {
-  static const _textMuted = Color(0xFFEEF2FF);
-
-  final _StatCardData data;
-
-  const _StatCard({required this.data});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 104,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [data.colorA, data.colorB],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: data.colorA.withOpacity(0.25),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    return _Card(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
       child: Row(
         children: [
           Container(
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.18),
+              color: accent.withOpacity(0.12),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(data.icon, color: Colors.white),
+            child: Icon(icon, color: accent),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  data.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  label,
                   style: const TextStyle(
                     color: _textMuted,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     fontSize: 12,
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  data.value,
+                DefaultTextStyle.merge(
                   style: const TextStyle(
-                    color: Colors.white,
+                    fontSize: 18,
                     fontWeight: FontWeight.w900,
-                    fontSize: 20,
+                    color: _textPrimary,
                   ),
+                  child: value,
                 ),
+                if (hint != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    hint!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _textMuted.withOpacity(0.95),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -469,23 +614,97 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-class _StatCardLoading extends StatelessWidget {
-  const _StatCardLoading();
+class _SkeletonBar extends StatelessWidget {
+  final double width;
+  final double height;
+
+  const _SkeletonBar({required this.width, required this.height});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 104,
+      width: width,
+      height: height,
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(20),
+        color: const Color(0xFFF3F4F6),
+        borderRadius: BorderRadius.circular(999),
       ),
-      alignment: Alignment.center,
-      child: const SizedBox(
-        width: 22,
-        height: 22,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      ),
+    );
+  }
+}
+
+class _CountUpText extends StatefulWidget {
+  final double value;
+  final String Function(double) format;
+
+  const _CountUpText._({required this.value, required this.format});
+
+  factory _CountUpText.int({required int value}) {
+    return _CountUpText._(
+      value: value.toDouble(),
+      format: (v) => v.round().toString(),
+    );
+  }
+
+  factory _CountUpText.currency({
+    required double value,
+    required NumberFormat currency,
+  }) {
+    return _CountUpText._(value: value, format: (v) => currency.format(v));
+  }
+
+  @override
+  State<_CountUpText> createState() => _CountUpTextState();
+}
+
+class _CountUpTextState extends State<_CountUpText> {
+  late double _from;
+
+  @override
+  void initState() {
+    super.initState();
+    _from = 0;
+  }
+
+  @override
+  void didUpdateWidget(covariant _CountUpText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _from = oldWidget.value;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: _from, end: widget.value),
+      duration: const Duration(milliseconds: 700),
+      curve: Curves.easeOutCubic,
+      builder: (context, v, _) => Text(widget.format(v)),
+    );
+  }
+}
+
+class _StaggeredIn extends StatelessWidget {
+  final int index;
+  final Widget child;
+
+  const _StaggeredIn({required this.index, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final delay = 40 * index;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: 320 + delay),
+      curve: Curves.easeOutCubic,
+      builder: (context, v, _) {
+        return Opacity(
+          opacity: v,
+          child: Transform.translate(
+            offset: Offset(0, (1 - v) * 12),
+            child: child,
+          ),
+        );
+      },
     );
   }
 }
@@ -493,6 +712,7 @@ class _StatCardLoading extends StatelessWidget {
 class _ProfitMarginCard extends StatelessWidget {
   static const _textPrimary = Color(0xFF111827);
   static const _textMuted = Color(0xFF6B7280);
+  static const _chartBottomInset = 36.0;
 
   final List<MonthlyRevenuePointDto> revenue;
   final bool loading;
@@ -547,31 +767,44 @@ class _ProfitMarginCard extends StatelessWidget {
                       child: const CircularProgressIndicator(strokeWidth: 2),
                     )
                   : hasData
-                  ? CustomPaint(
-                      foregroundPainter: _AreaChartPainter(values: normalized),
-                      child: Container(
-                        color: const Color(0xFFF9FAFB),
-                        padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
-                        child: Align(
-                          alignment: Alignment.bottomCenter,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: const [
-                              _MonthLabel('Jan'),
-                              _MonthLabel('Feb'),
-                              _MonthLabel('Mar'),
-                              _MonthLabel('Apr'),
-                              _MonthLabel('May'),
-                              _MonthLabel('Jun'),
-                              _MonthLabel('Jul'),
-                              _MonthLabel('Aug'),
-                              _MonthLabel('Sep'),
-                              _MonthLabel('Oct'),
-                              _MonthLabel('Nov'),
-                              _MonthLabel('Dec'),
-                            ],
+                  ? Container(
+                      color: const Color(0xFFF9FAFB),
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: _AreaChartPainter(
+                                values: normalized,
+                                bottomInset: _chartBottomInset,
+                              ),
+                              child: const SizedBox.expand(),
+                            ),
                           ),
-                        ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+                            child: Align(
+                              alignment: Alignment.bottomCenter,
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: const [
+                                  _MonthLabel('Jan'),
+                                  _MonthLabel('Feb'),
+                                  _MonthLabel('Mar'),
+                                  _MonthLabel('Apr'),
+                                  _MonthLabel('May'),
+                                  _MonthLabel('Jun'),
+                                  _MonthLabel('Jul'),
+                                  _MonthLabel('Aug'),
+                                  _MonthLabel('Sep'),
+                                  _MonthLabel('Oct'),
+                                  _MonthLabel('Nov'),
+                                  _MonthLabel('Dec'),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     )
                   : Container(
@@ -645,13 +878,16 @@ class _MonthLabel extends StatelessWidget {
 
 class _AreaChartPainter extends CustomPainter {
   final List<double> values; // normalized 0..1 length 12
+  final double bottomInset;
 
-  const _AreaChartPainter({required this.values});
+  const _AreaChartPainter({required this.values, this.bottomInset = 36});
 
   @override
   void paint(Canvas canvas, Size size) {
     final h = size.height;
     final w = size.width;
+    final chartH = (h - bottomInset).clamp(0.0, h);
+    if (w <= 0 || chartH <= 0) return;
 
     final gridPaint = Paint()
       ..color = const Color(0xFFE5E7EB)
@@ -659,11 +895,11 @@ class _AreaChartPainter extends CustomPainter {
       ..strokeWidth = 1;
 
     for (int i = 1; i <= 4; i++) {
-      final y = h * i / 5;
+      final y = chartH * i / 5;
       canvas.drawLine(Offset(0, y), Offset(w, y), gridPaint);
     }
 
-    final path = _smoothPath(size, values);
+    final path = _smoothPath(Size(w, chartH), values);
 
     final fill = Paint()
       ..style = PaintingStyle.fill
@@ -671,9 +907,9 @@ class _AreaChartPainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [Color(0xFF7C5CFC), Color(0xFF38BDF8)],
-      ).createShader(Rect.fromLTWH(0, 0, w, h));
+      ).createShader(Rect.fromLTWH(0, 0, w, chartH));
 
-    canvas.drawPath(_closeToBottom(path, size), fill);
+    canvas.drawPath(_closeToBottom(path, Size(w, chartH)), fill);
 
     final line = Paint()
       ..color = const Color(0xFF7C5CFC)
@@ -687,13 +923,13 @@ class _AreaChartPainter extends CustomPainter {
   Path _smoothPath(Size size, List<double> ys01) {
     final w = size.width;
     final h = size.height;
+    final topInset = 8.0;
     final n = ys01.length;
-    final dx = w / (n - 1);
-    final points = List<Offset>.generate(
-      n,
-      (i) => Offset(i * dx, (1 - ys01[i]) * (h - 36)),
-      growable: false,
-    );
+    final dx = n <= 1 ? 0.0 : w / (n - 1);
+    final points = List<Offset>.generate(n, (i) {
+      final v = ys01[i].clamp(0.0, 1.0);
+      return Offset(i * dx, topInset + (1 - v) * (h - topInset));
+    }, growable: false);
 
     final path = Path()..moveTo(points.first.dx, points.first.dy);
     for (int i = 0; i < points.length - 1; i++) {
@@ -857,6 +1093,32 @@ class _BarsPainter extends CustomPainter {
         ).createShader(rect.outerRect);
 
       canvas.drawRRect(rect, paint);
+
+      final label = labelsShown[i];
+      final short = label.length <= 8
+          ? label
+          : '${label.substring(0, 8).trimRight()}…';
+      final tp = TextPainter(
+        text: TextSpan(
+          text: short,
+          style: const TextStyle(
+            color: Color(0xFF6B7280),
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        maxLines: 1,
+        ellipsis: '…',
+        textDirection: ui.TextDirection.ltr,
+        textAlign: TextAlign.center,
+      )..layout(maxWidth: barW + gap);
+
+      final dx = math.max(
+        0.0,
+        math.min(w - tp.width, x + (barW - tp.width) / 2),
+      );
+      final dy = h - tp.height;
+      tp.paint(canvas, Offset(dx, dy));
     }
   }
 
@@ -1114,45 +1376,67 @@ class _TotalIncomeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final total = (netIncome + commission).clamp(1, double.infinity);
-    final a = netIncome / total;
-    final b = commission / total;
+    final gross = netIncome + commission;
 
     return _Card(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Total Income',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: _textPrimary,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            '↑ compared to last period',
-            style: TextStyle(color: _textMuted, fontSize: 12),
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF7C5CFC).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.pie_chart_outline,
+                  color: Color(0xFF7C5CFC),
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Total income',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: _textPrimary,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Net vs commission',
+                      style: TextStyle(color: _textMuted, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              _PillChip(
+                label: loading ? 'Loading' : 'Gross ${currency.format(gross)}',
+                active: true,
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           if (loading)
-            const Center(
-              child: SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            )
+            const _IncomeDonutSkeleton()
           else
             _DonutChart(
-              valueA: a,
-              valueB: b,
               labelA: 'Net income',
               labelB: 'Commission',
+              netIncome: netIncome,
+              commission: commission,
+              currency: currency,
               colorA: const Color(0xFF05A87A),
               colorB: const Color(0xFFFF7A3C),
-              centerText: currency.format(netIncome),
             ),
         ],
       ),
@@ -1160,117 +1444,172 @@ class _TotalIncomeCard extends StatelessWidget {
   }
 }
 
-class _DonutChart extends StatelessWidget {
-  final double valueA;
-  final double valueB;
+class _DonutChart extends StatefulWidget {
   final String labelA;
   final String labelB;
+  final double netIncome;
+  final double commission;
+  final NumberFormat currency;
   final Color colorA;
   final Color colorB;
-  final String centerText;
 
   const _DonutChart({
-    required this.valueA,
-    required this.valueB,
     required this.labelA,
     required this.labelB,
+    required this.netIncome,
+    required this.commission,
+    required this.currency,
     required this.colorA,
     required this.colorB,
-    required this.centerText,
   });
 
   @override
+  State<_DonutChart> createState() => _DonutChartState();
+}
+
+class _DonutChartState extends State<_DonutChart>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..forward();
+
+  @override
+  void didUpdateWidget(covariant _DonutChart oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.netIncome != widget.netIncome ||
+        oldWidget.commission != widget.commission) {
+      _controller
+        ..value = 0
+        ..forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final gross = widget.netIncome + widget.commission;
+    final total = gross <= 0 ? 1.0 : gross;
+    final a = (widget.netIncome / total).clamp(0.0, 1.0);
+    final b = (widget.commission / total).clamp(0.0, 1.0);
+
+    final percentA = (a * 100).round();
+    final percentB = (b * 100).round();
+
     return Column(
       children: [
         SizedBox(
-          height: 220,
+          height: 236,
           child: Center(
             child: AspectRatio(
               aspectRatio: 1,
-              child: CustomPaint(
-                painter: _DonutPainter(
-                  valueA: valueA,
-                  valueB: valueB,
-                  colorA: colorA,
-                  colorB: colorB,
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Income',
-                        style: TextStyle(
-                          color: Color(0xFF6B7280),
-                          fontWeight: FontWeight.w700,
+              child: AnimatedBuilder(
+                animation: _controller,
+                builder: (context, _) {
+                  return CustomPaint(
+                    painter: _DonutPainter(
+                      valueA: a,
+                      valueB: b,
+                      progress: _controller.value,
+                      colorA: widget.colorA,
+                      colorB: widget.colorB,
+                    ),
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.92),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: Colors.black.withOpacity(0.06),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.06),
+                              blurRadius: 14,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'Gross',
+                              style: TextStyle(
+                                color: Color(0xFF6B7280),
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            DefaultTextStyle.merge(
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF111827),
+                              ),
+                              child: _CountUpText.currency(
+                                value: gross,
+                                currency: widget.currency,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF9FAFB),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: Colors.black.withOpacity(0.06),
+                                ),
+                              ),
+                              child: Text(
+                                '${widget.labelA} $percentA% • ${widget.labelB} $percentB%',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF6B7280),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        centerText,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF111827),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
+                  );
+                },
               ),
             ),
           ),
         ),
         const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _LegendDot(color: colorA, label: labelA),
-            const SizedBox(width: 12),
-            _LegendDot(color: colorB, label: labelB),
-          ],
+        _IncomeBreakdownRow(
+          color: widget.colorA,
+          label: widget.labelA,
+          percent: percentA,
+          value: widget.netIncome,
+          currency: widget.currency,
+        ),
+        const SizedBox(height: 10),
+        _IncomeBreakdownRow(
+          color: widget.colorB,
+          label: widget.labelB,
+          percent: percentB,
+          value: widget.commission,
+          currency: widget.currency,
         ),
       ],
-    );
-  }
-}
-
-class _LegendDot extends StatelessWidget {
-  final Color color;
-  final String label;
-
-  const _LegendDot({required this.color, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(999),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF6B7280),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -1278,12 +1617,14 @@ class _LegendDot extends StatelessWidget {
 class _DonutPainter extends CustomPainter {
   final double valueA;
   final double valueB;
+  final double progress;
   final Color colorA;
   final Color colorB;
 
   const _DonutPainter({
     required this.valueA,
     required this.valueB,
+    required this.progress,
     required this.colorA,
     required this.colorB,
   });
@@ -1293,10 +1634,14 @@ class _DonutPainter extends CustomPainter {
     final rect = Offset.zero & size;
     final center = rect.center;
     final radius = math.min(size.width, size.height) / 2;
-    final stroke = radius * 0.26;
+    final stroke = radius * 0.22;
 
     final bg = Paint()
-      ..color = const Color(0xFFE5E7EB)
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFFE5E7EB), Color(0xFFF3F4F6)],
+      ).createShader(rect)
       ..style = PaintingStyle.stroke
       ..strokeWidth = stroke
       ..strokeCap = StrokeCap.round;
@@ -1310,36 +1655,195 @@ class _DonutPainter extends CustomPainter {
     var start = -math.pi / 2;
     final sweepA = 2 * math.pi * a;
     final sweepB = 2 * math.pi * b;
+    final gap = 0.10;
 
-    final paintA = Paint()
-      ..color = colorA
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.round;
+    final sweepTotal = (sweepA + sweepB) * progress.clamp(0.0, 1.0);
+    final drawA = math.min(sweepA, sweepTotal);
+    final drawB = math.min(sweepB, math.max(0.0, sweepTotal - sweepA));
 
-    final paintB = Paint()
-      ..color = colorB
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius - stroke / 2),
-      start,
-      sweepA,
-      false,
-      paintA,
+    final arcRect = Rect.fromCircle(
+      center: center,
+      radius: radius - stroke / 2,
     );
-    start += sweepA + 0.08;
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius - stroke / 2),
-      start,
-      sweepB - 0.08,
-      false,
-      paintB,
-    );
+
+    if (drawA > 0.0001) {
+      final paintA = Paint()
+        ..shader = SweepGradient(
+          startAngle: start,
+          endAngle: start + drawA,
+          colors: [colorA.withOpacity(0.95), colorA.withOpacity(0.65)],
+        ).createShader(arcRect)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..strokeCap = StrokeCap.round;
+      canvas.drawArc(arcRect, start, drawA, false, paintA);
+    }
+
+    final startB = start + sweepA + gap;
+    final visibleSweepB = math.max(0.0, drawB - gap);
+    if (visibleSweepB > 0.0001) {
+      final paintB = Paint()
+        ..shader = SweepGradient(
+          startAngle: startB,
+          endAngle: startB + visibleSweepB,
+          colors: [colorB.withOpacity(0.95), colorB.withOpacity(0.65)],
+        ).createShader(arcRect)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..strokeCap = StrokeCap.round;
+      canvas.drawArc(arcRect, startB, visibleSweepB, false, paintB);
+    }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _DonutPainter oldDelegate) {
+    return oldDelegate.valueA != valueA ||
+        oldDelegate.valueB != valueB ||
+        oldDelegate.progress != progress ||
+        oldDelegate.colorA != colorA ||
+        oldDelegate.colorB != colorB;
+  }
+}
+
+class _IncomeBreakdownRow extends StatelessWidget {
+  final Color color;
+  final String label;
+  final int percent;
+  final double value;
+  final NumberFormat currency;
+
+  const _IncomeBreakdownRow({
+    required this.color,
+    required this.label,
+    required this.percent,
+    required this.value,
+    required this.currency,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = (percent / 100).clamp(0.0, 1.0);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withOpacity(0.06)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF111827),
+                  ),
+                ),
+              ),
+              Text(
+                '$percent%',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF111827),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: pct,
+              minHeight: 8,
+              backgroundColor: Colors.black.withOpacity(0.05),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: DefaultTextStyle.merge(
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF6B7280),
+              ),
+              child: _CountUpText.currency(value: value, currency: currency),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _IncomeDonutSkeleton extends StatelessWidget {
+  const _IncomeDonutSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 236,
+          child: Center(
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3F4F6),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Center(
+                  child: Container(
+                    width: 110,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: Colors.black.withOpacity(0.06)),
+                    ),
+                    alignment: Alignment.center,
+                    child: const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        Container(
+          height: 54,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF3F4F6),
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          height: 54,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF3F4F6),
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ],
+    );
+  }
 }

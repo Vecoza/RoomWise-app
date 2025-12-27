@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -13,6 +15,7 @@ import 'package:roomwise/features/guest/guest_reservation/presentation/screens/g
 import 'package:roomwise/features/auth/presentation/screens/guest_login_screen.dart';
 import 'package:roomwise/features/guest/wishlist/wishlist_sync.dart';
 import 'package:roomwise/l10n/app_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class GuestHotelPreviewScreen extends StatefulWidget {
   final int hotelId;
@@ -101,6 +104,7 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
         _loading = false;
       });
 
+      await _recordRecentlyViewed(details);
       await _loadReviews(reset: true);
       await _syncWishlistStatus();
       await _loadRecommendations();
@@ -119,6 +123,24 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
         _loading = false;
       });
     }
+  }
+
+  Future<void> _recordRecentlyViewed(HotelDetailsDto details) async {
+    final auth = context.read<AuthState>();
+    final email = auth.email;
+    if (!auth.isLoggedIn || email == null || email.isEmpty) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'recently_viewed_${email.toLowerCase()}';
+    final existing = prefs.getStringList(key) ?? const [];
+    final id = details.id.toString();
+
+    final next = <String>[id, ...existing.where((e) => e != id)];
+    if (next.length > 10) {
+      next.removeRange(10, next.length);
+    }
+
+    await prefs.setStringList(key, next);
   }
 
   Future<void> _syncWishlistStatus() async {
@@ -605,29 +627,10 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
                   final img = images[index];
                   return Hero(
                     tag: 'hotel-${hotel.id}-image-$index',
-                    child: Image.network(
+                    child: _smartImage(
                       img.url,
                       fit: BoxFit.cover,
                       width: double.infinity,
-                      loadingBuilder: (context, child, progress) {
-                        if (progress == null) return child;
-                        return Center(
-                          child: CircularProgressIndicator(
-                            value: progress.expectedTotalBytes != null
-                                ? progress.cumulativeBytesLoaded /
-                                      progress.expectedTotalBytes!
-                                : null,
-                          ),
-                        );
-                      },
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: Colors.grey.shade200,
-                          child: const Center(
-                            child: Icon(Icons.broken_image_outlined),
-                          ),
-                        );
-                      },
                     ),
                   );
                 },
@@ -688,9 +691,10 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
                             child: Hero(
                               tag: 'hotel-${hotel.id}-image-$index',
                               child: InteractiveViewer(
-                                child: Image.network(
+                                child: _smartImage(
                                   img.url,
                                   fit: BoxFit.contain,
+                                  showLoading: false,
                                 ),
                               ),
                             ),
@@ -1292,9 +1296,10 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
                           child:
                               h.thumbnailUrl == null || h.thumbnailUrl!.isEmpty
                               ? Container(color: Colors.grey.shade200)
-                              : Image.network(
+                              : _smartImage(
                                   h.thumbnailUrl!,
                                   fit: BoxFit.cover,
+                                  showLoading: false,
                                 ),
                         ),
                       ),
@@ -1508,6 +1513,60 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
 }
 
 // ---------- SMALL REUSABLE WIDGETS ----------
+
+Widget _smartImage(
+  String url, {
+  BoxFit fit = BoxFit.cover,
+  double? width,
+  double? height,
+  bool showLoading = true,
+}) {
+  final provider = _resolveImageProvider(url);
+  final fallback = Container(
+    width: width,
+    height: height,
+    color: Colors.grey.shade200,
+    alignment: Alignment.center,
+    child: const Icon(Icons.broken_image_outlined),
+  );
+
+  if (provider == null) return fallback;
+
+  return Image(
+    image: provider,
+    width: width,
+    height: height,
+    fit: fit,
+    loadingBuilder: showLoading
+        ? (context, child, progress) {
+            if (progress == null) return child;
+            return Center(
+              child: CircularProgressIndicator(
+                value: progress.expectedTotalBytes != null
+                    ? progress.cumulativeBytesLoaded /
+                          progress.expectedTotalBytes!
+                    : null,
+              ),
+            );
+          }
+        : null,
+    errorBuilder: (context, error, stackTrace) => fallback,
+  );
+}
+
+ImageProvider? _resolveImageProvider(String url) {
+  final trimmed = url.trim();
+  if (trimmed.isEmpty) return null;
+  if (trimmed.startsWith('http')) return NetworkImage(trimmed);
+
+  final pureBase64 =
+      trimmed.contains(',') ? trimmed.split(',').last.trim() : trimmed;
+  try {
+    return MemoryImage(base64Decode(pureBase64));
+  } catch (_) {
+    return NetworkImage(trimmed);
+  }
+}
 
 class _SectionTitle extends StatelessWidget {
   final String text;
@@ -1800,7 +1859,7 @@ class _RoomTypeCard extends StatelessWidget {
     if (url == null || url.isEmpty) {
       return Container(color: Colors.grey.shade200);
     }
-    return Image.network(url, fit: BoxFit.cover);
+    return _smartImage(url, fit: BoxFit.cover, showLoading: false);
   }
 
   List<Widget> _buildCapacityIcons() {

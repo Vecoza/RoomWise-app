@@ -286,6 +286,23 @@ class RoomWiseApiClient {
     return AuthResponseDto.fromJson(response.data as Map<String, dynamic>);
   }
 
+  Future<void> requestEmailVerification(String email) async {
+    await _dio.post(
+      '/Auth/request-email-verification',
+      data: {'email': email},
+    );
+  }
+
+  Future<void> verifyEmail({
+    required String email,
+    required String code,
+  }) async {
+    await _dio.post(
+      '/Auth/verify-email',
+      data: {'email': email, 'code': code},
+    );
+  }
+
   Future<AuthResponseDto> refreshToken(String refreshToken) async {
     final response = await _dio.post(
       '/Auth/refresh',
@@ -978,6 +995,25 @@ class RoomWiseApiClient {
     return AdminHotelImageDto.fromJson(response.data as Map<String, dynamic>);
   }
 
+  Future<AdminHotelImageDto> uploadAdminHotelImage(
+    File file, {
+    int? sortOrder,
+    int? hotelId,
+  }) async {
+    final fileName = file.path.split(Platform.pathSeparator).last;
+    final payload = <String, dynamic>{
+      'file': await MultipartFile.fromFile(file.path, filename: fileName),
+    };
+    if (sortOrder != null) payload['sortOrder'] = sortOrder;
+    if (hotelId != null) payload['hotelId'] = hotelId;
+
+    final response = await _dio.post(
+      '/HotelImages/upload',
+      data: FormData.fromMap(payload),
+    );
+    return AdminHotelImageDto.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<AdminHotelImageDto> updateAdminHotelImage(
     int id,
     AdminHotelImageUpsertRequest request,
@@ -1013,6 +1049,25 @@ class RoomWiseApiClient {
     AdminRoomTypeImageUpsertRequest request,
   ) async {
     final response = await _dio.post('/RoomTypeImages', data: request.toJson());
+    return AdminRoomTypeImageDto.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<AdminRoomTypeImageDto> uploadAdminRoomTypeImage(
+    File file, {
+    required int roomTypeId,
+    int? sortOrder,
+  }) async {
+    final fileName = file.path.split(Platform.pathSeparator).last;
+    final payload = <String, dynamic>{
+      'file': await MultipartFile.fromFile(file.path, filename: fileName),
+      'roomTypeId': roomTypeId,
+    };
+    if (sortOrder != null) payload['sortOrder'] = sortOrder;
+
+    final response = await _dio.post(
+      '/RoomTypeImages/upload',
+      data: FormData.fromMap(payload),
+    );
     return AdminRoomTypeImageDto.fromJson(response.data as Map<String, dynamic>);
   }
 

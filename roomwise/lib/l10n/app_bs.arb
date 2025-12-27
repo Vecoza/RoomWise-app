@@ -45,5 +45,9 @@
   "faqQ4": "Našao/la sam problem sa rezervacijom. Šta da radim?",
   "faqA4": "Ako nešto izgleda pogrešno, kontaktirajte naš tim podrške uz referencu rezervacije kako bismo pomogli što prije.",
   "supportContactTitle": "Kontaktiraj podršku",
-  "supportContactSubtitle": "Niste našli što tražite? Javite se i odgovorit ćemo što prije."
+  "supportContactSubtitle": "Niste našli što tražite? Javite se i odgovorit ćemo što prije.",
+  "landingRecentTitle": "Nedavno pregledano",
+  "landingRecentCaption": "Hoteli koje si nedavno otvorio.",
+  "landingRecentLoadFailed": "Neuspjelo učitavanje nedavno pregledanih hotela.",
+  "landingRecentBadge": "Pregledano"
 }

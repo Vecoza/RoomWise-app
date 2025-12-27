@@ -2,19 +2,24 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:roomwise/core/auth/auth_state.dart';
+import 'package:roomwise/features/auth/presentation/screens/guest_verify_email_screen.dart';
 
 enum LoginAudience { guest, admin }
 
 class GuestLoginScreen extends StatefulWidget {
   final bool showRegisteredMessage;
+  final bool showVerifiedMessage;
   final VoidCallback? onLoginSuccess;
   final LoginAudience audience;
+  final String? initialEmail;
 
   const GuestLoginScreen({
     super.key,
     this.showRegisteredMessage = false,
+    this.showVerifiedMessage = false,
     this.onLoginSuccess,
     this.audience = LoginAudience.guest,
+    this.initialEmail,
   });
 
   @override
@@ -39,6 +44,14 @@ class _GuestLoginScreenState extends State<GuestLoginScreen> {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialEmail != null && widget.initialEmail!.isNotEmpty) {
+      _emailCtrl.text = widget.initialEmail!;
+    }
   }
 
   InputDecoration _inputDecoration(String label, {Widget? suffixIcon}) {
@@ -112,11 +125,13 @@ class _GuestLoginScreenState extends State<GuestLoginScreen> {
       if (!mounted) return;
 
       final code = e.response?.statusCode;
-      final msg = (code == 401 || code == 403)
-          ? 'Invalid email or password.'
-          : (code != null
-                ? 'Login failed (HTTP $code).'
-                : 'Cannot reach the server.');
+      final msg = code == 403
+          ? 'Please verify your email first.'
+          : (code == 401
+                ? 'Invalid email or password.'
+                : (code != null
+                      ? 'Login failed (HTTP $code).'
+                      : 'Cannot reach the server.'));
       setState(() {
         _error = msg;
       });
@@ -137,9 +152,11 @@ class _GuestLoginScreenState extends State<GuestLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final infoMsg = widget.showRegisteredMessage
-        ? 'Account created successfully. You can now log in.'
-        : null;
+    final infoMsg = widget.showVerifiedMessage
+        ? 'Email verified. You can now log in.'
+        : (widget.showRegisteredMessage
+              ? 'Account created successfully. You can now log in.'
+              : null);
 
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
@@ -267,6 +284,25 @@ class _GuestLoginScreenState extends State<GuestLoginScreen> {
                                 ),
                               ),
                               const SizedBox(height: 12),
+                            ],
+                            if (_error == 'Please verify your email first.' &&
+                                _emailCtrl.text.trim().isNotEmpty) ...[
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => GuestVerifyEmailScreen(
+                                          email: _emailCtrl.text.trim(),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: const Text('Verify email'),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
                             ],
 
                             // Email

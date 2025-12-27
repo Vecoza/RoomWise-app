@@ -111,6 +111,17 @@ class AuthState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> requestEmailVerification({required String email}) async {
+    await _api.requestEmailVerification(email);
+  }
+
+  Future<void> verifyEmail({
+    required String email,
+    required String code,
+  }) async {
+    await _api.verifyEmail(email: email, code: code);
+  }
+
   Future<void> logout() async {
     if (_loggingOut) return;
 

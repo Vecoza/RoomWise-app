@@ -890,6 +890,19 @@ class AppLocalizationsBs extends AppLocalizations {
       'Još nema prijedloga. Probaj pretragu da dobiješ sugestije.';
 
   @override
+  String get landingRecentTitle => 'Nedavno pregledano';
+
+  @override
+  String get landingRecentCaption => 'Hoteli koje si nedavno otvorio.';
+
+  @override
+  String get landingRecentLoadFailed =>
+      'Neuspjelo učitavanje nedavno pregledanih hotela.';
+
+  @override
+  String get landingRecentBadge => 'Pregledano';
+
+  @override
   String get landingThemeTitle => 'Tematski hoteli';
 
   @override

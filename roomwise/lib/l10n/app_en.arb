@@ -45,5 +45,9 @@
   "faqQ4": "I found an issue with my booking. What should I do?",
   "faqA4": "If something looks wrong, please contact our support team with your booking reference so we can help as soon as possible.",
   "supportContactTitle": "Contact support",
-  "supportContactSubtitle": "Didn’t find what you were looking for? Reach out and we’ll get back to you as soon as possible."
+  "supportContactSubtitle": "Didn’t find what you were looking for? Reach out and we’ll get back to you as soon as possible.",
+  "landingRecentTitle": "Recently viewed",
+  "landingRecentCaption": "Hotels you have opened recently.",
+  "landingRecentLoadFailed": "Failed to load recently viewed hotels.",
+  "landingRecentBadge": "Viewed"
 }

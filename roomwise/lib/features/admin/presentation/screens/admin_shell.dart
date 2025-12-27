@@ -19,74 +19,151 @@ class AdminShell extends StatefulWidget {
 
 class _AdminShellState extends State<AdminShell> {
   static const _bg = Color(0xFFF3F4F6);
-  static const _sidebarWidth = 240.0;
-  static const _primaryGreen = Color(0xFF05A87A);
 
   AdminNavItem _selected = AdminNavItem.dashboard;
+  bool _sidebarCollapsed = false;
+  bool _loggingOut = false;
+
+  Future<void> _confirmLogout() async {
+    if (_loggingOut) return;
+    final authState = context.read<AuthState>();
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Log out'),
+        content: const Text('Do you want to end this admin session?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Log out'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    setState(() => _loggingOut = true);
+    try {
+      await authState.logout();
+    } finally {
+      if (mounted) setState(() => _loggingOut = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthState>();
+    final w = MediaQuery.of(context).size.width;
+    final isDesktop = w >= 980;
+    final sidebarWidth = _sidebarCollapsed ? 88.0 : 260.0;
 
     return Scaffold(
       backgroundColor: _bg,
-      body: SafeArea(
-        child: Row(
-          children: [
-            _AdminSidebar(
-              width: _sidebarWidth,
-              selected: _selected,
-              onSelect: (v) => setState(() => _selected = v),
-              onLogout: () async {
-                await context.read<AuthState>().logout();
-              },
+      drawer: isDesktop
+          ? null
+          : Drawer(
+              child: SafeArea(
+                child: _AdminSidebar(
+                  width: 320,
+                  collapsed: false,
+                  selected: _selected,
+                  email: auth.email ?? 'Admin',
+                  isAdmin: auth.isAdmin,
+                  onSelect: (v) {
+                    Navigator.of(context).maybePop();
+                    setState(() => _selected = v);
+                  },
+                  onToggleCollapse: null,
+                  onLogout: _confirmLogout,
+                  loggingOut: _loggingOut,
+                ),
+              ),
             ),
-            Expanded(
-              child: Column(
+      body: SafeArea(
+        child: isDesktop
+            ? Row(
                 children: [
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 180),
-                        child: _buildBody(key: ValueKey(_selected)),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOutCubic,
+                    width: sidebarWidth,
+                    child: _AdminSidebar(
+                      width: sidebarWidth,
+                      collapsed: _sidebarCollapsed,
+                      selected: _selected,
+                      email: auth.email ?? 'Admin',
+                      isAdmin: auth.isAdmin,
+                      onSelect: (v) => setState(() => _selected = v),
+                      onToggleCollapse: () => setState(
+                        () => _sidebarCollapsed = !_sidebarCollapsed,
                       ),
+                      onLogout: _confirmLogout,
+                      loggingOut: _loggingOut,
+                    ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 12),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+                            child: _BodySwitcher(child: _buildBody()),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              )
+            : Column(
+                children: [
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                          child: _BodySwitcher(child: _buildBody()),
+                        ),
+                        Positioned(
+                          top: 10,
+                          left: 10,
+                          child: _TopIconButton(
+                            icon: Icons.menu,
+                            onPressed: () => Scaffold.of(context).openDrawer(),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
       ),
       floatingActionButton: null,
     );
   }
 
-  Widget _buildBody({required Key key}) {
+  Widget _buildBody() {
     return switch (_selected) {
       AdminNavItem.dashboard => const AdminDashboardScreen(
         key: ValueKey('dash'),
       ),
-      AdminNavItem.revenue => const AdminRevenueScreen(),
-      AdminNavItem.bookings => const AdminReservationsScreen(),
-      AdminNavItem.users => const AdminUsersScreen(),
-      AdminNavItem.hotels => const AdminHotelsScreen(),
-      AdminNavItem.settings => const AdminSettingsScreen(),
+      AdminNavItem.revenue => const AdminRevenueScreen(
+        key: ValueKey('revenue'),
+      ),
+      AdminNavItem.bookings => const AdminReservationsScreen(
+        key: ValueKey('bookings'),
+      ),
+      AdminNavItem.users => const AdminUsersScreen(key: ValueKey('users')),
+      AdminNavItem.hotels => const AdminHotelsScreen(key: ValueKey('hotels')),
+      AdminNavItem.settings => const AdminSettingsScreen(
+        key: ValueKey('settings'),
+      ),
     };
-  }
-}
-
-class _AdminTopBar extends StatelessWidget {
-  static const _textPrimary = Color(0xFF111827);
-  static const _textMuted = Color(0xFF6B7280);
-
-  const _AdminTopBar();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox.shrink();
   }
 }
 
@@ -120,27 +197,40 @@ class _TopIconButton extends StatelessWidget {
 class _AdminSidebar extends StatelessWidget {
   static const _textPrimary = Color(0xFF111827);
   static const _textMuted = Color(0xFF6B7280);
+  static const _primaryGreen = Color(0xFF05A87A);
 
   final double width;
+  final bool collapsed;
   final AdminNavItem selected;
+  final String email;
+  final bool isAdmin;
   final ValueChanged<AdminNavItem> onSelect;
+  final VoidCallback? onToggleCollapse;
   final VoidCallback onLogout;
+  final bool loggingOut;
 
   const _AdminSidebar({
     required this.width,
+    required this.collapsed,
     required this.selected,
+    required this.email,
+    required this.isAdmin,
     required this.onSelect,
+    required this.onToggleCollapse,
     required this.onLogout,
+    required this.loggingOut,
   });
 
   @override
   Widget build(BuildContext context) {
+    final initials = email.trim().isEmpty ? '?' : email.trim().characters.first;
     return Container(
       width: width,
-      margin: const EdgeInsets.fromLTRB(14, 14, 0, 14),
+      margin: const EdgeInsets.fromLTRB(12, 12, 0, 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.black.withOpacity(0.06)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.06),
@@ -153,11 +243,11 @@ class _AdminSidebar extends StatelessWidget {
         children: [
           const SizedBox(height: 12),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            padding: EdgeInsets.symmetric(horizontal: collapsed ? 10 : 14),
             child: Row(
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                   child: Image.asset(
                     'images/roomwise_logo.png',
                     height: 42,
@@ -165,74 +255,202 @@ class _AdminSidebar extends StatelessWidget {
                     fit: BoxFit.cover,
                   ),
                 ),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Text(
-                    'RoomWise',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: _textPrimary,
+                if (!collapsed) ...[
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'RoomWise',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: _textPrimary,
+                      ),
                     ),
                   ),
-                ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFFDF8),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: const Color(0xFFB7F3DF)),
+                    ),
+                    child: const Text(
+                      'Admin',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        color: _primaryGreen,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
           const SizedBox(height: 14),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
+              padding: EdgeInsets.symmetric(horizontal: collapsed ? 8 : 10),
               children: [
                 _NavTile(
                   icon: Icons.dashboard_outlined,
                   label: 'Dashboard',
                   isActive: selected == AdminNavItem.dashboard,
                   onTap: () => onSelect(AdminNavItem.dashboard),
+                  collapsed: collapsed,
                 ),
                 _NavTile(
                   icon: Icons.show_chart,
                   label: 'Revenue',
                   isActive: selected == AdminNavItem.revenue,
                   onTap: () => onSelect(AdminNavItem.revenue),
+                  collapsed: collapsed,
                 ),
                 _NavTile(
                   icon: Icons.calendar_today_outlined,
                   label: 'Bookings',
                   isActive: selected == AdminNavItem.bookings,
                   onTap: () => onSelect(AdminNavItem.bookings),
+                  collapsed: collapsed,
                 ),
                 _NavTile(
                   icon: Icons.group_outlined,
                   label: 'Users',
                   isActive: selected == AdminNavItem.users,
                   onTap: () => onSelect(AdminNavItem.users),
+                  collapsed: collapsed,
                 ),
                 _NavTile(
                   icon: Icons.hotel_outlined,
                   label: 'Hotels',
                   isActive: selected == AdminNavItem.hotels,
                   onTap: () => onSelect(AdminNavItem.hotels),
+                  collapsed: collapsed,
                 ),
                 _NavTile(
                   icon: Icons.settings_outlined,
                   label: 'Settings',
                   isActive: selected == AdminNavItem.settings,
                   onTap: () => onSelect(AdminNavItem.settings),
+                  collapsed: collapsed,
                 ),
               ],
             ),
           ),
-          // Padding(
-          //   padding: const EdgeInsets.fromLTRB(10, 8, 10, 12),
-          //   child: _NavTile(
-          //     icon: Icons.logout,
-          //     label: 'Log out',
-          //     isActive: false,
-          //     onTap: onLogout,
-          //     muted: true,
-          //   ),
-          // ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              collapsed ? 8 : 12,
+              8,
+              collapsed ? 8 : 12,
+              12,
+            ),
+            child: Column(
+              children: [
+                Divider(color: Colors.black.withOpacity(0.06), height: 1),
+                const SizedBox(height: 10),
+                if (!collapsed)
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: const Color(0xFFEFFDF8),
+                        child: Text(
+                          initials.toUpperCase(),
+                          style: const TextStyle(
+                            color: _primaryGreen,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              email,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                color: _textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              isAdmin ? 'Administrator' : 'User',
+                              style: const TextStyle(
+                                color: _textMuted,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        onPressed: loggingOut ? null : onLogout,
+                        icon: loggingOut
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.logout),
+                        tooltip: 'Log out',
+                      ),
+                    ],
+                  )
+                else
+                  Column(
+                    children: [
+                      IconButton(
+                        onPressed: loggingOut ? null : onLogout,
+                        icon: loggingOut
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.logout),
+                        tooltip: 'Log out',
+                      ),
+                      if (onToggleCollapse != null) ...[
+                        const SizedBox(height: 4),
+                        IconButton(
+                          onPressed: onToggleCollapse,
+                          icon: const Icon(
+                            Icons.keyboard_double_arrow_right_rounded,
+                          ),
+                          tooltip: 'Expand',
+                        ),
+                      ],
+                    ],
+                  ),
+                if (!collapsed && onToggleCollapse != null) ...[
+                  const SizedBox(height: 6),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: onToggleCollapse,
+                      icon: const Icon(
+                        Icons.keyboard_double_arrow_left_rounded,
+                      ),
+                      label: const Text('Collapse'),
+                      style: TextButton.styleFrom(foregroundColor: _textMuted),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -248,94 +466,99 @@ class _NavTile extends StatelessWidget {
   final String label;
   final bool isActive;
   final VoidCallback onTap;
-  final bool muted;
+  final bool collapsed;
 
   const _NavTile({
     required this.icon,
     required this.label,
     required this.isActive,
     required this.onTap,
-    this.muted = false,
+    this.collapsed = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final bg = isActive ? _primaryGreen.withOpacity(0.12) : Colors.transparent;
-    final iconColor = isActive
-        ? _primaryGreen
-        : (muted ? _textMuted : _textPrimary);
-    final textColor = isActive
-        ? _primaryGreen
-        : (muted ? _textMuted : _textPrimary);
+    final border = isActive
+        ? _primaryGreen.withOpacity(0.18)
+        : Colors.transparent;
+    final iconColor = isActive ? _primaryGreen : _textPrimary;
+    final textColor = isActive ? _primaryGreen : _textPrimary;
+
+    final child = AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOutCubic,
+      padding: EdgeInsets.symmetric(
+        horizontal: collapsed ? 10 : 12,
+        vertical: 12,
+      ),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: iconColor),
+          if (!collapsed) ...[
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontWeight: isActive ? FontWeight.w800 : FontWeight.w700,
+                  color: textColor,
+                ),
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: _textMuted.withOpacity(0.7),
+            ),
+          ],
+        ],
+      ),
+    );
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Material(
-        color: bg,
-        borderRadius: BorderRadius.circular(14),
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            child: Row(
-              children: [
-                Icon(icon, size: 20, color: iconColor),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
-                      color: textColor,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          borderRadius: BorderRadius.circular(16),
+          child: collapsed ? Tooltip(message: label, child: child) : child,
         ),
       ),
     );
   }
 }
 
-class _PlaceholderCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
+class _BodySwitcher extends StatelessWidget {
+  final Widget child;
 
-  const _PlaceholderCard({
-    super.key,
-    required this.title,
-    required this.subtitle,
-  });
+  const _BodySwitcher({required this.child});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 8),
-          Text(subtitle, style: const TextStyle(color: Colors.black54)),
-        ],
-      ),
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, anim) {
+        final slide = Tween<Offset>(
+          begin: const Offset(0.015, 0),
+          end: Offset.zero,
+        ).animate(anim);
+        return FadeTransition(
+          opacity: anim,
+          child: SlideTransition(position: slide, child: child),
+        );
+      },
+      child: child,
     );
   }
 }

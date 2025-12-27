@@ -10,6 +10,9 @@ import 'package:roomwise/features/guest/notifications/domain/notification_contro
 import 'package:roomwise/features/guest/wishlist/wishlist_sync.dart';
 import 'package:roomwise/l10n/app_localizations.dart';
 
+final RouteObserver<ModalRoute<void>> roomWiseRouteObserver =
+    RouteObserver<ModalRoute<void>>();
+
 class RoomWiseRoot extends StatelessWidget {
   final RoomWiseApiClient apiClient;
   final AuthState authState;
@@ -76,6 +79,7 @@ class RoomWiseApp extends StatelessWidget {
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF05A87A)),
       ),
+      navigatorObservers: [roomWiseRouteObserver],
       home: home,
     );
   }

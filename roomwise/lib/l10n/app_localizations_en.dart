@@ -886,6 +886,19 @@ class AppLocalizationsEn extends AppLocalizations {
       'No picks yet. Try searching to get suggestions.';
 
   @override
+  String get landingRecentTitle => 'Recently viewed';
+
+  @override
+  String get landingRecentCaption => 'Hotels you have opened recently.';
+
+  @override
+  String get landingRecentLoadFailed =>
+      'Failed to load recently viewed hotels.';
+
+  @override
+  String get landingRecentBadge => 'Viewed';
+
+  @override
   String get landingThemeTitle => 'Theme hotels';
 
   @override

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:roomwise/app/roomwise_app.dart';
 import 'package:roomwise/core/api/roomwise_api_client.dart';
 import 'package:roomwise/core/auth/auth_state.dart';
 import 'package:roomwise/core/models/city_dto.dart';
+import 'package:roomwise/core/models/hotel_details_dto.dart';
 import 'package:roomwise/core/models/hotel_search_item_dto.dart';
 import 'package:roomwise/core/models/tag_dto.dart';
 import 'package:roomwise/core/search/search_state.dart';
@@ -13,6 +15,8 @@ import 'package:roomwise/features/guest/guest_search/presentation/screens/hotel_
 import 'package:roomwise/features/guest/guest_search/presentation/screens/search_results_screen.dart';
 import 'package:roomwise/features/guest/hot_deals/presentation/screens/hot_deals_screen.dart';
 import 'package:roomwise/l10n/app_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:math';
 
 class GuestLandingScreen extends StatefulWidget {
   const GuestLandingScreen({super.key});
@@ -21,7 +25,8 @@ class GuestLandingScreen extends StatefulWidget {
   State<GuestLandingScreen> createState() => _GuestLandingScreenState();
 }
 
-class _GuestLandingScreenState extends State<GuestLandingScreen> {
+class _GuestLandingScreenState extends State<GuestLandingScreen>
+    with RouteAware {
   // --- DESIGN TOKENS ---
   static const _primaryGreen = Color(0xFF05A87A);
   static const _accentOrange = Color(0xFFFF7A3C);
@@ -38,11 +43,15 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
   List<CityDto> _cities = [];
   List<HotelSearchItemDto> _hotDeals = [];
   List<HotelSearchItemDto> _recommended = [];
+  List<HotelSearchItemDto> _recentlyViewed = [];
   List<TagDto> _tags = [];
   bool _tagsLoading = false;
   bool _recommendedLoading = false;
   String? _recommendedError;
+  bool _recentlyViewedLoading = false;
+  String? _recentlyViewedError;
   String? _lastAuthToken;
+  bool _routeSubscribed = false;
 
   final TextEditingController _searchCtrl = TextEditingController();
   DateTimeRange? _selectedRange;
@@ -55,6 +64,7 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
 
   @override
   void dispose() {
+    roomWiseRouteObserver.unsubscribe(this);
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -62,6 +72,11 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (!_routeSubscribed && route is PageRoute) {
+      roomWiseRouteObserver.subscribe(this, route);
+      _routeSubscribed = true;
+    }
 
     // React to auth changes so recommendations appear immediately after login.
     final authToken = context.read<AuthState>().token;
@@ -69,7 +84,10 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
       _lastAuthToken = authToken;
       if (!_loading && _cities.isNotEmpty) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _loadRecommendations();
+          if (mounted) {
+            _loadRecommendations();
+            _loadRecentlyViewed();
+          }
         });
       }
     }
@@ -77,6 +95,11 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
     // Defer work that depends on inherited widgets (like localizations).
     if (!_loading && _cities.isNotEmpty) return;
     _loadLandingData();
+  }
+
+  @override
+  void didPopNext() {
+    _loadRecentlyViewed();
   }
 
   Future<void> _loadLandingData() async {
@@ -105,6 +128,7 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
 
       // Recommendations only for logged-in users
       await _loadRecommendations();
+      await _loadRecentlyViewed();
     } catch (e) {
       debugPrint('Landing data load failed: $e');
       if (!mounted) return;
@@ -115,6 +139,90 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
     }
   }
 
+  Future<void> _loadRecentlyViewed() async {
+    final auth = context.read<AuthState>();
+    if (_recentlyViewedLoading) return;
+    if (!auth.isLoggedIn || (auth.email == null || auth.email!.isEmpty)) {
+      if (!mounted) return;
+      setState(() {
+        _recentlyViewed = [];
+        _recentlyViewedError = null;
+        _recentlyViewedLoading = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _recentlyViewedLoading = true;
+      _recentlyViewedError = null;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = _recentlyViewedKey(auth.email!);
+      final ids = prefs.getStringList(key) ?? const [];
+      if (ids.isEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _recentlyViewed = [];
+          _recentlyViewedLoading = false;
+        });
+        return;
+      }
+
+      final api = context.read<RoomWiseApiClient>();
+      final parsed = ids.map(int.tryParse).whereType<int>().toList();
+      final details = await Future.wait<HotelDetailsDto>(
+        parsed.map((id) => api.getHotelDetails(hotelId: id)),
+      );
+
+      final items = details.map(_mapDetailsToSearchItem).toList();
+      if (!mounted) return;
+      setState(() {
+        _recentlyViewed = items;
+        _recentlyViewedLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Recently viewed load failed: $e');
+      if (!mounted) return;
+      setState(() {
+        _recentlyViewedLoading = false;
+        _recentlyViewedError = AppLocalizations.of(
+          context,
+        )!.landingRecentLoadFailed;
+      });
+    }
+  }
+
+  String _recentlyViewedKey(String email) {
+    return 'recently_viewed_${email.toLowerCase()}';
+  }
+
+  HotelSearchItemDto _mapDetailsToSearchItem(HotelDetailsDto details) {
+    double minPrice = 0;
+    if (details.availableRoomTypes.isNotEmpty) {
+      minPrice = details.availableRoomTypes
+          .map((r) => r.priceFromPerNight)
+          .reduce(min);
+    }
+
+    final thumb =
+        details.heroImageUrl ??
+        (details.galleryUrls.isNotEmpty ? details.galleryUrls.first : null);
+
+    return HotelSearchItemDto(
+      id: details.id,
+      name: details.name,
+      city: details.city,
+      fromPrice: minPrice,
+      rating: details.rating,
+      reviewCount: 0,
+      thumbnailUrl: thumb,
+      hasAvailability: details.availableRoomTypes.isNotEmpty,
+      tags: details.tags,
+      currency: details.currency,
+    );
+  }
   Future<void> _loadRecommendations() async {
     final auth = context.read<AuthState>();
     if (_recommendedLoading) return;
@@ -377,6 +485,8 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildExploreSection(t),
+                          const SizedBox(height: 24),
+                          _buildRecentlyViewedSection(t),
                           const SizedBox(height: 24),
                           _buildHotDealsSection(t),
                           const SizedBox(height: 24),
@@ -760,6 +870,83 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
                 hotel: hotel,
                 dateRange: _selectedRange,
                 guests: _selectedRange == null ? null : _guests,
+                onReturn: _loadRecentlyViewed,
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecentlyViewedSection(AppLocalizations t) {
+    final auth = context.read<AuthState>();
+    if (!auth.isLoggedIn) {
+      return const SizedBox.shrink();
+    }
+
+    if (_recentlyViewedLoading) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader(
+            title: t.landingRecentTitle,
+            caption: t.landingRecentCaption,
+          ),
+          const SizedBox(height: 10),
+          const Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (_recentlyViewedError != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader(
+            title: t.landingRecentTitle,
+            caption: t.landingRecentCaption,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _recentlyViewedError!,
+            style: const TextStyle(fontSize: 12, color: Colors.redAccent),
+          ),
+        ],
+      );
+    }
+
+    if (_recentlyViewed.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader(
+          title: t.landingRecentTitle,
+          caption: t.landingRecentCaption,
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 245,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _recentlyViewed.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            itemBuilder: (context, index) {
+              final hotel = _recentlyViewed[index];
+              return _RecentlyViewedCard(
+                hotel: hotel,
+                dateRange: _selectedRange,
+                guests: _selectedRange == null ? null : _guests,
+                onReturn: _loadRecentlyViewed,
               );
             },
           ),
@@ -823,6 +1010,7 @@ class _GuestLandingScreenState extends State<GuestLandingScreen> {
                   hotel: hotel,
                   dateRange: _selectedRange,
                   guests: _selectedRange == null ? null : _guests,
+                  onReturn: _loadRecentlyViewed,
                 );
               },
             ),
@@ -974,8 +1162,14 @@ class _HotDealCard extends StatelessWidget {
   final HotelSearchItemDto hotel;
   final DateTimeRange? dateRange;
   final int? guests;
+  final VoidCallback? onReturn;
 
-  const _HotDealCard({required this.hotel, this.dateRange, this.guests});
+  const _HotDealCard({
+    required this.hotel,
+    this.dateRange,
+    this.guests,
+    this.onReturn,
+  });
 
   static const _accentOrange = Color(0xFFFF7A3C);
   static const _primaryGreen = Color(0xFF05A87A);
@@ -1003,7 +1197,7 @@ class _HotDealCard extends StatelessWidget {
               guests: guests,
             ),
           ),
-        );
+        ).then((_) => onReturn?.call());
       },
       child: Container(
         width: 200,
@@ -1193,8 +1387,14 @@ class _RecommendedCard extends StatelessWidget {
   final HotelSearchItemDto hotel;
   final DateTimeRange? dateRange;
   final int? guests;
+  final VoidCallback? onReturn;
 
-  const _RecommendedCard({required this.hotel, this.dateRange, this.guests});
+  const _RecommendedCard({
+    required this.hotel,
+    this.dateRange,
+    this.guests,
+    this.onReturn,
+  });
 
   static const _primaryGreen = Color(0xFF05A87A);
   static const _textPrimary = Color(0xFF111827);
@@ -1219,7 +1419,7 @@ class _RecommendedCard extends StatelessWidget {
               guests: guests,
             ),
           ),
-        );
+        ).then((_) => onReturn?.call());
       },
       child: Container(
         width: 200,
@@ -1266,6 +1466,235 @@ class _RecommendedCard extends StatelessWidget {
                     ),
                     child: Text(
                       t.landingForYouBadge,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: _primaryGreen,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    hotel.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: _textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on_outlined,
+                        size: 14,
+                        color: _textMuted,
+                      ),
+                      const SizedBox(width: 3),
+                      Expanded(
+                        child: Text(
+                          hotel.city,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: _textMuted,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                t.landingFromPrice(
+                                  currency,
+                                  price.toStringAsFixed(0),
+                                ),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: _accentOrange,
+                                ),
+                              ),
+                              if (hasPromo) ...[
+                                const SizedBox(width: 6),
+                                Text(
+                                  t.landingFromPrice(
+                                    currency,
+                                    hotel.fromPrice.toStringAsFixed(0),
+                                  ),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: _textMuted,
+                                    decoration: TextDecoration.lineThrough,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            t.landingPerNight,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: _textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (hotel.reviewCount > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE0F7F1),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.star,
+                                size: 14,
+                                color: Colors.amber,
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                hotel.rating.toStringAsFixed(1),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: _textPrimary,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '(${hotel.reviewCount})',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: _textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RecentlyViewedCard extends StatelessWidget {
+  final HotelSearchItemDto hotel;
+  final DateTimeRange? dateRange;
+  final int? guests;
+  final VoidCallback? onReturn;
+
+  const _RecentlyViewedCard({
+    required this.hotel,
+    this.dateRange,
+    this.guests,
+    this.onReturn,
+  });
+
+  static const _primaryGreen = Color(0xFF05A87A);
+  static const _textPrimary = Color(0xFF111827);
+  static const _textMuted = Color(0xFF6B7280);
+  static const _accentOrange = Color(0xFFFF7A3C);
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    final price = hotel.promotionPrice ?? hotel.fromPrice;
+    final hasPromo = hotel.promotionPrice != null;
+    final currency = hotel.currency.isNotEmpty ? hotel.currency : '€';
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => GuestHotelPreviewScreen(
+              hotelId: hotel.id,
+              dateRange: dateRange,
+              guests: guests,
+            ),
+          ),
+        ).then((_) => onReturn?.call());
+      },
+      child: Container(
+        width: 200,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(18),
+                  ),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child:
+                        hotel.thumbnailUrl == null ||
+                            hotel.thumbnailUrl!.isEmpty
+                        ? Container(color: Colors.grey.shade200)
+                        : Image.network(
+                            hotel.thumbnailUrl!,
+                            fit: BoxFit.cover,
+                          ),
+                  ),
+                ),
+                Positioned(
+                  left: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _primaryGreen.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      t.landingRecentBadge,
                       style: const TextStyle(
                         fontSize: 10,
                         color: _primaryGreen,

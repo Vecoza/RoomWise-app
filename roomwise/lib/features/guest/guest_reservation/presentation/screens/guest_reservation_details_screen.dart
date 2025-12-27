@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
@@ -441,15 +442,10 @@ class _GuestReservationDetailsScreenState
                       itemCount: images.isNotEmpty ? images.length : 1,
                       itemBuilder: (context, index) {
                         final url = images.isNotEmpty ? images[index] : heroUrl;
-                        return Image.network(
+                        return _smartImage(
                           url,
                           fit: BoxFit.cover,
                           width: double.infinity,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: Colors.grey.shade200,
-                            alignment: Alignment.center,
-                            child: const Icon(Icons.broken_image_outlined),
-                          ),
                         );
                       },
                     ),
@@ -569,6 +565,46 @@ class _GuestReservationDetailsScreenState
         ],
       ),
     );
+  }
+
+  Widget _smartImage(
+    String url, {
+    BoxFit fit = BoxFit.cover,
+    double? width,
+    double? height,
+  }) {
+    final provider = _resolveImageProvider(url);
+    final fallback = Container(
+      width: width,
+      height: height,
+      color: Colors.grey.shade200,
+      alignment: Alignment.center,
+      child: const Icon(Icons.broken_image_outlined),
+    );
+
+    if (provider == null) return fallback;
+
+    return Image(
+      image: provider,
+      width: width,
+      height: height,
+      fit: fit,
+      errorBuilder: (_, __, ___) => fallback,
+    );
+  }
+
+  ImageProvider? _resolveImageProvider(String url) {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return null;
+    if (trimmed.startsWith('http')) return NetworkImage(trimmed);
+
+    final pureBase64 =
+        trimmed.contains(',') ? trimmed.split(',').last.trim() : trimmed;
+    try {
+      return MemoryImage(base64Decode(pureBase64));
+    } catch (_) {
+      return NetworkImage(trimmed);
+    }
   }
 
   Widget _buildStaySummaryCard(AppLocalizations t) {

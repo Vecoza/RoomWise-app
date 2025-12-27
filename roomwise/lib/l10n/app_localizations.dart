@@ -159,6 +159,14 @@ abstract class AppLocalizations {
 
   String get landingRecommendedEmpty;
 
+  String get landingRecentTitle;
+
+  String get landingRecentCaption;
+
+  String get landingRecentLoadFailed;
+
+  String get landingRecentBadge;
+
   String get landingThemeTitle;
 
   String get landingThemeCaption;

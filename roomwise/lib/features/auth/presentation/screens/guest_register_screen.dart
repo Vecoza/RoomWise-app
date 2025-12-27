@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:roomwise/core/auth/auth_state.dart';
 import 'package:roomwise/features/auth/presentation/screens/guest_login_screen.dart';
+import 'package:roomwise/features/auth/presentation/screens/guest_verify_email_screen.dart';
 
 class GuestRegisterScreen extends StatefulWidget {
   const GuestRegisterScreen({super.key});
@@ -57,7 +58,9 @@ class _GuestRegisterScreenState extends State<GuestRegisterScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => const GuestLoginScreen(showRegisteredMessage: true),
+          builder: (_) => GuestVerifyEmailScreen(
+            email: _emailCtrl.text.trim(),
+          ),
         ),
       );
     } catch (e) {
