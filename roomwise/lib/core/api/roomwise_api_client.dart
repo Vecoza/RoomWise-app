@@ -19,8 +19,10 @@ import 'package:roomwise/core/models/loyalty_dtos.dart';
 import 'package:roomwise/core/models/review_response_dto.dart';
 import 'package:roomwise/core/models/tag_dto.dart';
 import 'package:roomwise/core/models/admin_stats_dto.dart';
+import 'package:roomwise/core/models/admin_arrival_dto.dart';
 import 'package:roomwise/core/models/admin_reservation_dto.dart';
 import 'package:roomwise/core/models/admin_room_type_dto.dart';
+import 'package:roomwise/core/models/admin_room_type_availability_dto.dart';
 import 'package:roomwise/core/models/admin_room_rate_dto.dart';
 import 'package:roomwise/core/models/admin_room_availability_dto.dart';
 import 'package:roomwise/core/models/admin_hotel_image_dto.dart';
@@ -287,20 +289,14 @@ class RoomWiseApiClient {
   }
 
   Future<void> requestEmailVerification(String email) async {
-    await _dio.post(
-      '/Auth/request-email-verification',
-      data: {'email': email},
-    );
+    await _dio.post('/Auth/request-email-verification', data: {'email': email});
   }
 
   Future<void> verifyEmail({
     required String email,
     required String code,
   }) async {
-    await _dio.post(
-      '/Auth/verify-email',
-      data: {'email': email, 'code': code},
-    );
+    await _dio.post('/Auth/verify-email', data: {'email': email, 'code': code});
   }
 
   Future<AuthResponseDto> refreshToken(String refreshToken) async {
@@ -601,13 +597,10 @@ class RoomWiseApiClient {
     }
 
     if (sort != null && sort.isNotEmpty) {
-      qp['Sort'] = sort; // "price" | "rating" | ...
+      qp['Sort'] = sort;
     }
 
-    final response = await _dio.get(
-      '/Hotels/search',
-      queryParameters: qp,
-    ); //here
+    final response = await _dio.get('/Hotels/search', queryParameters: qp);
 
     final data = _extractList(response.data);
     return data
@@ -726,7 +719,7 @@ class RoomWiseApiClient {
   // }
 
   Future<List<GuestBookingListItemDto>> getMyBookings({
-    required String status, // "Current" | "Past" | "Cancelled"
+    required String status,
   }) async {
     final response = await _dio.get(
       '/reservations/my',
@@ -796,7 +789,9 @@ class RoomWiseApiClient {
     return AdminOverviewStatsDto.empty;
   }
 
-  Future<List<MonthlyRevenuePointDto>> getAdminRevenueByMonth({int? year}) async {
+  Future<List<MonthlyRevenuePointDto>> getAdminRevenueByMonth({
+    int? year,
+  }) async {
     final qp = <String, dynamic>{};
     if (year != null) qp['year'] = year;
 
@@ -853,6 +848,26 @@ class RoomWiseApiClient {
         .toList();
   }
 
+  Future<List<AdminArrivalDto>> getAdminArrivals({DateTime? date}) async {
+    final qp = <String, dynamic>{};
+    if (date != null) {
+      final y = date.year.toString().padLeft(4, '0');
+      final m = date.month.toString().padLeft(2, '0');
+      final d = date.day.toString().padLeft(2, '0');
+      qp['date'] = '$y-$m-$d';
+    }
+
+    final response = await _dio.get(
+      '/Reservations/arrivals',
+      queryParameters: qp.isEmpty ? null : qp,
+    );
+    final data = _extractList(response.data);
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(AdminArrivalDto.fromJson)
+        .toList();
+  }
+
   Future<AdminReservationDto> getAdminReservation(int id) async {
     final response = await _dio.get('/Reservations/$id');
     return AdminReservationDto.fromJson(response.data as Map<String, dynamic>);
@@ -875,6 +890,28 @@ class RoomWiseApiClient {
     return data
         .whereType<Map<String, dynamic>>()
         .map(AdminRoomTypeDto.fromJson)
+        .toList();
+  }
+
+  Future<List<AdminRoomTypeAvailabilityDto>> getAdminRoomTypeAvailability({
+    DateTime? date,
+  }) async {
+    final qp = <String, dynamic>{};
+    if (date != null) {
+      final y = date.year.toString().padLeft(4, '0');
+      final m = date.month.toString().padLeft(2, '0');
+      final d = date.day.toString().padLeft(2, '0');
+      qp['date'] = '$y-$m-$d';
+    }
+
+    final response = await _dio.get(
+      '/RoomTypes/availability',
+      queryParameters: qp.isEmpty ? null : qp,
+    );
+    final data = _extractList(response.data);
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(AdminRoomTypeAvailabilityDto.fromJson)
         .toList();
   }
 
@@ -957,8 +994,10 @@ class RoomWiseApiClient {
   Future<AdminRoomAvailabilityDto> createAdminRoomAvailability(
     AdminRoomAvailabilityUpsertRequest request,
   ) async {
-    final response =
-        await _dio.post('/RoomAvailabilities', data: request.toJson());
+    final response = await _dio.post(
+      '/RoomAvailabilities',
+      data: request.toJson(),
+    );
     return AdminRoomAvailabilityDto.fromJson(
       response.data as Map<String, dynamic>,
     );
@@ -968,8 +1007,10 @@ class RoomWiseApiClient {
     int id,
     AdminRoomAvailabilityUpsertRequest request,
   ) async {
-    final response =
-        await _dio.put('/RoomAvailabilities/$id', data: request.toJson());
+    final response = await _dio.put(
+      '/RoomAvailabilities/$id',
+      data: request.toJson(),
+    );
     return AdminRoomAvailabilityDto.fromJson(
       response.data as Map<String, dynamic>,
     );
@@ -1049,7 +1090,9 @@ class RoomWiseApiClient {
     AdminRoomTypeImageUpsertRequest request,
   ) async {
     final response = await _dio.post('/RoomTypeImages', data: request.toJson());
-    return AdminRoomTypeImageDto.fromJson(response.data as Map<String, dynamic>);
+    return AdminRoomTypeImageDto.fromJson(
+      response.data as Map<String, dynamic>,
+    );
   }
 
   Future<AdminRoomTypeImageDto> uploadAdminRoomTypeImage(
@@ -1068,16 +1111,22 @@ class RoomWiseApiClient {
       '/RoomTypeImages/upload',
       data: FormData.fromMap(payload),
     );
-    return AdminRoomTypeImageDto.fromJson(response.data as Map<String, dynamic>);
+    return AdminRoomTypeImageDto.fromJson(
+      response.data as Map<String, dynamic>,
+    );
   }
 
   Future<AdminRoomTypeImageDto> updateAdminRoomTypeImage(
     int id,
     AdminRoomTypeImageUpsertRequest request,
   ) async {
-    final response =
-        await _dio.put('/RoomTypeImages/$id', data: request.toJson());
-    return AdminRoomTypeImageDto.fromJson(response.data as Map<String, dynamic>);
+    final response = await _dio.put(
+      '/RoomTypeImages/$id',
+      data: request.toJson(),
+    );
+    return AdminRoomTypeImageDto.fromJson(
+      response.data as Map<String, dynamic>,
+    );
   }
 
   Future<void> deleteAdminRoomTypeImage(int id) async {
@@ -1087,17 +1136,21 @@ class RoomWiseApiClient {
   Future<void> reorderAdminRoomTypeImages(
     List<AdminRoomTypeImageReorderItem> items,
   ) async {
-    await _dio.put('/RoomTypeImages/reorder', data: {
-      'items': items.map((e) => e.toJson()).toList(),
-    });
+    await _dio.put(
+      '/RoomTypeImages/reorder',
+      data: {'items': items.map((e) => e.toJson()).toList()},
+    );
   }
 
   Future<void> reorderAdminHotelImages(List<AdminHotelImageDto> items) async {
-    await _dio.put('/HotelImages/reorder', data: {
-      'items': items
-          .map((e) => {'id': e.id, 'sortOrder': e.sortOrder})
-          .toList(growable: false),
-    });
+    await _dio.put(
+      '/HotelImages/reorder',
+      data: {
+        'items': items
+            .map((e) => {'id': e.id, 'sortOrder': e.sortOrder})
+            .toList(growable: false),
+      },
+    );
   }
 
   Future<List<AddonDto>> getAdminAddOns() async {
@@ -1114,7 +1167,10 @@ class RoomWiseApiClient {
     return AddonDto.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<AddonDto> updateAdminAddOn(int id, AdminAddonUpsertRequest request) async {
+  Future<AddonDto> updateAdminAddOn(
+    int id,
+    AdminAddonUpsertRequest request,
+  ) async {
     final response = await _dio.put('/AddOns/$id', data: request.toJson());
     return AddonDto.fromJson(response.data as Map<String, dynamic>);
   }
@@ -1166,7 +1222,8 @@ class RoomWiseApiClient {
 
   Future<List<ReviewDto>> getAdminHotelReviews(int hotelId) async {
     final response = await _dio.get('/hotels/$hotelId/reviews');
-    final items = (response.data as Map?)?['items'] as List<dynamic>? ??
+    final items =
+        (response.data as Map?)?['items'] as List<dynamic>? ??
         _extractList(response.data);
     return items
         .whereType<Map<String, dynamic>>()

@@ -24,7 +24,6 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
     with SingleTickerProviderStateMixin {
   int _lastSyncVersion = 0;
 
-  // Design tokens
   static const _primaryGreen = Color(0xFF05A87A);
   static const _accentOrange = Color(0xFFFF7A3C);
   static const _bgColor = Color(0xFFF3F4F6);
@@ -33,7 +32,7 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
   static const _textMuted = Color(0xFF6B7280);
 
   late final TabController _tabController;
-  int _selectedTabIndex = 0; // used for AnimatedSwitcher
+  int _selectedTabIndex = 0;
 
   bool _loading = true;
   String? _error;
@@ -48,7 +47,6 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() {
-      // update when animation finishes
       if (!_tabController.indexIsChanging) {
         setState(() {
           _selectedTabIndex = _tabController.index;
@@ -346,7 +344,7 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
                   ],
                 ),
                 const SizedBox(height: 12),
-                // Custom segmented control (no ugly hover / underline)
+
                 Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
@@ -451,7 +449,6 @@ class _GuestBookingsScreenState extends State<GuestBookingsScreen>
     );
   }
 
-  /// Builds the body for the currently selected tab.
   Widget _buildTabBody() {
     final t = AppLocalizations.of(context)!;
     switch (_selectedTabIndex) {
@@ -544,7 +541,6 @@ class _SummaryChip extends StatelessWidget {
   }
 }
 
-/// Custom segmented tab without splash / underline.
 class _SegmentTab extends StatelessWidget {
   final String label;
   final bool selected;

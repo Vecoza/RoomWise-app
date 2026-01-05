@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:flutter_stripe/flutter_stripe.dart';
@@ -17,7 +18,7 @@ class GuestReservationPreviewScreen extends StatefulWidget {
   final CreateReservationRequestDto request;
   final HotelDetailsDto hotel;
   final AvailableRoomTypeDto roomType;
-  final String paymentMethod; // 'Card' or 'PayOnArrival'
+  final String paymentMethod;
   final String? cardHolderName;
 
   const GuestReservationPreviewScreen({
@@ -36,7 +37,6 @@ class GuestReservationPreviewScreen extends StatefulWidget {
 
 class _GuestReservationPreviewScreenState
     extends State<GuestReservationPreviewScreen> {
-  // design tokens (same palette as other guest screens)
   static const _primaryGreen = Color(0xFF05A87A);
   static const _accentOrange = Color(0xFFFF7A3C);
   static const _bgColor = Color(0xFFF3F4F6);
@@ -67,7 +67,6 @@ class _GuestReservationPreviewScreenState
       'cardHolder=${widget.cardHolderName}',
     );
 
-    // After first frame, log body size to confirm it's in the tree
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final size = _bodyKey.currentContext?.size;
       debugPrint('[PreviewScreen] body size: $size');
@@ -117,7 +116,7 @@ class _GuestReservationPreviewScreenState
 
     try {
       final isCard = widget.paymentMethod == 'Card';
-      // Backend auto-applies the full balance; don't send a client override.
+
       const int? pointsToRedeem = null;
       final api = context.read<RoomWiseApiClient>();
 
@@ -164,7 +163,10 @@ class _GuestReservationPreviewScreenState
           throw Exception('Missing clientSecret for payment confirmation.');
         }
 
-        // Confirm the payment with Stripe using the card entered earlier
+        if (Stripe.publishableKey.isEmpty) {
+          debugPrint('[PreviewScreen] Stripe publishable key is empty.');
+        }
+
         await Stripe.instance.confirmPayment(
           paymentIntentClientSecret: clientSecret,
           data: PaymentMethodParams.card(
@@ -178,8 +180,6 @@ class _GuestReservationPreviewScreenState
           ),
         );
 
-        // Points are deducted on backend after payment intent succeeds;
-        // zero locally so UI/next flows don't reapply stale balance.
         if (mounted) {
           setState(() {
             _loyaltyBalance = 0;
@@ -197,12 +197,11 @@ class _GuestReservationPreviewScreenState
               hotel: widget.hotel,
               roomType: widget.roomType,
               paymentIntent: intent,
-              displayTotalOverride: expectedFinal,
+              displayTotalOverride: resWithIntent.reservation.total,
             ),
           ),
         );
       } else {
-        // Pay on arrival: create reservation now
         _logFlow('create_pay_on_arrival', {
           'hotelId': widget.request.hotelId,
           'roomTypeId': widget.request.roomTypeId,
@@ -256,6 +255,20 @@ class _GuestReservationPreviewScreenState
         );
       }
     } catch (e) {
+      if (e is StripeException) {
+        debugPrint(
+          '[PreviewScreen] StripeException: '
+          'code=${e.error.code}, message=${e.error.localizedMessage}, '
+          'type=${e.error.type}, declineCode=${e.error.declineCode}',
+        );
+      } else if (e is DioException) {
+        debugPrint(
+          '[PreviewScreen] DioException: status=${e.response?.statusCode}, '
+          'data=${e.response?.data}',
+        );
+      } else {
+        debugPrint('[PreviewScreen] Payment error: $e');
+      }
       if (!mounted) return;
       setState(() {
         _error =
@@ -293,11 +306,10 @@ class _GuestReservationPreviewScreenState
           ),
         ),
       ),
-      // IMPORTANT: we no longer use bottomNavigationBar
+
       body: SafeArea(
         child: Column(
           children: [
-            // Scrollable content
             Expanded(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
@@ -331,15 +343,12 @@ class _GuestReservationPreviewScreenState
               ),
             ),
 
-            // Sticky bottom row (replaces bottomNavigationBar)
             _buildBottomBarRow(isCard),
           ],
         ),
       ),
     );
   }
-
-  // ---------- UI sections ----------
 
   Widget _buildBottomBarRow(bool isCard) {
     final currency = widget.hotel.currency.isNotEmpty
@@ -420,7 +429,6 @@ class _GuestReservationPreviewScreenState
     );
   }
 
-  /// Stepper: Stay → Add-ons → Payment → Review
   Widget _buildStepsHeader() {
     final t = AppLocalizations.of(context)!;
     final steps = <Map<String, Object>>[
@@ -450,7 +458,7 @@ class _GuestReservationPreviewScreenState
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(steps.length, (index) {
-              final isActive = index <= 3; // last step (Review) active
+              final isActive = index <= 3;
               final label = steps[index]['label'] as String;
               final icon = steps[index]['icon'] as IconData;
 
@@ -492,7 +500,6 @@ class _GuestReservationPreviewScreenState
     );
   }
 
-  /// Gradient hero with dates + payment pill
   Widget _buildSummaryHero() {
     final t = AppLocalizations.of(context)!;
     final r = widget.request;
@@ -890,8 +897,6 @@ class _GuestReservationPreviewScreenState
     );
   }
 
-  // ---------- small helpers ----------
-
   Widget _dateBox({
     required String label,
     required IconData icon,
@@ -954,7 +959,6 @@ class _GuestReservationPreviewScreenState
     );
   }
 
-  // helper: nights and totals from request
   int get widgetDateRangeNights {
     final diff = widget.request.checkOut
         .difference(widget.request.checkIn)
@@ -1000,7 +1004,6 @@ class _GuestReservationPreviewScreenState
   double get _grandTotalFromRequest =>
       _roomTotalFromRequest + _addOnsTotalFromRequest;
 
-  // Display-only estimate; backend applies full balance automatically.
   double get _loyaltyApplied =>
       _loyaltyLoaded ? math.min(_loyaltyBalance, _grandTotalFromRequest) : 0;
 
@@ -1018,8 +1021,6 @@ class _GuestReservationPreviewScreenState
     debugPrint(buffer.toString());
   }
 
-  // Some backends return minor units (cents), some return major units.
-  // If the raw amount is already close to the expected, use it; otherwise fallback to /100.
   double _coerceAmount(double raw, double expected) {
     if ((raw - expected).abs() < 1.0) {
       return raw;
@@ -1027,7 +1028,6 @@ class _GuestReservationPreviewScreenState
     return raw / 100.0;
   }
 
-  // DATE FORMATTER – no time part
   String _formatDate(DateTime d) {
     const months = [
       'Jan',
@@ -1046,6 +1046,6 @@ class _GuestReservationPreviewScreenState
     final day = d.day.toString().padLeft(2, '0');
     final month = months[d.month - 1];
     final year = d.year.toString();
-    return '$day $month $year'; // e.g. 20 Dec 2025
+    return '$day $month $year';
   }
 }

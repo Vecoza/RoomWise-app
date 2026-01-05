@@ -7,7 +7,6 @@ class GuestBookingPastScreen extends StatelessWidget {
 
   const GuestBookingPastScreen({super.key, required this.booking});
 
-  // Design tokens
   static const _primaryGreen = Color(0xFF05A87A);
   static const _accentOrange = Color(0xFFFF7A3C);
   static const _bgColor = Color(0xFFF3F4F6);
@@ -168,7 +167,6 @@ class GuestBookingPastScreen extends StatelessWidget {
     );
   }
 
-  // (Optional) still here if you ever want to trigger a review from this screen.
   void _openReviewBottomSheet(
     BuildContext context,
     GuestBookingListItemDto booking,
@@ -243,12 +241,9 @@ class GuestBookingPastScreen extends StatelessWidget {
                         ),
                       ),
                       onPressed: () {
-                        // TODO: wire review API if you want from here
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(t.reviewSubmitted),
-                          ),
+                          SnackBar(content: Text(t.reviewSubmitted)),
                         );
                       },
                       child: Text(t.reviewSubmit),
@@ -282,7 +277,6 @@ class GuestBookingPastScreen extends StatelessWidget {
   }
 }
 
-/// HEADER (image + floating card)
 class _HeaderSection extends StatelessWidget {
   final GuestBookingListItemDto booking;
   final String dateRange;

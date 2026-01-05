@@ -45,7 +45,7 @@ class _GuestReservationDetailsScreenState
   static const _textMuted = Color(0xFF6B7280);
 
   final Set<int> _selectedAddonIds = {};
-  String _paymentMethod = 'Card'; // 'Card' or 'PayOnArrival'
+  String _paymentMethod = 'Card';
   bool _submitting = false;
   String? _error;
   double _loyaltyBalance = 0;
@@ -255,8 +255,6 @@ class _GuestReservationDetailsScreenState
     );
   }
 
-  // ---------- UI SECTIONS ----------
-
   Widget _buildBottomBar(HotelDetailsDto hotel) {
     final t = AppLocalizations.of(context)!;
     return SafeArea(
@@ -331,7 +329,7 @@ class _GuestReservationDetailsScreenState
 
   Widget _buildStepsHeader() {
     final t = AppLocalizations.of(context)!;
-    // Visual stepper: Stay → Add-ons → Payment → Summary
+
     final steps = <Map<String, Object>>[
       {'label': t.reservationStepStay, 'icon': Icons.hotel},
       {'label': t.reservationStepAddOns, 'icon': Icons.extension},
@@ -357,7 +355,7 @@ class _GuestReservationDetailsScreenState
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: List.generate(steps.length, (index) {
-          final isActive = index <= 2; // we're currently on "Payment" step
+          final isActive = index <= 2;
           final label = steps[index]['label'] as String;
           final icon = steps[index]['icon'] as IconData;
 
@@ -598,8 +596,9 @@ class _GuestReservationDetailsScreenState
     if (trimmed.isEmpty) return null;
     if (trimmed.startsWith('http')) return NetworkImage(trimmed);
 
-    final pureBase64 =
-        trimmed.contains(',') ? trimmed.split(',').last.trim() : trimmed;
+    final pureBase64 = trimmed.contains(',')
+        ? trimmed.split(',').last.trim()
+        : trimmed;
     try {
       return MemoryImage(base64Decode(pureBase64));
     } catch (_) {

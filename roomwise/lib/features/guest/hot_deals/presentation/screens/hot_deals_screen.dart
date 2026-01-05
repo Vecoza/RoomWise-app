@@ -17,7 +17,6 @@ class HotDealsScreen extends StatefulWidget {
 enum HotDealSort { lowestPrice, highestPrice }
 
 class _HotDealsScreenState extends State<HotDealsScreen> {
-  // Design tokens – aligned with the rest of your app
   static const _primaryGreen = Color(0xFF05A87A);
   static const _accentOrange = Color(0xFFFF7A3C);
   static const _bgColor = Color(0xFFF5F7FA);
@@ -691,7 +690,6 @@ class _HotDealCard extends StatelessWidget {
   }
 }
 
-// Small helpers to keep your old logic intact
 extension _HotelPriceExtension on HotelSearchItemDto {
   double get effectivePrice => (promotionPrice != null && promotionPrice! > 0)
       ? promotionPrice!

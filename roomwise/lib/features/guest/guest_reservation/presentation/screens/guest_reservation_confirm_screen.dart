@@ -107,8 +107,7 @@ class GuestReservationConfirmScreen extends StatelessWidget {
     totalDisplay ??= r.total;
     currencyDisplay ??= effectiveCurrency;
 
-    final totalText =
-        '$currencyDisplay ${totalDisplay.toStringAsFixed(2)}';
+    final totalText = '$currencyDisplay ${totalDisplay.toStringAsFixed(2)}';
     final (statusLabel, statusColor, statusBg) = _paymentStatusStyle(t);
 
     return Scaffold(
@@ -149,29 +148,32 @@ class GuestReservationConfirmScreen extends StatelessWidget {
                                 shape: BoxShape.circle,
                                 color: _primaryGreen.withOpacity(0.12),
                               ),
-                            child: const Icon(
-                              Icons.check_rounded,
-                              size: 42,
-                              color: _primaryGreen,
+                              child: const Icon(
+                                Icons.check_rounded,
+                                size: 42,
+                                color: _primaryGreen,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 14),
-                          Text(
-                            t.confirmHeading,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                              color: _textPrimary,
+                            const SizedBox(height: 14),
+                            Text(
+                              t.confirmHeading,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                                color: _textPrimary,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            t.confirmSubheading,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 13, color: _textMuted),
-                          ),
-                          const SizedBox(height: 20),
+                            const SizedBox(height: 6),
+                            Text(
+                              t.confirmSubheading,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: _textMuted,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
 
                             // Main card
                             Container(
@@ -458,8 +460,6 @@ class GuestReservationConfirmScreen extends StatelessWidget {
     );
   }
 
-  // Some backends return minor units (cents), some return major units.
-  // If the raw amount is already close to expected, use it; otherwise divide by 100.
   double _coerceAmount(double raw, double expected) {
     if ((raw - expected).abs() < 1.0) return raw;
     return raw / 100.0;

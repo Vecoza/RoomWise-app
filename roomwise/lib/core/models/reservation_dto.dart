@@ -163,7 +163,7 @@ class ReservationDto {
 
     if (hotel != null) {
       hotelName = hotel['name'] as String?;
-      // adapt this depending on your API
+
       final city = hotel['city'] as Map<String, dynamic>?;
       hotelCity = city?['name'] as String? ?? hotel['cityName'] as String?;
 
@@ -188,7 +188,8 @@ class ReservationDto {
       hotelName: hotelName,
       hotelCity: hotelCity,
       mainImageUrl: mainImageUrl,
-      roomTypeName: json['roomTypeName'] as String? ??
+      roomTypeName:
+          json['roomTypeName'] as String? ??
           json['roomType'] as String? ??
           (json['roomTypeDto'] as Map<String, dynamic>?)?['name'] as String?,
     );

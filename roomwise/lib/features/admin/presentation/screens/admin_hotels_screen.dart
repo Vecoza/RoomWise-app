@@ -111,6 +111,13 @@ class _AdminHotelsScreenState extends State<AdminHotelsScreen> {
         await api.updateAdminRoomType(rt.id, result);
       }
       await _load();
+      if (!mounted) return;
+      final msg = rt == null
+          ? 'Room type added successfully.'
+          : 'Room type updated successfully.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg)),
+      );
     } catch (e) {
       if (!mounted) return;
       debugPrint('Save failed: $e');
@@ -1651,6 +1658,7 @@ class _RateFormState extends State<_RateForm> {
       debugPrint('Select room type and dates');
       return;
     }
+    final isEdit = widget.existing != null;
     setState(() => _saving = true);
     final api = context.read<RoomWiseApiClient>();
     try {
@@ -1667,7 +1675,15 @@ class _RateFormState extends State<_RateForm> {
         await api.createAdminRoomRate(req);
       }
       await widget.onSaved();
-      if (mounted) Navigator.of(context).pop();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isEdit ? 'Rate updated successfully.' : 'Rate added successfully.',
+          ),
+        ),
+      );
+      Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
       debugPrint('Save failed: $e');
@@ -1978,7 +1994,7 @@ class _RateFormState extends State<_RateForm> {
   }
 }
 
-class _AvailabilitySection extends StatelessWidget {
+class _AvailabilitySection extends StatefulWidget {
   static const _textPrimary = Color(0xFF111827);
   static const _textMuted = Color(0xFF6B7280);
 
@@ -1993,8 +2009,53 @@ class _AvailabilitySection extends StatelessWidget {
   });
 
   @override
+  State<_AvailabilitySection> createState() => _AvailabilitySectionState();
+}
+
+class _AvailabilitySectionState extends State<_AvailabilitySection> {
+  DateTime _selectedDate = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _selectedDate = DateTime(now.year, now.month, now.day);
+  }
+
+  bool _sameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final res = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(now.year - 1),
+      lastDate: DateTime(now.year + 2),
+    );
+    if (res != null) {
+      setState(() {
+        _selectedDate = DateTime(res.year, res.month, res.day);
+      });
+    }
+  }
+
+  AdminRoomAvailabilityDto? _recordFor(int roomTypeId) {
+    for (final record in widget.availability) {
+      if (record.roomTypeId == roomTypeId &&
+          _sameDay(record.date, _selectedDate)) {
+        return record;
+      }
+    }
+    return null;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final dateFmt = DateFormat('dd MMM');
+    final dateFmt = DateFormat('dd MMM yyyy');
+    final sortedRoomTypes = [...widget.roomTypes]
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return _Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2006,67 +2067,53 @@ class _AvailabilitySection extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
-                  color: _textPrimary,
+                  color: _AvailabilitySection._textPrimary,
                 ),
               ),
               const Spacer(),
-              TextButton.icon(
-                onPressed: roomTypes.isEmpty
-                    ? null
-                    : () => _openAvailabilityForm(context, roomTypes, onSaved),
-                icon: const Icon(Icons.add),
-                label: const Text('Add'),
+              FilledButton.tonalIcon(
+                onPressed: widget.roomTypes.isEmpty ? null : _pickDate,
+                icon: const Icon(Icons.calendar_month_outlined),
+                label: Text(dateFmt.format(_selectedDate)),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          if (availability.isEmpty)
+          Text(
+            'Set how many rooms are available for the selected date.',
+            style: const TextStyle(color: _AvailabilitySection._textMuted),
+          ),
+          const SizedBox(height: 12),
+          if (widget.roomTypes.isEmpty)
             const Text(
-              'No availability records yet.',
-              style: TextStyle(color: _textMuted),
+              'No room types yet.',
+              style: TextStyle(color: _AvailabilitySection._textMuted),
             )
           else
             Column(
-              children: availability
-                  .map(
-                    (a) => ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(dateFmt.format(a.date)),
-                      subtitle: Text(
-                        roomTypes
-                                .firstWhere(
-                                  (rt) => rt.id == a.roomTypeId,
-                                  orElse: () => roomTypes.first,
-                                )
-                                .name +
-                            ' • ${a.available} available',
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit, size: 18),
-                            onPressed: () => _openAvailabilityForm(
-                              context,
-                              roomTypes,
-                              onSaved,
-                              existing: a,
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.delete,
-                              size: 18,
-                              color: Colors.redAccent,
-                            ),
-                            onPressed: () =>
-                                _deleteAvailability(context, a, onSaved),
-                          ),
-                        ],
-                      ),
+              children: [
+                for (var i = 0; i < sortedRoomTypes.length; i++) ...[
+                  _AvailabilityRoomCard(
+                    roomType: sortedRoomTypes[i],
+                    record: _recordFor(sortedRoomTypes[i].id),
+                    onEdit: () => _openAvailabilityForm(
+                      context,
+                      sortedRoomTypes,
+                      widget.availability,
+                      widget.onSaved,
+                      initialDate: _selectedDate,
+                      existing: _recordFor(sortedRoomTypes[i].id),
                     ),
-                  )
-                  .toList(),
+                    onDelete: () {
+                      final record = _recordFor(sortedRoomTypes[i].id);
+                      if (record == null) return;
+                      _deleteAvailability(context, record, widget.onSaved);
+                    },
+                  ),
+                  if (i < sortedRoomTypes.length - 1)
+                    const SizedBox(height: 12),
+                ],
+              ],
             ),
         ],
       ),
@@ -2076,7 +2123,9 @@ class _AvailabilitySection extends StatelessWidget {
   void _openAvailabilityForm(
     BuildContext context,
     List<AdminRoomTypeDto> roomTypes,
+    List<AdminRoomAvailabilityDto> availability,
     Future<void> Function() onSaved, {
+    DateTime? initialDate,
     AdminRoomAvailabilityDto? existing,
   }) {
     showModalBottomSheet(
@@ -2086,8 +2135,10 @@ class _AvailabilitySection extends StatelessWidget {
       builder: (ctx) {
         return _AvailabilityForm(
           roomTypes: roomTypes,
+          availability: availability,
           onSaved: onSaved,
           existing: existing,
+          initialDate: initialDate,
         );
       },
     );
@@ -2128,15 +2179,194 @@ class _AvailabilitySection extends StatelessWidget {
   }
 }
 
+class _AvailabilityRoomCard extends StatelessWidget {
+  static const _textPrimary = Color(0xFF111827);
+  static const _textMuted = Color(0xFF6B7280);
+
+  final AdminRoomTypeDto roomType;
+  final AdminRoomAvailabilityDto? record;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _AvailabilityRoomCard({
+    required this.roomType,
+    required this.record,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  Color _availabilityColor(double ratio) {
+    if (ratio >= 0.6) return const Color(0xFF05A87A);
+    if (ratio >= 0.3) return const Color(0xFFF59E0B);
+    return const Color(0xFFEF4444);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final available = record?.available ?? roomType.stock;
+    final ratio = roomType.stock <= 0
+        ? 0.0
+        : (available / roomType.stock).clamp(0.0, 1.0);
+    final color = _availabilityColor(ratio);
+    final isDefault = record == null;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withOpacity(0.06)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  roomType.name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: _textPrimary,
+                  ),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: onEdit,
+                icon: const Icon(Icons.edit, size: 18),
+                label: Text(isDefault ? 'Set' : 'Edit'),
+              ),
+              if (!isDefault)
+                IconButton(
+                  onPressed: onDelete,
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    color: Colors.redAccent,
+                    size: 20,
+                  ),
+                  tooltip: 'Delete',
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _AvailabilityPill(
+                label: 'Available',
+                value: available.toString(),
+                color: color,
+              ),
+              const SizedBox(width: 8),
+              _AvailabilityPill(
+                label: 'Stock',
+                value: roomType.stock.toString(),
+                color: const Color(0xFF6366F1),
+              ),
+              if (isDefault) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF3F4F6),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Text(
+                    'Default',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: _textMuted,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: ratio,
+              minHeight: 6,
+              backgroundColor: const Color(0xFFE5E7EB),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AvailabilityPill extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _AvailabilityPill({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _AvailabilityForm extends StatefulWidget {
   final List<AdminRoomTypeDto> roomTypes;
+  final List<AdminRoomAvailabilityDto> availability;
   final Future<void> Function() onSaved;
   final AdminRoomAvailabilityDto? existing;
+  final DateTime? initialDate;
 
   const _AvailabilityForm({
     required this.roomTypes,
+    required this.availability,
     required this.onSaved,
     this.existing,
+    this.initialDate,
   });
 
   @override
@@ -2177,6 +2407,10 @@ class _AvailabilityFormState extends State<_AvailabilityForm> {
     final parsed = int.tryParse((v ?? '').trim());
     if (parsed == null) return 'Enter a number';
     if (parsed < 0) return 'Must be ≥ 0';
+    final maxStock = _selectedStock;
+    if (maxStock != null && parsed > maxStock) {
+      return 'Max available is $maxStock';
+    }
     return null;
   }
 
@@ -2187,8 +2421,13 @@ class _AvailabilityFormState extends State<_AvailabilityForm> {
       _roomTypeId = widget.existing!.roomTypeId;
       _date = widget.existing!.date;
       _available.text = widget.existing!.available.toString();
-    } else if (widget.roomTypes.isNotEmpty) {
-      _roomTypeId = widget.roomTypes.first.id;
+    } else {
+      final baseDate = widget.initialDate ?? DateTime.now();
+      _date = DateTime(baseDate.year, baseDate.month, baseDate.day);
+      if (widget.roomTypes.isNotEmpty) {
+        _roomTypeId = widget.roomTypes.first.id;
+        _syncAvailableFromExisting();
+      }
     }
   }
 
@@ -2206,7 +2445,62 @@ class _AvailabilityFormState extends State<_AvailabilityForm> {
       firstDate: DateTime(now.year - 1),
       lastDate: DateTime(now.year + 2),
     );
-    if (res != null) setState(() => _date = res);
+    if (res != null) {
+      setState(() {
+        _date = DateTime(res.year, res.month, res.day);
+        _syncAvailableFromExisting();
+      });
+    }
+  }
+
+  AdminRoomTypeDto? get _selectedRoomType {
+    final id = _roomTypeId;
+    if (id == null) return null;
+    for (final rt in widget.roomTypes) {
+      if (rt.id == id) return rt;
+    }
+    return null;
+  }
+
+  int? get _selectedStock => _selectedRoomType?.stock;
+
+  AdminRoomAvailabilityDto? _findExistingRecord() {
+    if (_roomTypeId == null || _date == null) return null;
+    for (final record in widget.availability) {
+      final sameDate =
+          record.date.year == _date!.year &&
+          record.date.month == _date!.month &&
+          record.date.day == _date!.day;
+      if (record.roomTypeId == _roomTypeId && sameDate) {
+        return record;
+      }
+    }
+    return null;
+  }
+
+  void _syncAvailableFromExisting() {
+    if (_roomTypeId == null || _date == null) return;
+    final existing = _findExistingRecord();
+    if (existing != null) {
+      _available.text = existing.available.toString();
+      return;
+    }
+    final stock = _selectedStock;
+    if (stock != null) {
+      _available.text = stock.toString();
+    }
+  }
+
+  void _stepAvailable(int delta) {
+    final current = int.tryParse(_available.text) ?? 0;
+    final maxStock = _selectedStock;
+    var next = current + delta;
+    if (maxStock != null) {
+      if (next > maxStock) next = maxStock;
+    }
+    if (next < 0) next = 0;
+    _available.text = next.toString();
+    setState(() {});
   }
 
   Future<void> _submit() async {
@@ -2218,18 +2512,35 @@ class _AvailabilityFormState extends State<_AvailabilityForm> {
     setState(() => _saving = true);
     final api = context.read<RoomWiseApiClient>();
     try {
+      final existing = widget.existing ?? _findExistingRecord();
+      final isEdit = existing != null;
+      final maxStock = _selectedStock;
+      final rawAvailable = int.tryParse(_available.text) ?? 0;
+      final safeAvailable = maxStock == null
+          ? rawAvailable
+          : rawAvailable.clamp(0, maxStock);
       final req = AdminRoomAvailabilityUpsertRequest(
         roomTypeId: _roomTypeId!,
         date: _date!,
-        available: int.tryParse(_available.text) ?? 0,
+        available: safeAvailable,
       );
-      if (widget.existing != null) {
-        await api.updateAdminRoomAvailability(widget.existing!.id, req);
+      if (existing != null) {
+        await api.updateAdminRoomAvailability(existing.id, req);
       } else {
         await api.createAdminRoomAvailability(req);
       }
       await widget.onSaved();
-      if (mounted) Navigator.of(context).pop();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isEdit
+                ? 'Availability updated successfully.'
+                : 'Availability added successfully.',
+          ),
+        ),
+      );
+      Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
       debugPrint('Save failed: $e');
@@ -2240,13 +2551,13 @@ class _AvailabilityFormState extends State<_AvailabilityForm> {
 
   @override
   Widget build(BuildContext context) {
-    final isEdit = widget.existing != null;
+    final hasExisting = widget.existing != null || _findExistingRecord() != null;
     final dateText = _date == null
         ? 'Select date'
         : DateFormat('dd MMM yyyy').format(_date!);
 
-    final title = isEdit ? 'Edit availability' : 'New availability';
-    final subtitle = isEdit
+    final title = hasExisting ? 'Update availability' : 'New availability';
+    final subtitle = hasExisting
         ? 'Update inventory for this date.'
         : 'Set how many rooms are available.';
 
@@ -2369,28 +2680,45 @@ class _AvailabilityFormState extends State<_AvailabilityForm> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const _SectionTitle(title: 'Details'),
+                                  const _SectionTitle(title: 'Room type'),
                                   const SizedBox(height: 10),
-                                  DropdownButtonFormField<int>(
-                                    value: _roomTypeId,
-                                    items: widget.roomTypes
-                                        .map(
-                                          (rt) => DropdownMenuItem(
-                                            value: rt.id,
-                                            child: Text(rt.name),
+                                  if (widget.roomTypes.isEmpty)
+                                    const Text(
+                                      'Create a room type first.',
+                                      style: TextStyle(color: _textMuted),
+                                    )
+                                  else
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: widget.roomTypes.map((rt) {
+                                        final selected = rt.id == _roomTypeId;
+                                        return ChoiceChip(
+                                          label: Text(rt.name),
+                                          selected: selected,
+                                          onSelected: _saving
+                                              ? null
+                                              : (_) {
+                                                  setState(() {
+                                                    _roomTypeId = rt.id;
+                                                    _syncAvailableFromExisting();
+                                                  });
+                                                },
+                                          selectedColor: const Color(0xFFDCFCE7),
+                                          labelStyle: TextStyle(
+                                            color: selected
+                                                ? const Color(0xFF166534)
+                                                : _textPrimary,
+                                            fontWeight: FontWeight.w700,
                                           ),
-                                        )
-                                        .toList(),
-                                    onChanged: (v) =>
-                                        setState(() => _roomTypeId = v),
-                                    decoration: _decoration(
-                                      label: 'Room type',
-                                      icon: Icons.bed_outlined,
+                                        );
+                                      }).toList(),
                                     ),
-                                  ),
+                                  const SizedBox(height: 12),
+                                  const _SectionTitle(title: 'Date'),
                                   const SizedBox(height: 10),
                                   FilledButton.tonalIcon(
-                                    onPressed: _pickDate,
+                                    onPressed: _saving ? null : _pickDate,
                                     icon: const Icon(Icons.event_outlined),
                                     label: Text(dateText),
                                     style: FilledButton.styleFrom(
@@ -2410,16 +2738,61 @@ class _AvailabilityFormState extends State<_AvailabilityForm> {
                                 children: [
                                   const _SectionTitle(title: 'Inventory'),
                                   const SizedBox(height: 10),
-                                  TextFormField(
-                                    controller: _available,
-                                    textInputAction: TextInputAction.done,
-                                    keyboardType: TextInputType.number,
-                                    decoration: _decoration(
-                                      label: 'Available rooms',
-                                      hint: 'e.g. 12',
-                                      icon: Icons.inventory_2_outlined,
-                                    ),
-                                    validator: _nonNegativeInt,
+                                  Row(
+                                    children: [
+                                      IconButton(
+                                        onPressed: _roomTypeId == null || _saving
+                                            ? null
+                                            : () => _stepAvailable(-1),
+                                        icon: const Icon(Icons.remove_circle),
+                                      ),
+                                      Expanded(
+                                        child: TextFormField(
+                                          controller: _available,
+                                          textAlign: TextAlign.center,
+                                          textInputAction: TextInputAction.done,
+                                          keyboardType: TextInputType.number,
+                                          decoration: _decoration(
+                                            label: 'Available rooms',
+                                            hint: 'e.g. 12',
+                                            icon: Icons.inventory_2_outlined,
+                                          ),
+                                          validator: _nonNegativeInt,
+                                        ),
+                                      ),
+                                      IconButton(
+                                        onPressed: _roomTypeId == null || _saving
+                                            ? null
+                                            : () => _stepAvailable(1),
+                                        icon: const Icon(Icons.add_circle),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        _selectedStock == null
+                                            ? 'Select a room type to see stock.'
+                                            : 'Max: $_selectedStock rooms',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: _textMuted,
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      TextButton(
+                                        onPressed: _selectedStock == null ||
+                                                _saving
+                                            ? null
+                                            : () {
+                                                _available.text =
+                                                    _selectedStock.toString();
+                                                setState(() {});
+                                              },
+                                        child: const Text('Set to stock'),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -2519,40 +2892,42 @@ class _ImagesSection extends StatelessWidget {
               children: (List.of(images)
                     ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder)))
                   .map(
-                    (img) => ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: _SmartImage(
-                        source: img.url,
-                        width: 48,
-                        height: 48,
-                      ),
-                      title: Text(
-                        _imageLabel(img.url),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: Text('Order ${img.sortOrder}'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.arrow_upward, size: 18),
-                            onPressed: () => _move(context, img, -1),
+                    (img) => _ImageThumbCard(
+                      url: img.url,
+                      sortOrder: img.sortOrder,
+                      actions: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_upward, size: 18),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints.tightFor(
+                            width: 36,
+                            height: 36,
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.arrow_downward, size: 18),
-                            onPressed: () => _move(context, img, 1),
+                          onPressed: () => _move(context, img, -1),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.arrow_downward, size: 18),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints.tightFor(
+                            width: 36,
+                            height: 36,
                           ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.delete,
-                              color: Colors.redAccent,
-                              size: 18,
-                            ),
-                            onPressed: () => _delete(context, img),
+                          onPressed: () => _move(context, img, 1),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete,
+                            color: Colors.redAccent,
+                            size: 18,
                           ),
-                        ],
-                      ),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints.tightFor(
+                            width: 36,
+                            height: 36,
+                          ),
+                          onPressed: () => _delete(context, img),
+                        ),
+                      ],
                     ),
                   )
                   .toList(),
@@ -2619,6 +2994,10 @@ class _ImagesSection extends StatelessWidget {
           await api.createAdminHotelImage(result.request!);
         }
         await onChanged();
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Hotel image added successfully.')),
+        );
       } catch (e) {
         if (!context.mounted) return;
         final msg = _formatError(e);
@@ -2763,48 +3142,55 @@ class _RoomImagesSectionState extends State<_RoomImagesSection> {
             Column(
               children: filtered
                   .map(
-                    (img) => ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: _SmartImage(
-                        source: img.url,
-                        width: 48,
-                        height: 48,
-                      ),
-                      title: Text(
-                        _imageLabel(img.url),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: Text('Order ${img.sortOrder}'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.arrow_upward, size: 18),
-                            onPressed: () => _move(img, -1),
+                    (img) => _ImageThumbCard(
+                      url: img.url,
+                      sortOrder: img.sortOrder,
+                      actions: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_upward, size: 18),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints.tightFor(
+                            width: 36,
+                            height: 36,
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.arrow_downward, size: 18),
-                            onPressed: () => _move(img, 1),
+                          onPressed: () => _move(img, -1),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.arrow_downward, size: 18),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints.tightFor(
+                            width: 36,
+                            height: 36,
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.edit, size: 18),
-                            onPressed: () => _openForm(
-                              context,
-                              roomTypeId: img.roomTypeId,
-                              existing: img,
-                            ),
+                          onPressed: () => _move(img, 1),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.edit, size: 18),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints.tightFor(
+                            width: 36,
+                            height: 36,
                           ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.delete,
-                              color: Colors.redAccent,
-                              size: 18,
-                            ),
-                            onPressed: () => _delete(context, img),
+                          onPressed: () => _openForm(
+                            context,
+                            roomTypeId: img.roomTypeId,
+                            existing: img,
                           ),
-                        ],
-                      ),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete,
+                            color: Colors.redAccent,
+                            size: 18,
+                          ),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints.tightFor(
+                            width: 36,
+                            height: 36,
+                          ),
+                          onPressed: () => _delete(context, img),
+                        ),
+                      ],
                     ),
                   )
                   .toList(),
@@ -2883,6 +3269,7 @@ class _RoomImagesSectionState extends State<_RoomImagesSection> {
         );
       }
       try {
+        final isUpdate = target != null;
         if (result.filePath != null) {
           final bytes = await File(result.filePath!).readAsBytes();
           final req = AdminRoomTypeImageUpsertRequest(
@@ -2903,6 +3290,16 @@ class _RoomImagesSectionState extends State<_RoomImagesSection> {
           }
         }
         await widget.onChanged();
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isUpdate
+                  ? 'Room image updated successfully.'
+                  : 'Room image added successfully.',
+            ),
+          ),
+        );
       } catch (e) {
         if (!context.mounted) return;
         final msg = _formatError(e);
@@ -3828,6 +4225,143 @@ class _ImageFormState extends State<_ImageForm> {
           );
         },
       ),
+    );
+  }
+}
+
+class _ImageThumbCard extends StatelessWidget {
+  final String url;
+  final int sortOrder;
+  final List<Widget> actions;
+
+  const _ImageThumbCard({
+    required this.url,
+    required this.sortOrder,
+    required this.actions,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = _resolveImageProvider(url);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final height =
+            (constraints.maxWidth * 9 / 16).clamp(200.0, 260.0) as double;
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.black.withOpacity(0.06)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Stack(
+              children: [
+                SizedBox(
+                  height: height,
+                  width: double.infinity,
+                  child:
+                      provider == null
+                          ? Container(
+                              color: const Color(0xFFF3F4F6),
+                              alignment: Alignment.center,
+                              child: const Icon(
+                                Icons.broken_image_outlined,
+                                color: Color(0xFF6B7280),
+                              ),
+                            )
+                          : Image(
+                              image: provider,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) {
+                                return Container(
+                                  color: const Color(0xFFF3F4F6),
+                                  alignment: Alignment.center,
+                                  child: const Icon(
+                                    Icons.broken_image_outlined,
+                                    color: Color(0xFF6B7280),
+                                  ),
+                                );
+                              },
+                            ),
+                ),
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withOpacity(0.32),
+                          Colors.transparent,
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.18),
+                        ],
+                        stops: const [0, 0.28, 0.72, 1],
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      'Order $sortOrder',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(999),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: actions,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

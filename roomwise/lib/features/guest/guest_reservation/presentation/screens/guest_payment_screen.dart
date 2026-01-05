@@ -90,7 +90,6 @@ class _GuestPaymentScreenState extends State<GuestPaymentScreen> {
     });
 
     try {
-      // Do not charge here; just pass data forward
       if (!mounted) return;
       Navigator.push(
         context,

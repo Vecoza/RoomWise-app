@@ -28,7 +28,6 @@ class GuestSettingsScreen extends StatefulWidget {
 }
 
 class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
-  // DESIGN SYSTEM
   static const _primaryGreen = Color(0xFF05A87A);
   static const _bgColor = Color(0xFFF3F4F6);
   static const _cardColor = Colors.white;
@@ -45,15 +44,12 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
   LoyaltySummaryDto? _loyalty;
   String? _avatarUrl;
   File? _avatarFile;
-
-  // Profile form
   final _profileFormKey = GlobalKey<FormState>();
   final _firstNameCtrl = TextEditingController();
   final _lastNameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _languageCtrl = TextEditingController(text: 'en');
 
-  // Change password form
   final _passwordFormKey = GlobalKey<FormState>();
   final _currentPassCtrl = TextEditingController();
   final _newPassCtrl = TextEditingController();
@@ -63,6 +59,26 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
   bool _savingProfile = false;
   int _lastBookingsVersion = 0;
   String? _lastAuthToken;
+
+  String? _validatePhone(String? value) {
+    final v = (value ?? '').trim();
+    if (v.isEmpty) return null;
+    if (!RegExp(r'^\d+$').hasMatch(v)) {
+      return 'Use digits only';
+    }
+    if (!v.startsWith('06')) {
+      return 'Phone must start with 06';
+    }
+    if (v.length < 3) {
+      return 'Phone is too short';
+    }
+    final third = v[2];
+    final expectedLength = third == '0' ? 10 : 9;
+    if (v.length != expectedLength) {
+      return 'Phone must be $expectedLength digits';
+    }
+    return null;
+  }
 
   @override
   void initState() {
@@ -76,7 +92,6 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
     final bookingsSync = context.watch<BookingsSync>();
     final auth = context.watch<AuthState>();
 
-    // Reload when auth token changes (login/logout or user switch)
     if (auth.token != _lastAuthToken) {
       _lastAuthToken = auth.token;
       _loadData();
@@ -426,7 +441,6 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Card instead of raw icon – feels more "app"
               _settingsCard(
                 child: Column(
                   children: const [
@@ -757,6 +771,7 @@ class _GuestSettingsScreenState extends State<GuestSettingsScreen> {
               controller: _phoneCtrl,
               decoration: _inputDecoration(t.phoneOptional),
               keyboardType: TextInputType.phone,
+              validator: _validatePhone,
             ),
             const SizedBox(height: 16),
             SizedBox(

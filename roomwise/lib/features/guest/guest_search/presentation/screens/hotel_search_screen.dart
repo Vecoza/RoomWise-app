@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:roomwise/core/api/roomwise_api_client.dart';
 import 'package:roomwise/core/models/city_dto.dart';
 import 'package:roomwise/core/models/hotel_search_item_dto.dart';
+import 'package:roomwise/core/search/search_state.dart';
 import 'package:roomwise/features/guest/guest_hotel/presentation/screens/guest_hotel_preview_screen.dart';
 import 'package:roomwise/l10n/app_localizations.dart';
 
@@ -38,7 +39,23 @@ class _HotelSearchScreenState extends State<HotelSearchScreen> {
   @override
   void initState() {
     super.initState();
+    _syncSearchState();
     _loadHotels();
+  }
+
+  void _syncSearchState() {
+    final range = widget.dateRange;
+    if (range == null) return;
+    final guests = (widget.guests ?? 2).clamp(1, 10);
+    try {
+      context.read<SearchState>().update(
+        checkIn: range.start,
+        checkOut: range.end,
+        guests: guests,
+      );
+    } catch (e) {
+      debugPrint('[HotelSearch] SearchState update failed: $e');
+    }
   }
 
   Future<void> _loadHotels() async {
@@ -51,7 +68,6 @@ class _HotelSearchScreenState extends State<HotelSearchScreen> {
       final api = context.read<RoomWiseApiClient>();
       List<HotelSearchItemDto> result = [];
 
-      // Prefer advanced search when dates are selected so we respect availability.
       if (widget.dateRange != null) {
         final range = widget.dateRange!;
         final guests = (widget.guests ?? 1).clamp(1, 10);
@@ -67,7 +83,6 @@ class _HotelSearchScreenState extends State<HotelSearchScreen> {
         }
       }
 
-      // Basic city search fallback
       if (result.isEmpty) {
         try {
           result = await api.searchHotelsByCity(cityId: widget.city.id);
@@ -76,7 +91,6 @@ class _HotelSearchScreenState extends State<HotelSearchScreen> {
         }
       }
 
-      // Final fallback: filter hot deals by city name (best-effort)
       if (result.isEmpty) {
         try {
           final deals = await api.getHotDeals();
@@ -284,7 +298,6 @@ class _HotelSearchScreenState extends State<HotelSearchScreen> {
   }
 }
 
-/// Small scale animation when list items appear
 class _AnimatedHotelCard extends StatelessWidget {
   final int index;
   final Widget child;
@@ -480,7 +493,7 @@ class _HotelCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  // Price + "pill" info row
+
                   Row(
                     children: [
                       Column(

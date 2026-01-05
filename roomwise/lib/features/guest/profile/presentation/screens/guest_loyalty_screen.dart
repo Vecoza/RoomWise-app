@@ -13,7 +13,6 @@ class GuestLoyaltyScreen extends StatefulWidget {
 }
 
 class _GuestLoyaltyScreenState extends State<GuestLoyaltyScreen> {
-  // --- DESIGN TOKENS (keep in sync with Profile/Support screens) ---
   static const _primaryGreen = Color(0xFF05A87A);
   static const _bgColor = Color(0xFFF5F7FA);
   static const _cardColor = Colors.white;

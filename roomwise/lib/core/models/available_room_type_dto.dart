@@ -14,6 +14,7 @@ class AvailableRoomTypeDto {
   final DateTime? validFrom;
   final DateTime? validTo;
   final double? sizeM2;
+  final double? basePrice;
 
   // TEST
   final String? thumbnailUrl;
@@ -37,6 +38,7 @@ class AvailableRoomTypeDto {
     this.validFrom,
     this.validTo,
     this.sizeM2,
+    this.basePrice,
     this.thumbnailUrl,
     this.imageUrls = const [],
     this.bedType,
@@ -93,6 +95,7 @@ class AvailableRoomTypeDto {
       return null;
     }
 
+    final basePrice = _readNullableDouble('basePrice');
     return AvailableRoomTypeDto(
       id: id,
       name: (json['name'] as String?) ?? '',
@@ -111,6 +114,7 @@ class AvailableRoomTypeDto {
       description: json['description'] as String?,
       bedConfiguration: json['bedConfiguration'] as String?,
       sizeM2: size > 0 ? size : null,
+      basePrice: basePrice,
       validFrom: json['validFrom'] != null
           ? DateTime.tryParse(json['validFrom'] as String)
           : null,

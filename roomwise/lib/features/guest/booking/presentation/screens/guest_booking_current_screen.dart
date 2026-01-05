@@ -16,7 +16,6 @@ class GuestBookingCurrentScreen extends StatefulWidget {
 }
 
 class _GuestBookingCurrentScreenState extends State<GuestBookingCurrentScreen> {
-  // Design tokens
   static const _primaryGreen = Color(0xFF05A87A);
   static const _accentOrange = Color(0xFFFF7A3C);
   static const _bgColor = Color(0xFFF3F4F6);
@@ -79,7 +78,6 @@ class _GuestBookingCurrentScreenState extends State<GuestBookingCurrentScreen> {
                             ),
                             const SizedBox(height: 32),
 
-                            // DETAILS CARD
                             Container(
                               width: double.infinity,
                               padding: const EdgeInsets.all(16),
@@ -337,7 +335,6 @@ class _GuestBookingCurrentScreenState extends State<GuestBookingCurrentScreen> {
   }
 }
 
-/// HEADER → hero image + gradient + floating card (matching past screen)
 class _HeaderSection extends StatelessWidget {
   final GuestBookingListItemDto booking;
   final String dateRange;

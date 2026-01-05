@@ -36,7 +36,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get securityTitle => 'Security';
 
   @override
-  String get securitySubtitle => 'Update your password regularly to keep your account safe.';
+  String get securitySubtitle =>
+      'Update your password regularly to keep your account safe.';
 
   @override
   String get logout => 'Log out';
@@ -48,7 +49,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get wishlistLoggedOutTitle => 'Save your favourite stays';
 
   @override
-  String get wishlistLoggedOutSubtitle => 'Create an account or log in to start building your wishlist and quickly find places you love.';
+  String get wishlistLoggedOutSubtitle =>
+      'Create an account or log in to start building your wishlist and quickly find places you love.';
 
   @override
   String get wishlistCreateAccount => 'Create account';
@@ -72,7 +74,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get wishlistNoFavouritesTitle => 'No favourites yet';
 
   @override
-  String get wishlistNoFavouritesSubtitle => 'Tap the heart on a hotel to add it to your wishlist and easily revisit it later.';
+  String get wishlistNoFavouritesSubtitle =>
+      'Tap the heart on a hotel to add it to your wishlist and easily revisit it later.';
 
   @override
   String get reviewYourStay => 'Review your stay';
@@ -90,7 +93,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get personalInfoTitle => 'Personal information';
 
   @override
-  String get personalInfoSubtitle => 'Edit your basic details used for bookings and communication.';
+  String get personalInfoSubtitle =>
+      'Edit your basic details used for bookings and communication.';
 
   @override
   String get firstName => 'First name';
@@ -141,7 +145,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get supportHeaderTitle => 'How can we help?';
 
   @override
-  String get supportHeaderSubtitle => 'Browse common questions or reach out to our support team if something is unclear.';
+  String get supportHeaderSubtitle =>
+      'Browse common questions or reach out to our support team if something is unclear.';
 
   @override
   String get faqTitle => 'Frequently asked questions';
@@ -153,31 +158,36 @@ class AppLocalizationsEn extends AppLocalizations {
   String get faqQ1 => 'How do I change or cancel my reservation?';
 
   @override
-  String get faqA1 => 'You can manage your stays from the Bookings tab. Tap on a reservation to view details and see the available options.';
+  String get faqA1 =>
+      'You can manage your stays from the Bookings tab. Tap on a reservation to view details and see the available options.';
 
   @override
   String get faqQ2 => 'Where can I see my loyalty points?';
 
   @override
-  String get faqA2 => 'Your current point balance is visible in the Profile section under “Loyalty points”.';
+  String get faqA2 =>
+      'Your current point balance is visible in the Profile section under “Loyalty points”.';
 
   @override
   String get faqQ3 => 'What payment methods are supported?';
 
   @override
-  String get faqA3 => 'You can usually pay by card via Stripe. Availability of other methods depends on the hotel and your country.';
+  String get faqA3 =>
+      'You can usually pay by card via Stripe. Availability of other methods depends on the hotel and your country.';
 
   @override
   String get faqQ4 => 'I found an issue with my booking. What should I do?';
 
   @override
-  String get faqA4 => 'If something looks wrong, please contact our support team with your booking reference so we can help as soon as possible.';
+  String get faqA4 =>
+      'If something looks wrong, please contact our support team with your booking reference so we can help as soon as possible.';
 
   @override
   String get supportContactTitle => 'Contact support';
 
   @override
-  String get supportContactSubtitle => 'Didn’t find what you were looking for? Reach out and we’ll get back to you as soon as possible.';
+  String get supportContactSubtitle =>
+      'Didn’t find what you were looking for? Reach out and we’ll get back to you as soon as possible.';
 
   @override
   String get navExplore => 'Explore';
@@ -242,8 +252,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bookingCurrentStatusUpcoming => 'Upcoming stay';
 
   @override
-  String get bookingCurrentToday =>
-      'Check-in is today. Have a great stay!';
+  String get bookingCurrentToday => 'Check-in is today. Have a great stay!';
 
   @override
   String bookingCurrentCountdown(String date, int days) =>
@@ -382,8 +391,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notificationsMarkAllRead => 'Mark all read';
 
   @override
-  String get notificationsLoggedOutTitle =>
-      'Log in to see your notifications';
+  String get notificationsLoggedOutTitle => 'Log in to see your notifications';
 
   @override
   String get notificationsLoggedOutSubtitle =>
@@ -434,8 +442,7 @@ class AppLocalizationsEn extends AppLocalizations {
       "We'll show limited time offers here.";
 
   @override
-  String hotDealsHeaderCount(int total) =>
-      '$total deals available right now.';
+  String hotDealsHeaderCount(int total) => '$total deals available right now.';
 
   @override
   String hotDealsHeaderFiltered(int visible, int total) =>
@@ -526,6 +533,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get previewSelect => 'Select';
 
   @override
+  String get previewRoomUnavailable => 'Not available';
+
+  @override
   String get paymentTitle => 'Payment';
 
   @override
@@ -567,8 +577,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get confirmHeading => 'Your booking is confirmed!';
 
   @override
-  String get confirmSubheading =>
-      "We’ve sent your confirmation to your email.";
+  String get confirmSubheading => "We’ve sent your confirmation to your email.";
 
   @override
   String get confirmStayDetails => 'Stay details';
@@ -586,8 +595,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get confirmPaymentActionRequired => 'Action required';
 
   @override
-  String confirmPaymentStatusGeneric(String status) =>
-      'Payment: $status';
+  String confirmPaymentStatusGeneric(String status) => 'Payment: $status';
 
   @override
   String get confirmTotalPaid => 'Total paid';
@@ -630,8 +638,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reservationAddOnsTitle => 'Add-ons';
 
   @override
-  String get reservationAddOnsEmpty =>
-      'No add-ons available for this stay.';
+  String get reservationAddOnsEmpty => 'No add-ons available for this stay.';
 
   @override
   String get reservationAddOnPerNight => 'Per night';
@@ -716,15 +723,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get filtersRatingTitle => 'Minimum rating';
 
   @override
-  String get filtersRatingSubtitle =>
-      'See only hotels above a certain score';
+  String get filtersRatingSubtitle => 'See only hotels above a certain score';
 
   @override
   String get filtersTripTitle => 'Trip details';
 
   @override
-  String get filtersTripSubtitle =>
-      'Choose your dates and number of guests';
+  String get filtersTripSubtitle => 'Choose your dates and number of guests';
 
   @override
   String get filtersAddOnsSubtitle => 'Enhance your stay with extras';
@@ -742,23 +747,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchTitle => 'Search stays';
 
   @override
-  String searchErrorCity(String city) =>
-      'Failed to load hotels for $city.';
+  String searchErrorCity(String city) => 'Failed to load hotels for $city.';
 
   @override
   String searchEmptyTitle(String city) => 'No stays found in $city.';
 
   @override
-  String get searchEmptySubtitle =>
-      'Try adjusting your dates or filters.';
+  String get searchEmptySubtitle => 'Try adjusting your dates or filters.';
 
   @override
-  String searchCount(int count) =>
-      '$count stay${count == 1 ? '' : 's'}';
+  String searchCount(int count) => '$count stay${count == 1 ? '' : 's'}';
 
   @override
-  String get searchPerNightTaxes =>
-      'per night · incl. taxes (est.)';
+  String get searchPerNightTaxes => 'per night · incl. taxes (est.)';
 
   @override
   String get searchViewDetails => 'View details';
@@ -829,8 +830,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get landingLoadFailed => 'Failed to load data. Please try again.';
 
   @override
-  String get landingRecommendationsFailed =>
-      'Could not load recommendations.';
+  String get landingRecommendationsFailed => 'Could not load recommendations.';
 
   @override
   String get landingSnackSelectDates => 'Please select dates first.';
@@ -868,8 +868,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get landingHotDealsTitle => 'Hot deals';
 
   @override
-  String get landingHotDealsCaption =>
-      'Limited-time discounts from top stays.';
+  String get landingHotDealsCaption => 'Limited-time discounts from top stays.';
 
   @override
   String get landingSeeAll => 'See all';
@@ -902,8 +901,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get landingThemeTitle => 'Theme hotels';
 
   @override
-  String get landingThemeCaption =>
-      'Pick by vibe: business, spa, romantic...';
+  String get landingThemeCaption => 'Pick by vibe: business, spa, romantic...';
 
   @override
   String get landingQuickPicks => 'Quick picks';
@@ -928,12 +926,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get landingForYouBadge => 'For you';
 
   @override
-  String get landingTagLoadFailed =>
-      'Failed to load hotels for this category.';
+  String get landingTagLoadFailed => 'Failed to load hotels for this category.';
 
   @override
-  String get landingTagNoHotels =>
-      'No hotels found for this category.';
+  String get landingTagNoHotels => 'No hotels found for this category.';
 
   @override
   String get reviewRatingRequired => 'Please choose a rating.';
@@ -946,12 +942,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reviewSubmitted => 'Review submitted. Thank you!';
 
   @override
-  String get reviewSubmitFailed =>
-      'Failed to submit review. Please try again.';
+  String get reviewSubmitFailed => 'Failed to submit review. Please try again.';
 
   @override
-  String reviewTitle(String hotelName) =>
-      'Rate your stay at $hotelName';
+  String reviewTitle(String hotelName) => 'Rate your stay at $hotelName';
 
   @override
   String get reviewSubtitle =>

@@ -8,6 +8,8 @@ import 'package:provider/provider.dart';
 import 'package:roomwise/core/api/roomwise_api_client.dart';
 import 'package:roomwise/core/auth/auth_state.dart';
 import 'package:roomwise/core/models/admin_promotion_dto.dart';
+import 'package:roomwise/core/models/admin_arrival_dto.dart';
+import 'package:roomwise/core/models/admin_room_type_availability_dto.dart';
 import 'package:roomwise/core/models/admin_reservation_summary_dto.dart';
 import 'package:roomwise/core/models/admin_stats_dto.dart';
 
@@ -25,6 +27,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   List<MonthlyRevenuePointDto> _revenue = const [];
   List<AdminPromotionDto> _promotions = const [];
   List<AdminTopUserDto> _topUsers = const [];
+  List<AdminRoomTypeAvailabilityDto> _roomAvailability = const [];
+  List<AdminArrivalDto> _arrivals = const [];
+  DateTime _availabilityDate = DateTime.now();
   int _year = DateTime.now().year;
 
   final NumberFormat _currency = NumberFormat.compactCurrency(
@@ -47,20 +52,32 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final api = context.read<RoomWiseApiClient>();
     try {
       final currentYear = _year;
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
       final summaryFuture = api
           .getAdminReservationSummary()
           .then<AdminReservationSummaryDto?>((value) => value)
           .catchError((_) => null);
+      final availabilityFuture = api
+          .getAdminRoomTypeAvailability(date: today)
+          .catchError((_) => <AdminRoomTypeAvailabilityDto>[]);
+      final arrivalsFuture = api
+          .getAdminArrivals(date: today)
+          .catchError((_) => <AdminArrivalDto>[]);
       final results = await Future.wait<Object?>([
         api.getAdminStatsOverview(),
         api.getAdminRevenueByMonth(year: currentYear),
         api.getAdminPromotions(),
         api.getAdminTopUsers(),
         summaryFuture,
+        availabilityFuture,
+        arrivalsFuture,
       ]);
       final overview = results[0] as AdminOverviewStatsDto;
       var revenue = results[1] as List<MonthlyRevenuePointDto>;
       final summary = results[4] as AdminReservationSummaryDto?;
+      final availability = results[5] as List<AdminRoomTypeAvailabilityDto>;
+      final arrivals = results[6] as List<AdminArrivalDto>;
       if (revenue.every((p) => p.revenue == 0) && currentYear > 2000) {
         final prevYear = currentYear - 1;
         try {
@@ -95,6 +112,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 return vb.compareTo(va);
               });
         _topUsers = results[3] as List<AdminTopUserDto>;
+        _roomAvailability = availability;
+        _availabilityDate = today;
+        _arrivals = arrivals;
         _loading = false;
       });
     } on DioException catch (e) {
@@ -175,6 +195,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               const SizedBox(height: 16),
               _StaggeredIn(
                 index: 2,
+                child: _CurrentAvailabilityCard(
+                  availability: _roomAvailability,
+                  date: _availabilityDate,
+                  loading: _loading,
+                  arrivals: _arrivals,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _StaggeredIn(
+                index: 3,
                 child: isWide
                     ? Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -211,7 +241,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
               const SizedBox(height: 16),
               _StaggeredIn(
-                index: 3,
+                index: 4,
                 child: twoCol
                     ? Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -312,7 +342,7 @@ class _DashboardHeroHeader extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const _PillChip(label: 'Live', active: true),
+
                   const SizedBox(width: 10),
                   FilledButton.tonalIcon(
                     onPressed: loading ? null : onRefresh,
@@ -877,7 +907,7 @@ class _MonthLabel extends StatelessWidget {
 }
 
 class _AreaChartPainter extends CustomPainter {
-  final List<double> values; // normalized 0..1 length 12
+  final List<double> values;
   final double bottomInset;
 
   const _AreaChartPainter({required this.values, this.bottomInset = 36});
@@ -1126,6 +1156,325 @@ class _BarsPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
+class _CurrentAvailabilityCard extends StatelessWidget {
+  static const _textPrimary = Color(0xFF111827);
+  static const _textMuted = Color(0xFF6B7280);
+
+  final List<AdminRoomTypeAvailabilityDto> availability;
+  final List<AdminArrivalDto> arrivals;
+  final DateTime date;
+  final bool loading;
+
+  const _CurrentAvailabilityCard({
+    required this.availability,
+    required this.arrivals,
+    required this.date,
+    required this.loading,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final dateLabel = DateFormat('EEE, dd MMM').format(date);
+    final sortedAvailability = [...availability]
+      ..sort(
+        (a, b) => a.roomTypeName.toLowerCase().compareTo(
+          b.roomTypeName.toLowerCase(),
+        ),
+      );
+    final totalStock = sortedAvailability.fold<int>(
+      0,
+      (sum, rt) => sum + rt.stock,
+    );
+    final totalAvailable = sortedAvailability.fold<int>(
+      0,
+      (sum, rt) => sum + rt.available,
+    );
+    final totalReserved = sortedAvailability.fold<int>(
+      0,
+      (sum, rt) => sum + rt.reserved,
+    );
+    final arrivingGuests = arrivals.fold<int>(0, (sum, r) => sum + r.guests);
+    final arrivingReservations = arrivals.length;
+    final arrivalsText = arrivingReservations > 0
+        ? 'Arrivals today: $arrivingGuests guests • $arrivingReservations reservations'
+        : 'Arrivals today: $arrivingGuests guests';
+
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'Room availability',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: _textPrimary,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const _PillChip(label: 'Today', active: true),
+              const Spacer(),
+              Text(
+                dateLabel,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _textMuted,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          if (!loading && sortedAvailability.isNotEmpty)
+            Text(
+              'Available $totalAvailable of $totalStock rooms • Reserved $totalReserved',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: _textMuted,
+              ),
+            ),
+          const SizedBox(height: 12),
+          if (loading)
+            const SizedBox(
+              height: 160,
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          else if (sortedAvailability.isEmpty)
+            const Text(
+              'No availability data for today.',
+              style: TextStyle(color: _textMuted),
+            )
+          else
+            Column(
+              children: [
+                for (var i = 0; i < sortedAvailability.length; i++) ...[
+                  _AvailabilityRow(availability: sortedAvailability[i]),
+                  if (i < sortedAvailability.length - 1)
+                    const SizedBox(height: 12),
+                ],
+              ],
+            ),
+          if (!loading) ...[
+            const SizedBox(height: 10),
+            Text(
+              arrivalsText,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: _textMuted,
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (arrivals.isEmpty)
+              const Text(
+                'No arrivals scheduled for today.',
+                style: TextStyle(fontSize: 12, color: _textMuted),
+              )
+            else
+              Column(
+                children: [
+                  for (var i = 0; i < arrivals.length; i++) ...[
+                    _ArrivalRow(arrival: arrivals[i]),
+                    if (i < arrivals.length - 1) const SizedBox(height: 10),
+                  ],
+                ],
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _AvailabilityRow extends StatelessWidget {
+  static const _textPrimary = Color(0xFF111827);
+
+  final AdminRoomTypeAvailabilityDto availability;
+
+  const _AvailabilityRow({required this.availability});
+
+  @override
+  Widget build(BuildContext context) {
+    final stock = availability.stock;
+    final available = availability.available;
+    final reserved = availability.reserved;
+    final ratio = stock <= 0 ? 0.0 : (available / stock).clamp(0.0, 1.0);
+    final color = _availabilityColor(ratio);
+    final roomName = availability.roomTypeName.trim().isEmpty
+        ? 'Room type ${availability.roomTypeId}'
+        : availability.roomTypeName.trim();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                roomName,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: _textPrimary,
+                ),
+              ),
+            ),
+            Text(
+              '$available / $stock',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Reserved $reserved',
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF6B7280),
+          ),
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: LinearProgressIndicator(
+            value: ratio,
+            minHeight: 6,
+            backgroundColor: const Color(0xFFE5E7EB),
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Color _availabilityColor(double ratio) {
+    if (ratio >= 0.6) return const Color(0xFF05A87A);
+    if (ratio >= 0.3) return const Color(0xFFF59E0B);
+    return const Color(0xFFEF4444);
+  }
+}
+
+class _ArrivalRow extends StatelessWidget {
+  static const _textPrimary = Color(0xFF111827);
+  static const _textMuted = Color(0xFF6B7280);
+
+  final AdminArrivalDto arrival;
+
+  const _ArrivalRow({required this.arrival});
+
+  String _amount(double v) {
+    final abs = v.abs();
+    if ((abs - abs.roundToDouble()).abs() < 0.000001) {
+      return v.toStringAsFixed(0);
+    }
+    return v.toStringAsFixed(2);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fullName = [
+      arrival.guestFirstName.trim(),
+      arrival.guestLastName.trim(),
+    ].where((p) => p.isNotEmpty).join(' ');
+    final guestName = fullName.isEmpty ? 'Guest' : fullName;
+    final initials = guestName
+        .split(' ')
+        .where((p) => p.isNotEmpty)
+        .take(2)
+        .map((p) => p.characters.first.toUpperCase())
+        .join();
+    final roomName = arrival.roomTypeName.trim().isEmpty
+        ? 'Room type ${arrival.roomTypeId}'
+        : arrival.roomTypeName.trim();
+    final guestsLabel =
+        '${arrival.guests} ${arrival.guests == 1 ? 'guest' : 'guests'}';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFF3F4F6)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: const Color(0xFFEFFDF8),
+            child: Text(
+              initials.isEmpty ? '?' : initials,
+              style: const TextStyle(
+                color: Color(0xFF05A87A),
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  guestName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: _textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$roomName • $guestsLabel',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _textMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const Text(
+                'ROOM TOTAL',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: _textMuted,
+                  letterSpacing: 0.6,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${arrival.currency.toUpperCase()} ${_amount(arrival.roomTotal)}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  color: _textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TopUsersTableCard extends StatelessWidget {
   static const _textPrimary = Color(0xFF111827);
   static const _textMuted = Color(0xFF6B7280);
@@ -1337,10 +1686,7 @@ class _TableRow extends StatelessWidget {
           if (showPhone)
             Expanded(
               flex: 2,
-              child: Text(
-                '', // phone not provided in admin top-users payload
-                style: const TextStyle(color: _textMuted),
-              ),
+              child: Text('', style: const TextStyle(color: _textMuted)),
             ),
           Expanded(
             child: Text(

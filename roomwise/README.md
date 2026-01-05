@@ -12,6 +12,7 @@ Roomwise is a single Flutter codebase that ships two apps:
 
 ## Run
 
+R
 Guest (default):
 
 - `flutter run`
@@ -25,3 +26,5 @@ Admin (desktop):
 
 - The admin app uses `AdminRootShell`, which gates access to the admin UI and
   requires an authenticated user with the **Administrator** role.
+  4242
+  RR

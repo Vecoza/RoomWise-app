@@ -1238,6 +1238,16 @@ class _AddOnsCard extends StatelessWidget {
         await api.updateAdminAddOn(id, req);
       }
       await onChanged();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            id == null
+                ? 'Add-on added successfully.'
+                : 'Add-on updated successfully.',
+          ),
+        ),
+      );
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(
@@ -1373,6 +1383,16 @@ class _PromotionsCard extends StatelessWidget {
         await api.updateAdminPromotion(id, req);
       }
       await onChanged();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            id == null
+                ? 'Promotion added successfully.'
+                : 'Promotion updated successfully.',
+          ),
+        ),
+      );
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(

@@ -7,7 +7,6 @@ class GuestBookingCancelledScreen extends StatelessWidget {
 
   const GuestBookingCancelledScreen({super.key, required this.booking});
 
-  // Design tokens
   static const _primaryGreen = Color(0xFF05A87A);
   static const _accentOrange = Color(0xFFFF7A3C);
   static const _bgColor = Color(0xFFF3F4F6);
@@ -59,7 +58,6 @@ class GuestBookingCancelledScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 32),
 
-                            // DETAILS CARD
                             Container(
                               width: double.infinity,
                               padding: const EdgeInsets.all(16),
@@ -159,7 +157,6 @@ class GuestBookingCancelledScreen extends StatelessWidget {
               ),
             ),
 
-            // BOTTOM CTA: SEARCH AGAIN
             Container(
               width: double.infinity,
               decoration: BoxDecoration(
@@ -182,8 +179,7 @@ class GuestBookingCancelledScreen extends StatelessWidget {
                       alignment: Alignment.centerLeft,
                       child: Text(
                         t.bookingCancelledChangedMind,
-                        style:
-                            const TextStyle(fontSize: 12, color: _textMuted),
+                        style: const TextStyle(fontSize: 12, color: _textMuted),
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -199,7 +195,6 @@ class GuestBookingCancelledScreen extends StatelessWidget {
                           ),
                         ),
                         onPressed: () {
-                          // TODO: navigate to hotel preview / search screen prefilled
                           Navigator.pop(context);
                         },
                         child: Text(
@@ -240,7 +235,6 @@ class GuestBookingCancelledScreen extends StatelessWidget {
   }
 }
 
-/// HEADER – reuses the hero/floating card pattern but with cancelled styling
 class _HeaderSection extends StatelessWidget {
   final GuestBookingListItemDto booking;
   final String dateRange;

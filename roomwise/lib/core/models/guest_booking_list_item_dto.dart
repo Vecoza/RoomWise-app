@@ -8,7 +8,7 @@ class GuestBookingListItemDto {
   final DateTime checkIn;
   final DateTime checkOut;
   final int guests;
-  final String status; // "Current" | "Past" | "Cancelled"
+  final String status;
   final String roomTypeName;
   final double total;
   final String currency;

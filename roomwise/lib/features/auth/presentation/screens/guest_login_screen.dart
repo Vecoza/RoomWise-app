@@ -27,7 +27,6 @@ class GuestLoginScreen extends StatefulWidget {
 }
 
 class _GuestLoginScreenState extends State<GuestLoginScreen> {
-  // Same design tokens as register screen
   static const _primaryGreen = Color(0xFF05A87A);
   static const _radius = 16.0;
 
@@ -196,7 +195,6 @@ class _GuestLoginScreenState extends State<GuestLoginScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Header
                             const Text(
                               'Welcome back',
                               style: TextStyle(
@@ -315,7 +313,7 @@ class _GuestLoginScreenState extends State<GuestLoginScreen> {
                                 if (v == null || v.trim().isEmpty) {
                                   return 'Required';
                                 }
-                                if (!v.contains('@') || !v.contains('.')) {
+                                if (!v.contains('@')) {
                                   return 'Invalid email';
                                 }
                                 return null;
@@ -353,7 +351,7 @@ class _GuestLoginScreenState extends State<GuestLoginScreen> {
                             //   alignment: Alignment.centerRight,
                             //   child: TextButton(
                             //     onPressed: () {
-                            //       // TODO: implement forgot password flow
+                            //
                             //     },
                             //     style: TextButton.styleFrom(
                             //       padding: EdgeInsets.zero,
@@ -367,7 +365,6 @@ class _GuestLoginScreenState extends State<GuestLoginScreen> {
                             // ),
                             const SizedBox(height: 12),
 
-                            // Log in button
                             SizedBox(
                               width: double.infinity,
                               height: 48,
@@ -404,7 +401,6 @@ class _GuestLoginScreenState extends State<GuestLoginScreen> {
                             ),
 
                             const SizedBox(height: 8),
-                            // Optional footer or link to register could go here if you want
                           ],
                         ),
                       ),

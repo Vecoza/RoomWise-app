@@ -16,7 +16,6 @@ class GuestRootShell extends StatefulWidget {
 }
 
 class _GuestRootShellState extends State<GuestRootShell> {
-  // Design tokens to keep consistent with other guest screens
   static const _primaryGreen = Color(0xFF05A87A);
   static const _bgColor = Color(0xFFF3F4F6);
   static const _navTextMuted = Color(0xFF9CA3AF);
@@ -165,7 +164,6 @@ class _GuestRootShellState extends State<GuestRootShell> {
                     _ensurePage(index);
                   });
 
-                  // Reload wishlist when user lands on it
                   if (index == 2) {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       _wishlistKey.currentState?.reload();
@@ -226,7 +224,6 @@ class _GuestRootShellState extends State<GuestRootShell> {
     );
   }
 
-  // Simple circular active state halo around icon
   Widget _buildNavIcon({required IconData icon, required bool isActive}) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),

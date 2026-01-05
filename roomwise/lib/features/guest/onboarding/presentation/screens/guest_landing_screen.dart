@@ -27,7 +27,6 @@ class GuestLandingScreen extends StatefulWidget {
 
 class _GuestLandingScreenState extends State<GuestLandingScreen>
     with RouteAware {
-  // --- DESIGN TOKENS ---
   static const _primaryGreen = Color(0xFF05A87A);
   static const _accentOrange = Color(0xFFFF7A3C);
   static const _bgColor = Color(0xFFF3F4F6);
@@ -52,6 +51,7 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
   String? _recentlyViewedError;
   String? _lastAuthToken;
   bool _routeSubscribed = false;
+  bool _priceRefreshInFlight = false;
 
   final TextEditingController _searchCtrl = TextEditingController();
   DateTimeRange? _selectedRange;
@@ -77,8 +77,8 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
       roomWiseRouteObserver.subscribe(this, route);
       _routeSubscribed = true;
     }
+    _syncSelectionFromSearchState();
 
-    // React to auth changes so recommendations appear immediately after login.
     final authToken = context.read<AuthState>().token;
     if (authToken != _lastAuthToken) {
       _lastAuthToken = authToken;
@@ -92,13 +92,13 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
       }
     }
 
-    // Defer work that depends on inherited widgets (like localizations).
     if (!_loading && _cities.isNotEmpty) return;
     _loadLandingData();
   }
 
   @override
   void didPopNext() {
+    _syncSelectionFromSearchState();
     _loadRecentlyViewed();
   }
 
@@ -125,8 +125,8 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
         _tags = results[2] as List<TagDto>;
         _loading = false;
       });
+      await _refreshLandingPrices();
 
-      // Recommendations only for logged-in users
       await _loadRecommendations();
       await _loadRecentlyViewed();
     } catch (e) {
@@ -172,11 +172,26 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
 
       final api = context.read<RoomWiseApiClient>();
       final parsed = ids.map(int.tryParse).whereType<int>().toList();
+      final range = _currentRange();
+      final guests = _currentGuests(range);
       final details = await Future.wait<HotelDetailsDto>(
-        parsed.map((id) => api.getHotelDetails(hotelId: id)),
+        parsed.map(
+          (id) => api.getHotelDetails(
+            hotelId: id,
+            checkIn: range?.start,
+            checkOut: range?.end,
+            guests: guests,
+          ),
+        ),
       );
 
-      final items = details.map(_mapDetailsToSearchItem).toList();
+      final useBasePrice = range == null;
+      final items = details
+          .map(
+            (detail) =>
+                _mapDetailsToSearchItem(detail, preferBasePrice: useBasePrice),
+          )
+          .toList();
       if (!mounted) return;
       setState(() {
         _recentlyViewed = items;
@@ -198,11 +213,18 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
     return 'recently_viewed_${email.toLowerCase()}';
   }
 
-  HotelSearchItemDto _mapDetailsToSearchItem(HotelDetailsDto details) {
+  HotelSearchItemDto _mapDetailsToSearchItem(
+    HotelDetailsDto details, {
+    bool preferBasePrice = false,
+  }) {
     double minPrice = 0;
     if (details.availableRoomTypes.isNotEmpty) {
       minPrice = details.availableRoomTypes
-          .map((r) => r.priceFromPerNight)
+          .map((r) {
+            final base = r.basePrice;
+            if (preferBasePrice && base != null && base > 0) return base;
+            return r.priceFromPerNight;
+          })
           .reduce(min);
     }
 
@@ -223,6 +245,118 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
       currency: details.currency,
     );
   }
+
+  HotelSearchItemDto _copyWithPrice(HotelSearchItemDto hotel, double price) {
+    return HotelSearchItemDto(
+      id: hotel.id,
+      name: hotel.name,
+      city: hotel.city,
+      fromPrice: price,
+      rating: hotel.rating,
+      hasAvailability: hotel.hasAvailability,
+      reviewCount: hotel.reviewCount,
+      promotionPrice: hotel.promotionPrice,
+      promotionDiscountPercent: hotel.promotionDiscountPercent,
+      promotionDiscountFixed: hotel.promotionDiscountFixed,
+      promotionEndDate: hotel.promotionEndDate,
+      promotionTitle: hotel.promotionTitle,
+      currency: hotel.currency,
+      thumbnailUrl: hotel.thumbnailUrl,
+      tags: hotel.tags,
+    );
+  }
+
+  Future<List<HotelSearchItemDto>> _applyDateAwarePrices(
+    List<HotelSearchItemDto> hotels,
+    DateTimeRange range,
+    int guests,
+  ) async {
+    if (hotels.isEmpty) return hotels;
+    final api = context.read<RoomWiseApiClient>();
+    final tasks = hotels.map((hotel) async {
+      try {
+        final details = await api.getHotelDetails(
+          hotelId: hotel.id,
+          checkIn: range.start,
+          checkOut: range.end,
+          guests: guests,
+        );
+        if (details.availableRoomTypes.isEmpty) return hotel;
+        final price = details.availableRoomTypes
+            .map((r) => r.priceFromPerNight)
+            .reduce(min);
+        return _copyWithPrice(hotel, price);
+      } catch (e) {
+        debugPrint('Landing price refresh failed for ${hotel.id}: $e');
+        return hotel;
+      }
+    }).toList();
+
+    return Future.wait(tasks);
+  }
+
+  Future<List<HotelSearchItemDto>> _applyBasePrices(
+    List<HotelSearchItemDto> hotels,
+  ) async {
+    if (hotels.isEmpty) return hotels;
+    final api = context.read<RoomWiseApiClient>();
+    final tasks = hotels.map((hotel) async {
+      try {
+        final details = await api.getHotelDetails(hotelId: hotel.id);
+        if (details.availableRoomTypes.isEmpty) return hotel;
+        final price = details.availableRoomTypes
+            .map((r) {
+              final base = r.basePrice;
+              if (base != null && base > 0) return base;
+              return r.priceFromPerNight;
+            })
+            .reduce(min);
+        return _copyWithPrice(hotel, price);
+      } catch (e) {
+        debugPrint('Landing base price refresh failed for ${hotel.id}: $e');
+        return hotel;
+      }
+    }).toList();
+
+    return Future.wait(tasks);
+  }
+
+  Future<void> _refreshLandingPrices() async {
+    if (_priceRefreshInFlight) return;
+    _priceRefreshInFlight = true;
+    final range = _currentRange();
+    try {
+      if (range == null) {
+        final results = await Future.wait<List<HotelSearchItemDto>>([
+          _applyBasePrices(_hotDeals),
+          _applyBasePrices(_recommended),
+        ]);
+
+        if (!mounted) return;
+        setState(() {
+          _hotDeals = results[0];
+          _recommended = results[1];
+        });
+        return;
+      }
+
+      final guests = _currentGuests(range) ?? 1;
+
+      final results = await Future.wait<List<HotelSearchItemDto>>([
+        _applyDateAwarePrices(_hotDeals, range, guests),
+        _applyDateAwarePrices(_recommended, range, guests),
+      ]);
+
+      if (!mounted) return;
+      setState(() {
+        _hotDeals = results[0];
+        _recommended = results[1];
+      });
+    } finally {
+      _priceRefreshInFlight = false;
+    }
+  }
+
   Future<void> _loadRecommendations() async {
     final auth = context.read<AuthState>();
     if (_recommendedLoading) return;
@@ -251,6 +385,7 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
         _recommended = items;
         _recommendedLoading = false;
       });
+      await _refreshLandingPrices();
     } catch (e) {
       debugPrint('Recommendations load failed: $e');
       if (!mounted) return;
@@ -263,13 +398,13 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
     }
   }
 
-  Future<void> _pickDateRange() async {
+  Future<DateTimeRange?> _selectDateRange() async {
     final now = DateTime.now();
     final initial =
         _selectedRange ??
         DateTimeRange(start: now, end: now.add(const Duration(days: 1)));
 
-    final picked = await showDateRangePicker(
+    return showDateRangePicker(
       context: context,
       firstDate: now,
       lastDate: now.add(const Duration(days: 365)),
@@ -283,18 +418,115 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
         );
       },
     );
+  }
 
-    if (picked != null) {
-      setState(() {
-        _selectedRange = picked;
-      });
+  Future<void> _applySelectedRange(DateTimeRange picked) async {
+    setState(() {
+      _selectedRange = picked;
+    });
+    try {
+      context.read<SearchState>().update(
+        checkIn: picked.start,
+        checkOut: picked.end,
+        guests: _guests,
+      );
+    } catch (e) {
+      debugPrint('[Landing] SearchState update failed: $e');
     }
+    await _refreshLandingPrices();
+    await _loadRecentlyViewed();
+  }
+
+  Future<void> _pickDateRange() async {
+    final picked = await _selectDateRange();
+    if (picked == null) return;
+    await _applySelectedRange(picked);
   }
 
   void _changeGuests(int delta) {
     setState(() {
       _guests = (_guests + delta).clamp(1, 10);
     });
+    final range = _selectedRange;
+    if (range == null) return;
+    try {
+      context.read<SearchState>().update(
+        checkIn: range.start,
+        checkOut: range.end,
+        guests: _guests,
+      );
+    } catch (e) {
+      debugPrint('[Landing] SearchState update failed: $e');
+    }
+  }
+
+  void _syncSelectionFromSearchState() {
+    final search = context.read<SearchState>();
+    if (search.checkIn == null || search.checkOut == null) return;
+    final nextRange = DateTimeRange(
+      start: search.checkIn!,
+      end: search.checkOut!,
+    );
+    final nextGuests = search.guests?.clamp(1, 10);
+
+    if (_selectedRange == null ||
+        _selectedRange!.start != nextRange.start ||
+        _selectedRange!.end != nextRange.end ||
+        (nextGuests != null && _guests != nextGuests)) {
+      setState(() {
+        _selectedRange = nextRange;
+        if (nextGuests != null) {
+          _guests = nextGuests;
+        }
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _refreshLandingPrices();
+        _loadRecentlyViewed();
+      });
+    }
+  }
+
+  DateTimeRange? _currentRange() {
+    if (_selectedRange != null) return _selectedRange;
+    final search = context.read<SearchState>();
+    if (search.checkIn == null || search.checkOut == null) return null;
+    return DateTimeRange(start: search.checkIn!, end: search.checkOut!);
+  }
+
+  int? _currentGuests(DateTimeRange? range) {
+    if (range == null) return null;
+    if (_selectedRange != null) return _guests;
+    final search = context.read<SearchState>();
+    return (search.guests ?? _guests).clamp(1, 10);
+  }
+
+  Future<void> _openHotelFromLanding(
+    HotelSearchItemDto hotel, {
+    VoidCallback? onReturn,
+  }) async {
+    var range = _currentRange();
+    if (range == null) {
+      final picked = await _selectDateRange();
+      if (picked == null) return;
+      await _applySelectedRange(picked);
+      range = picked;
+    }
+    final guests = _currentGuests(range) ?? _guests;
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => GuestHotelPreviewScreen(
+          hotelId: hotel.id,
+          dateRange: range,
+          guests: guests,
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+    onReturn?.call();
   }
 
   void _onSearchPressed() {
@@ -397,11 +629,10 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
                   children: [
                     // TOP HERO + SEARCH STACK
                     SizedBox(
-                      height: 320, // total area: hero + overlapping card
+                      height: 320,
                       child: Stack(
                         clipBehavior: Clip.none,
                         children: [
-                          // Green hero background
                           Positioned.fill(
                             child: Container(
                               width: double.infinity,
@@ -409,7 +640,7 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
                                 horizontalPadding,
                                 18,
                                 horizontalPadding,
-                                10, // enough bottom padding so text is fully visible
+                                10,
                               ),
                               decoration: const BoxDecoration(
                                 gradient: LinearGradient(
@@ -459,7 +690,6 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
                             ),
                           ),
 
-                          // Floating search card (overlaps bottom of hero + white background)
                           Positioned(
                             left: horizontalPadding,
                             right: horizontalPadding,
@@ -470,7 +700,6 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
                       ),
                     ),
 
-                    // Small gap after the hero/card
                     const SizedBox(height: 24),
 
                     // BODY SECTIONS
@@ -685,13 +914,18 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
                   child: InkWell(
                     onTap: () async {
                       debugPrint('[Landing] filter button tapped');
+                      final range = _currentRange();
+                      final guests = _currentGuests(range);
 
                       final filters = await Navigator.push<GuestSearchFilters>(
                         context,
                         MaterialPageRoute(
                           builder: (_) => GuestFiltersScreen(
-                            baseDateRange: _selectedRange,
-                            baseGuests: _selectedRange == null ? null : _guests,
+                            baseDateRange: range,
+                            baseGuests: guests,
+                            baseCityName: _searchCtrl.text.trim().isEmpty
+                                ? null
+                                : _searchCtrl.text.trim(),
                           ),
                         ),
                       );
@@ -744,6 +978,8 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
   Widget _buildExploreSection(AppLocalizations t) {
     final cities = _orderedCities();
     if (cities.isEmpty) return const SizedBox.shrink();
+    final range = _currentRange();
+    final guests = _currentGuests(range);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -768,8 +1004,8 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
                     MaterialPageRoute(
                       builder: (_) => HotelSearchScreen(
                         city: city,
-                        dateRange: _selectedRange,
-                        guests: _selectedRange == null ? null : _guests,
+                        dateRange: range,
+                        guests: guests,
                       ),
                     ),
                   );
@@ -833,6 +1069,8 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
 
   Widget _buildHotDealsSection(AppLocalizations t) {
     if (_hotDeals.isEmpty) return const SizedBox.shrink();
+    final range = _currentRange();
+    final guests = _currentGuests(range);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -868,9 +1106,11 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
               final hotel = _hotDeals[index];
               return _HotDealCard(
                 hotel: hotel,
-                dateRange: _selectedRange,
-                guests: _selectedRange == null ? null : _guests,
+                dateRange: range,
+                guests: guests,
                 onReturn: _loadRecentlyViewed,
+                onOpen: () =>
+                    _openHotelFromLanding(hotel, onReturn: _loadRecentlyViewed),
               );
             },
           ),
@@ -884,6 +1124,8 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
     if (!auth.isLoggedIn) {
       return const SizedBox.shrink();
     }
+    final range = _currentRange();
+    final guests = _currentGuests(range);
 
     if (_recentlyViewedLoading) {
       return Column(
@@ -944,9 +1186,11 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
               final hotel = _recentlyViewed[index];
               return _RecentlyViewedCard(
                 hotel: hotel,
-                dateRange: _selectedRange,
-                guests: _selectedRange == null ? null : _guests,
+                dateRange: range,
+                guests: guests,
                 onReturn: _loadRecentlyViewed,
+                onOpen: () =>
+                    _openHotelFromLanding(hotel, onReturn: _loadRecentlyViewed),
               );
             },
           ),
@@ -958,6 +1202,8 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
   Widget _buildRecommendedSection(AppLocalizations t) {
     final isLoggedIn = context.watch<AuthState>().isLoggedIn;
     if (!isLoggedIn) return const SizedBox.shrink();
+    final range = _currentRange();
+    final guests = _currentGuests(range);
 
     final caption = t.landingRecommendedCaption;
 
@@ -1008,9 +1254,13 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
                 final hotel = _recommended[index];
                 return _RecommendedCard(
                   hotel: hotel,
-                  dateRange: _selectedRange,
-                  guests: _selectedRange == null ? null : _guests,
+                  dateRange: range,
+                  guests: guests,
                   onReturn: _loadRecentlyViewed,
+                  onOpen: () => _openHotelFromLanding(
+                    hotel,
+                    onReturn: _loadRecentlyViewed,
+                  ),
                 );
               },
             ),
@@ -1126,7 +1376,6 @@ class _GuestLandingScreenState extends State<GuestLandingScreen>
       if (city != null) result.add(city);
     }
 
-    // If backend returns more cities, you can append them here if needed.
     return result;
   }
 
@@ -1163,12 +1412,14 @@ class _HotDealCard extends StatelessWidget {
   final DateTimeRange? dateRange;
   final int? guests;
   final VoidCallback? onReturn;
+  final Future<void> Function()? onOpen;
 
   const _HotDealCard({
     required this.hotel,
     this.dateRange,
     this.guests,
     this.onReturn,
+    this.onOpen,
   });
 
   static const _accentOrange = Color(0xFFFF7A3C);
@@ -1187,7 +1438,11 @@ class _HotDealCard extends StatelessWidget {
         : t.landingHotDealBadge;
 
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
+        if (onOpen != null) {
+          await onOpen!.call();
+          return;
+        }
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -1388,12 +1643,14 @@ class _RecommendedCard extends StatelessWidget {
   final DateTimeRange? dateRange;
   final int? guests;
   final VoidCallback? onReturn;
+  final Future<void> Function()? onOpen;
 
   const _RecommendedCard({
     required this.hotel,
     this.dateRange,
     this.guests,
     this.onReturn,
+    this.onOpen,
   });
 
   static const _primaryGreen = Color(0xFF05A87A);
@@ -1409,7 +1666,11 @@ class _RecommendedCard extends StatelessWidget {
     final currency = hotel.currency.isNotEmpty ? hotel.currency : '€';
 
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
+        if (onOpen != null) {
+          await onOpen!.call();
+          return;
+        }
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -1614,12 +1875,14 @@ class _RecentlyViewedCard extends StatelessWidget {
   final DateTimeRange? dateRange;
   final int? guests;
   final VoidCallback? onReturn;
+  final Future<void> Function()? onOpen;
 
   const _RecentlyViewedCard({
     required this.hotel,
     this.dateRange,
     this.guests,
     this.onReturn,
+    this.onOpen,
   });
 
   static const _primaryGreen = Color(0xFF05A87A);
@@ -1635,7 +1898,11 @@ class _RecentlyViewedCard extends StatelessWidget {
     final currency = hotel.currency.isNotEmpty ? hotel.currency : '€';
 
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
+        if (onOpen != null) {
+          await onOpen!.call();
+          return;
+        }
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -1675,10 +1942,7 @@ class _RecentlyViewedCard extends StatelessWidget {
                         hotel.thumbnailUrl == null ||
                             hotel.thumbnailUrl!.isEmpty
                         ? Container(color: Colors.grey.shade200)
-                        : Image.network(
-                            hotel.thumbnailUrl!,
-                            fit: BoxFit.cover,
-                          ),
+                        : Image.network(hotel.thumbnailUrl!, fit: BoxFit.cover),
                   ),
                 ),
                 Positioned(

@@ -17,7 +17,6 @@ class GuestBookingDetailsScreen extends StatefulWidget {
 }
 
 class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
-  // Design tokens
   static const _primaryGreen = Color(0xFF05A87A);
   static const _accentOrange = Color(0xFFFF7A3C);
   static const _bgColor = Color(0xFFF3F4F6);
@@ -73,7 +72,6 @@ class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // HEADER CARD
                         _HeaderCard(
                           reservation: r,
                           dates: dates,
@@ -101,7 +99,6 @@ class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
                           ),
                         ],
 
-                        // DETAILS CARD
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(16),
@@ -172,7 +169,6 @@ class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
               ),
             ),
 
-            // BOTTOM: REVIEW BUTTON (only for completed, not cancelled)
             if (_isPast && !_isCancelled)
               Container(
                 width: double.infinity,
@@ -358,7 +354,7 @@ class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
       final api = context.read<RoomWiseApiClient>();
       await api.createReview(
         ReviewCreateRequestDto(
-          hotelId: widget.reservation.hotelId!, // should be present from API
+          hotelId: widget.reservation.hotelId!,
           reservationId: widget.reservation.id,
           rating: rating,
           body: comment.isEmpty ? null : comment,
@@ -367,9 +363,9 @@ class _GuestBookingDetailsScreenState extends State<GuestBookingDetailsScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.reviewSubmitted)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.reviewSubmitted)));
     } on DioException catch (e) {
       final data = e.response?.data;
       String msg;
@@ -466,7 +462,6 @@ class _HeaderCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Hotel + status
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

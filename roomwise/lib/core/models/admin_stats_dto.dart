@@ -26,7 +26,6 @@ class AdminOverviewStatsDto {
   });
 
   factory AdminOverviewStatsDto.fromJson(Map<String, dynamic> json) {
-    // Back-compat: backend examples include totalReservations; older UI used totalBookings.
     final bookings = _asInt(json['totalBookings']);
     final reservations = _asInt(json['totalReservations']);
 
@@ -39,8 +38,7 @@ class AdminOverviewStatsDto {
     );
   }
 
-  double get earnings => totalRevenue * 0.72; // simple estimate until backend sends margin
-
+  double get earnings => totalRevenue * 0.72;
   static const empty = AdminOverviewStatsDto(
     totalRevenue: 0,
     totalReservations: 0,
@@ -51,13 +49,10 @@ class AdminOverviewStatsDto {
 }
 
 class MonthlyRevenuePointDto {
-  final int month; // 1-12
+  final int month;
   final double revenue;
 
-  const MonthlyRevenuePointDto({
-    required this.month,
-    required this.revenue,
-  });
+  const MonthlyRevenuePointDto({required this.month, required this.revenue});
 
   factory MonthlyRevenuePointDto.fromJson(Map<String, dynamic> json) {
     return MonthlyRevenuePointDto(

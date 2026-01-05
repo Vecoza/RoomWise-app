@@ -27,8 +27,6 @@ class _GuestVerifyEmailScreenState extends State<GuestVerifyEmailScreen> {
   bool _resending = false;
   String? _error;
   String? _info;
-  int _cooldown = 0;
-  Timer? _cooldownTimer;
 
   @override
   void initState() {
@@ -38,27 +36,12 @@ class _GuestVerifyEmailScreenState extends State<GuestVerifyEmailScreen> {
 
   @override
   void dispose() {
-    _cooldownTimer?.cancel();
     _emailCtrl.dispose();
     _codeCtrl.dispose();
     super.dispose();
   }
 
-  void _startCooldown() {
-    _cooldownTimer?.cancel();
-    setState(() => _cooldown = 60);
-    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_cooldown <= 1) {
-        timer.cancel();
-        if (mounted) setState(() => _cooldown = 0);
-      } else if (mounted) {
-        setState(() => _cooldown -= 1);
-      }
-    });
-  }
-
   Future<void> _resend() async {
-    if (_cooldown > 0) return;
     if (!_validateEmailOnly()) return;
 
     setState(() {
@@ -74,17 +57,16 @@ class _GuestVerifyEmailScreenState extends State<GuestVerifyEmailScreen> {
       if (!mounted) return;
       setState(() {
         _info = 'Verification code sent.';
+        _codeCtrl.clear();
       });
-      _startCooldown();
     } on DioException catch (e) {
       if (!mounted) return;
       final code = e.response?.statusCode;
       setState(() {
         _error = code == 429
-            ? 'Please wait before requesting another code.'
+            ? 'Resend limit reached. Please try again later.'
             : 'Failed to resend code.';
       });
-      _startCooldown();
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -274,12 +256,9 @@ class _GuestVerifyEmailScreenState extends State<GuestVerifyEmailScreen> {
                             Row(
                               children: [
                                 TextButton(
-                                  onPressed:
-                                      _resending || _cooldown > 0 ? null : _resend,
+                                  onPressed: _resending ? null : _resend,
                                   child: Text(
-                                    _cooldown > 0
-                                        ? 'Resend in ${_cooldown}s'
-                                        : 'Resend code',
+                                    _resending ? 'Sending...' : 'Resend code',
                                   ),
                                 ),
                               ],

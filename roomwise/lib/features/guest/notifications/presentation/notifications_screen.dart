@@ -15,7 +15,6 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  // Design tokens
   static const _primaryGreen = Color(0xFF05A87A);
   static const _accentOrange = Color(0xFFFF7A3C);
   static const _bgColor = Color(0xFFF5F7FA);
@@ -56,7 +55,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final allNotifications = controller.notifications;
     final isInitialLoading = controller.isLoading && allNotifications.isEmpty;
 
-    // Apply unread filter
     final notifications = _showOnlyUnread
         ? allNotifications.where((n) => !n.isRead).toList()
         : allNotifications;

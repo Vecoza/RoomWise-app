@@ -19,7 +19,6 @@ class GuestWishlistScreen extends StatefulWidget {
 }
 
 class GuestWishlistScreenState extends State<GuestWishlistScreen> {
-  // --- DESIGN TOKENS (align with other guest screens) ---
   static const _primaryGreen = Color(0xFF05A87A);
   static const _accentOrange = Color(0xFFFF7A3C);
   static const _bgColor = Color(0xFFF5F7FA);

@@ -50,7 +50,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   Future<void> _loadHotel() async {
     setState(() => _loadingHotel = true);
     try {
-      // Reuse room types to infer hotel ID (scoped to admin).
       final roomTypes = await _api.getAdminRoomTypes();
       if (roomTypes.isNotEmpty) {
         final hotelId = roomTypes.first.hotelId;
@@ -59,7 +58,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
         setState(() => _hotelName = hotel['name']?.toString());
       }
     } catch (_) {
-      // keep silent; badge just won't show.
     } finally {
       if (mounted) setState(() => _loadingHotel = false);
     }
@@ -489,10 +487,15 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
       setState(() => _showPasswordForm = false);
     } catch (e) {
       if (!mounted) return;
-      final msg = e is DioException
-          ? (e.response?.data?['message']?.toString() ??
-                'Failed to change password.')
-          : 'Failed to change password.';
+      String msg = 'Failed to change password.';
+      if (e is DioException) {
+        msg = e.response?.data?['message']?.toString() ?? msg;
+        final normalized = msg.toLowerCase().trim();
+        if (normalized.isEmpty || normalized == 'bad request') {
+          msg =
+              'Unable to change password. Please check your current password and try again.';
+        }
+      }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     } finally {
       if (mounted) setState(() => _changingPass = false);

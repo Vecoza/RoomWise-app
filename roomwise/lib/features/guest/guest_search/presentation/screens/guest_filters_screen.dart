@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:roomwise/core/api/roomwise_api_client.dart';
@@ -11,12 +12,14 @@ class GuestFiltersScreen extends StatefulWidget {
   final GuestSearchFilters? initialFilters;
   final DateTimeRange? baseDateRange;
   final int? baseGuests;
+  final String? baseCityName;
 
   const GuestFiltersScreen({
     super.key,
     this.initialFilters,
     this.baseDateRange,
     this.baseGuests,
+    this.baseCityName,
   });
 
   @override
@@ -87,6 +90,12 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
 
     try {
       cities = await api.getCities();
+    } on DioException catch (e) {
+      debugPrint(
+        'Load cities failed: status=${e.response?.statusCode}, '
+        'data=${e.response?.data}',
+      );
+      hadFailure = true;
     } catch (e) {
       debugPrint('Load cities failed: $e');
       hadFailure = true;
@@ -94,6 +103,12 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
 
     try {
       addons = await api.getAddOns();
+    } on DioException catch (e) {
+      debugPrint(
+        'Load add-ons failed: status=${e.response?.statusCode}, '
+        'data=${e.response?.data}',
+      );
+      hadFailure = true;
     } catch (e) {
       debugPrint('Load add-ons failed: $e');
       hadFailure = true;
@@ -101,6 +116,12 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
 
     try {
       facilities = await api.getFacilities();
+    } on DioException catch (e) {
+      debugPrint(
+        'Load facilities failed: status=${e.response?.statusCode}, '
+        'data=${e.response?.data}',
+      );
+      hadFailure = true;
     } catch (e) {
       debugPrint('Load facilities failed: $e');
       hadFailure = true;
@@ -116,6 +137,7 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
           ? 'Some filters could not load. Showing available options.'
           : null;
     });
+    _applyBaseCityName();
   }
 
   Future<void> _pickDateRange() async {
@@ -146,6 +168,54 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
     }
   }
 
+  void _applyBaseCityName() {
+    if (_selectedCityId != null) return;
+    final raw = widget.baseCityName;
+    if (raw == null || raw.trim().isEmpty) return;
+    if (_cities.isEmpty) return;
+
+    final query = raw.trim().toLowerCase();
+    CityDto? match;
+    for (final city in _cities) {
+      if (city.name.trim().toLowerCase() == query) {
+        match = city;
+        break;
+      }
+    }
+    if (match == null) {
+      for (final city in _cities) {
+        if (city.name.trim().toLowerCase().startsWith(query)) {
+          match = city;
+          break;
+        }
+      }
+    }
+    if (match == null) {
+      for (final city in _cities) {
+        if (city.name.trim().toLowerCase().contains(query)) {
+          match = city;
+          break;
+        }
+      }
+    }
+    if (match == null) {
+      for (final city in _cities) {
+        final cityName = city.name.trim().toLowerCase();
+        if (query.contains(cityName)) {
+          match = city;
+          break;
+        }
+      }
+    }
+
+    if (match == null) return;
+
+    if (!mounted) return;
+    setState(() {
+      _selectedCityId = match?.id ?? _selectedCityId;
+    });
+  }
+
   void _changeGuests(int delta) {
     setState(() {
       _guests = (_guests + delta).clamp(1, 10);
@@ -170,7 +240,6 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
   }
 
   void _onApply() {
-    final guests = _dateRange == null ? null : _guests;
     final filters = GuestSearchFilters(
       cityId: _selectedCityId,
       minPrice: _priceRange.start > 0 ? _priceRange.start : null,
@@ -179,7 +248,7 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
       addonIds: _selectedAddonIds.toList(),
       facilityIds: _selectedFacilityIds.toList(),
       dateRange: _dateRange,
-      guests: guests,
+      guests: _guests,
     );
 
     Navigator.pop(context, filters);
@@ -396,36 +465,51 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
     return _FilterCard(
       title: t.filtersCityTitle,
       subtitle: t.filtersCitySubtitle,
-      child: DropdownButtonFormField<int>(
-        isExpanded: true,
-        value: _selectedCityId,
-        decoration: InputDecoration(
-          filled: true,
-          fillColor: Colors.grey.shade100,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide.none,
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 10,
-          ),
-          prefixIcon: const Icon(Icons.location_city_outlined, size: 20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.black.withOpacity(0.06)),
         ),
-        hint: Text(t.filtersCityAny),
-        items: _cities
-            .map(
-              (c) => DropdownMenuItem<int>(
-                value: c.id,
-                child: Text('${c.name}, ${c.countryName}'),
+        child: Row(
+          children: [
+            const Icon(Icons.location_city_outlined, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<int>(
+                  isExpanded: true,
+                  value: _selectedCityId,
+                  hint: Text(
+                    t.filtersCityAny,
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                  dropdownColor: Colors.white,
+                  items: _cities
+                      .map(
+                        (c) => DropdownMenuItem<int>(
+                          value: c.id,
+                          child: Text('${c.name}, ${c.countryName}'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedCityId = value;
+                    });
+                  },
+                ),
               ),
-            )
-            .toList(),
-        onChanged: (value) {
-          setState(() {
-            _selectedCityId = value;
-          });
-        },
+            ),
+            if (_selectedCityId != null)
+              IconButton(
+                onPressed: () => setState(() => _selectedCityId = null),
+                icon: const Icon(Icons.close, size: 18),
+                tooltip: t.filtersReset,
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -564,7 +648,7 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
                 const Icon(Icons.people_outline, size: 18, color: _textMuted),
                 const SizedBox(width: 8),
                 Text(
-                  t.guestsLabel(_guests),
+                  '$_guests ${t.guestsLabel(_guests)}',
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -684,8 +768,6 @@ class _GuestFiltersScreenState extends State<GuestFiltersScreen> {
     return '${d.day} ${months[d.month - 1]}';
   }
 }
-
-// --- Small reusable widgets ---
 
 class _FilterCard extends StatelessWidget {
   final String title;

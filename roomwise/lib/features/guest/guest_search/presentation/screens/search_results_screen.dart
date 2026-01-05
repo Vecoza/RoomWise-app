@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 import 'package:roomwise/core/api/roomwise_api_client.dart';
 import 'package:roomwise/core/models/hotel_search_item_dto.dart';
+import 'package:roomwise/core/search/search_state.dart';
 import 'package:roomwise/features/guest/guest_hotel/presentation/screens/guest_hotel_preview_screen.dart';
 import 'package:roomwise/features/guest/guest_search/domain/guest_search_filters.dart';
 import 'package:roomwise/features/guest/guest_search/presentation/screens/guest_filters_screen.dart';
@@ -37,8 +39,9 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   List<HotelSearchItemDto> _results = [];
 
   late final TextEditingController _searchCtrl;
+  late final ScrollController _scrollController;
+  bool _summaryVisible = true;
 
-  /// Always non-null; holds the last used filters (including date & guests).
   GuestSearchFilters _currentFilters = const GuestSearchFilters();
 
   String? _sortOption;
@@ -47,9 +50,10 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   void initState() {
     super.initState();
     _searchCtrl = TextEditingController(text: widget.query ?? '');
+    _scrollController = ScrollController()..addListener(_handleScroll);
 
-    // Normalize initial filters coming from landing / filters screen
     _currentFilters = _normalizeFilters(widget.initialFilters);
+    _syncSearchStateFromInputs();
 
     _loadResults();
   }
@@ -57,11 +61,12 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   @override
   void dispose() {
     _searchCtrl.dispose();
+    _scrollController.removeListener(_handleScroll);
+    _scrollController.dispose();
     super.dispose();
   }
 
   Future<void> _loadResults() async {
-    // Make sure filters are always in a consistent state
     _currentFilters = _normalizeFilters(_currentFilters);
     final f = _currentFilters;
     final trimmedQuery = _searchCtrl.text.trim();
@@ -75,12 +80,11 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       final api = context.read<RoomWiseApiClient>();
       List<HotelSearchItemDto> hotels;
 
-      // If we don't have a stay period or guests, fall back to "all hotels"
-      if (f.dateRange == null || (f.guests == null && widget.guests == null)) {
+      if (f.dateRange == null) {
         hotels = await api.getAllHotels();
       } else {
         final dateRange = f.dateRange!;
-        final guests = f.guests ?? widget.guests ?? 1;
+        final guests = (f.guests ?? widget.guests ?? 2).clamp(1, 10);
 
         hotels = await api.searchHotelsAdvanced(
           checkIn: dateRange.start,
@@ -98,6 +102,17 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         if (f.minRating != null) {
           hotels = hotels.where((h) => h.rating >= (f.minRating ?? 0)).toList();
         }
+
+        hotels = hotels.where((h) => h.hasAvailability).toList();
+      }
+
+      if (trimmedQuery.isNotEmpty) {
+        final q = trimmedQuery.toLowerCase();
+        hotels = hotels.where((h) {
+          final name = h.name.toLowerCase();
+          final city = h.city.toLowerCase();
+          return name.contains(q) || city.contains(q);
+        }).toList();
       }
 
       hotels = _applyClientSort(hotels);
@@ -116,6 +131,21 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     }
   }
 
+  void _syncSearchStateFromInputs() {
+    final range = _currentFilters.dateRange ?? widget.dateRange;
+    if (range == null) return;
+    final guests = (_currentFilters.guests ?? widget.guests ?? 2).clamp(1, 10);
+    try {
+      context.read<SearchState>().update(
+        checkIn: range.start,
+        checkOut: range.end,
+        guests: guests,
+      );
+    } catch (e) {
+      debugPrint('[SearchResults] SearchState update failed: $e');
+    }
+  }
+
   Future<void> _openFilters() async {
     final f = _currentFilters;
 
@@ -128,6 +158,9 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
           baseGuests: (f.dateRange ?? widget.dateRange) == null
               ? null
               : f.guests ?? widget.guests,
+          baseCityName: _searchCtrl.text.trim().isEmpty
+              ? null
+              : _searchCtrl.text.trim(),
         ),
       ),
     );
@@ -137,6 +170,20 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         _currentFilters = _normalizeFilters(result);
       });
       await _loadResults();
+    }
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) return;
+    final direction = _scrollController.position.userScrollDirection;
+    if (_scrollController.position.pixels <= 0 && !_summaryVisible) {
+      setState(() => _summaryVisible = true);
+      return;
+    }
+    if (direction == ScrollDirection.reverse && _summaryVisible) {
+      setState(() => _summaryVisible = false);
+    } else if (direction == ScrollDirection.forward && !_summaryVisible) {
+      setState(() => _summaryVisible = true);
     }
   }
 
@@ -157,7 +204,6 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   }
 
   GuestSearchFilters _normalizeFilters(GuestSearchFilters? filters) {
-    // Start from incoming filters or create a default one based on widget params
     final incoming =
         filters ??
         GuestSearchFilters(
@@ -166,9 +212,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         );
 
     final dateRange = incoming.dateRange ?? widget.dateRange;
-    final guests = dateRange == null
-        ? null
-        : (incoming.guests ?? widget.guests);
+    final guests = incoming.guests ?? widget.guests;
 
     return GuestSearchFilters(
       cityId: incoming.cityId,
@@ -193,7 +237,6 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         f.facilityIds.isNotEmpty;
   }
 
-  /// Small row under the search bar showing the selected dates & guests.
   Widget _buildActiveFiltersSummary() {
     final t = AppLocalizations.of(context)!;
     final dateRange = _currentFilters.dateRange ?? widget.dateRange;
@@ -210,7 +253,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       );
     }
     if (guests != null) {
-      textParts.add(t.guestsLabel(guests));
+      textParts.add('$guests ${t.guestsLabel(guests)}');
     }
 
     return Padding(
@@ -319,6 +362,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
               child: RefreshIndicator(
                 onRefresh: _loadResults,
                 child: ListView.separated(
+                  controller: _scrollController,
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                   itemCount: _results.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 14),
@@ -423,42 +467,57 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       ),
       body: Column(
         children: [
-          _buildActiveFiltersSummary(),
-          if (_results.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(999),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.03),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            alignment: Alignment.topCenter,
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 150),
+              opacity: _summaryVisible ? 1 : 0,
+              child: _summaryVisible
+                  ? Column(
+                      children: [
+                        _buildActiveFiltersSummary(),
+                        if (_results.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(999),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.03),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Text(
+                                    '${_results.length} stay${_results.length == 1 ? '' : 's'} found',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: _textPrimary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        const SizedBox(height: 4),
+                        const Divider(height: 1),
                       ],
-                    ),
-                    child: Text(
-                      '${_results.length} stay${_results.length == 1 ? '' : 's'} found',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: _textPrimary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                    )
+                  : const SizedBox.shrink(),
             ),
-          const SizedBox(height: 4),
-          const Divider(height: 1),
+          ),
           Expanded(child: listBody),
         ],
       ),
@@ -466,7 +525,6 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   }
 }
 
-/// Small scale animation when list items appear
 class _AnimatedResultCard extends StatelessWidget {
   final int index;
   final Widget child;

@@ -221,7 +221,7 @@ class _GuestRegisterScreenState extends State<GuestRegisterScreen> {
                                 if (v == null || v.trim().isEmpty) {
                                   return 'Required';
                                 }
-                                if (!v.contains('@') || !v.contains('.')) {
+                                if (!v.contains('@')) {
                                   return 'Invalid email';
                                 }
                                 return null;

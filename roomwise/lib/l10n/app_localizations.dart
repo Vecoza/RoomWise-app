@@ -297,6 +297,8 @@ abstract class AppLocalizations {
 
   String get previewSelect;
 
+  String get previewRoomUnavailable;
+
   String get paymentTitle;
 
   String get paymentSecureStripe;

@@ -1,7 +1,7 @@
 class AdminAddonUpsertRequest {
   final String name;
   final String? description;
-  final String pricingModel; // e.g., PerStay | PerNight
+  final String pricingModel;
   final double price;
   final String currency;
   final bool isActive;
@@ -16,11 +16,11 @@ class AdminAddonUpsertRequest {
   });
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'description': description,
-        'pricingModel': pricingModel,
-        'price': price,
-        'currency': currency,
-        'isActive': isActive,
-      };
+    'name': name,
+    'description': description,
+    'pricingModel': pricingModel,
+    'price': price,
+    'currency': currency,
+    'isActive': isActive,
+  };
 }

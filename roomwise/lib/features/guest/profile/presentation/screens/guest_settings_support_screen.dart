@@ -6,7 +6,6 @@ class GuestSettingsSupportScreen extends StatelessWidget {
 
   static const _supportEmail = 'support@roomwise.app';
 
-  // Design tokens – keep in sync with GuestSettingsScreen
   static const _primaryGreen = Color(0xFF05A87A);
   static const _bgColor = Color(0xFFF3F4F6);
   static const _cardColor = Colors.white;
@@ -116,25 +115,13 @@ class GuestSettingsSupportScreen extends StatelessWidget {
           const SizedBox(height: 12),
 
           // FAQ items
-          _FaqItem(
-            question: t.faqQ1,
-            answer: t.faqA1,
-          ),
+          _FaqItem(question: t.faqQ1, answer: t.faqA1),
           const _FaqDivider(),
-          _FaqItem(
-            question: t.faqQ2,
-            answer: t.faqA2,
-          ),
+          _FaqItem(question: t.faqQ2, answer: t.faqA2),
           const _FaqDivider(),
-          _FaqItem(
-            question: t.faqQ3,
-            answer: t.faqA3,
-          ),
+          _FaqItem(question: t.faqQ3, answer: t.faqA3),
           const _FaqDivider(),
-          _FaqItem(
-            question: t.faqQ4,
-            answer: t.faqA4,
-          ),
+          _FaqItem(question: t.faqQ4, answer: t.faqA4),
         ],
       ),
     );
@@ -244,7 +231,6 @@ class _FaqItem extends StatelessWidget {
     const textMuted = GuestSettingsSupportScreen._textMuted;
 
     return Theme(
-      // Remove default ExpansionTile divider color
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
         tilePadding: EdgeInsets.zero,

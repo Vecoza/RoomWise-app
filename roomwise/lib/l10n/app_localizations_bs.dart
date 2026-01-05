@@ -36,7 +36,8 @@ class AppLocalizationsBs extends AppLocalizations {
   String get securityTitle => 'Sigurnost';
 
   @override
-  String get securitySubtitle => 'Redovno ažurirajte lozinku kako bi račun bio siguran.';
+  String get securitySubtitle =>
+      'Redovno ažurirajte lozinku kako bi račun bio siguran.';
 
   @override
   String get logout => 'Odjava';
@@ -48,13 +49,15 @@ class AppLocalizationsBs extends AppLocalizations {
   String get wishlistLoggedOutTitle => 'Sačuvaj omiljene smještaje';
 
   @override
-  String get wishlistLoggedOutSubtitle => 'Kreiraj račun ili se prijavi kako bi započeo/la listu želja i brzo pronašao/la mjesta koja voliš.';
+  String get wishlistLoggedOutSubtitle =>
+      'Kreiraj račun ili se prijavi kako bi započeo/la listu želja i brzo pronašao/la mjesta koja voliš.';
 
   @override
   String get wishlistCreateAccount => 'Kreiraj račun';
 
   @override
-  String get wishlistLoginAgain => 'Prijavi se ponovo da vidiš svoju listu želja.';
+  String get wishlistLoginAgain =>
+      'Prijavi se ponovo da vidiš svoju listu želja.';
 
   @override
   String get wishlistLoadFailed => 'Greška pri učitavanju liste želja.';
@@ -72,7 +75,8 @@ class AppLocalizationsBs extends AppLocalizations {
   String get wishlistNoFavouritesTitle => 'Još nema favorita';
 
   @override
-  String get wishlistNoFavouritesSubtitle => 'Dodirni srce na hotelu da ga dodaš na listu želja i lako mu se vratiš kasnije.';
+  String get wishlistNoFavouritesSubtitle =>
+      'Dodirni srce na hotelu da ga dodaš na listu želja i lako mu se vratiš kasnije.';
 
   @override
   String get reviewYourStay => 'Pregledajte svoj boravak';
@@ -90,7 +94,8 @@ class AppLocalizationsBs extends AppLocalizations {
   String get personalInfoTitle => 'Lični podaci';
 
   @override
-  String get personalInfoSubtitle => 'Uredite osnovne podatke za rezervacije i komunikaciju.';
+  String get personalInfoSubtitle =>
+      'Uredite osnovne podatke za rezervacije i komunikaciju.';
 
   @override
   String get firstName => 'Ime';
@@ -132,7 +137,8 @@ class AppLocalizationsBs extends AppLocalizations {
   String get supportTitle => 'Podrška i FAQ';
 
   @override
-  String get supportSubtitle => 'Pronađite odgovore ili kontaktirajte naš tim podrške.';
+  String get supportSubtitle =>
+      'Pronađite odgovore ili kontaktirajte naš tim podrške.';
 
   @override
   String get alreadyAccount => 'Već imam račun';
@@ -141,7 +147,8 @@ class AppLocalizationsBs extends AppLocalizations {
   String get supportHeaderTitle => 'Kako možemo pomoći?';
 
   @override
-  String get supportHeaderSubtitle => 'Pregledajte česta pitanja ili kontaktirajte podršku ako nešto nije jasno.';
+  String get supportHeaderSubtitle =>
+      'Pregledajte česta pitanja ili kontaktirajte podršku ako nešto nije jasno.';
 
   @override
   String get faqTitle => 'Često postavljena pitanja';
@@ -153,31 +160,36 @@ class AppLocalizationsBs extends AppLocalizations {
   String get faqQ1 => 'Kako da promijenim ili otkažem rezervaciju?';
 
   @override
-  String get faqA1 => 'Svoje boravke možete upravljati na kartici Rezervacije. Dodirnite rezervaciju da vidite detalje i dostupne opcije.';
+  String get faqA1 =>
+      'Svoje boravke možete upravljati na kartici Rezervacije. Dodirnite rezervaciju da vidite detalje i dostupne opcije.';
 
   @override
   String get faqQ2 => 'Gdje mogu vidjeti svoje loyalty poene?';
 
   @override
-  String get faqA2 => 'Trenutni saldo poena vidljiv je u Profilu pod "Loyalty poeni".';
+  String get faqA2 =>
+      'Trenutni saldo poena vidljiv je u Profilu pod "Loyalty poeni".';
 
   @override
   String get faqQ3 => 'Koje metode plaćanja su podržane?';
 
   @override
-  String get faqA3 => 'Obično možete platiti karticom preko Stripe-a. Dostupnost drugih metoda zavisi od hotela i vaše zemlje.';
+  String get faqA3 =>
+      'Obično možete platiti karticom preko Stripe-a. Dostupnost drugih metoda zavisi od hotela i vaše zemlje.';
 
   @override
   String get faqQ4 => 'Našao/la sam problem sa rezervacijom. Šta da radim?';
 
   @override
-  String get faqA4 => 'Ako nešto izgleda pogrešno, kontaktirajte naš tim podrške uz referencu rezervacije kako bismo pomogli što prije.';
+  String get faqA4 =>
+      'Ako nešto izgleda pogrešno, kontaktirajte naš tim podrške uz referencu rezervacije kako bismo pomogli što prije.';
 
   @override
   String get supportContactTitle => 'Kontaktiraj podršku';
 
   @override
-  String get supportContactSubtitle => 'Niste našli što tražite? Javite se i odgovorit ćemo što prije.';
+  String get supportContactSubtitle =>
+      'Niste našli što tražite? Javite se i odgovorit ćemo što prije.';
 
   @override
   String get navExplore => 'Istraži';
@@ -368,8 +380,9 @@ class AppLocalizationsBs extends AppLocalizations {
   String get notificationsAllCaughtUp => 'Sve je pregledano.';
 
   @override
-  String notificationsUnreadCount(int unread) =>
-      unread == 1 ? '1 nepročitana obavijest.' : '$unread nepročitanih obavijesti.';
+  String notificationsUnreadCount(int unread) => unread == 1
+      ? '1 nepročitana obavijest.'
+      : '$unread nepročitanih obavijesti.';
 
   @override
   String get notificationsFilterAll => 'Sve';
@@ -422,8 +435,7 @@ class AppLocalizationsBs extends AppLocalizations {
   String get hotDealsTitle => 'Hot ponude';
 
   @override
-  String get hotDealsLoadFailed =>
-      'Neuspjelo učitavanje hot ponuda.';
+  String get hotDealsLoadFailed => 'Neuspjelo učitavanje hot ponuda.';
 
   @override
   String get hotDealsHeaderTitle => 'Današnje hot ponude';
@@ -433,8 +445,7 @@ class AppLocalizationsBs extends AppLocalizations {
       'Ovdje će biti ponude ograničenog trajanja.';
 
   @override
-  String hotDealsHeaderCount(int total) =>
-      '$total ponuda dostupno sada.';
+  String hotDealsHeaderCount(int total) => '$total ponuda dostupno sada.';
 
   @override
   String hotDealsHeaderFiltered(int visible, int total) =>
@@ -485,15 +496,13 @@ class AppLocalizationsBs extends AppLocalizations {
   String get previewRoomsTitle => 'Sobe';
 
   @override
-  String get previewNoRooms =>
-      'Nema dostupnih soba za odabrane datume.';
+  String get previewNoRooms => 'Nema dostupnih soba za odabrane datume.';
 
   @override
   String get previewReviewsTitle => 'Recenzije';
 
   @override
-  String get previewReviewsLoadFailed =>
-      'Neuspješno učitavanje recenzija.';
+  String get previewReviewsLoadFailed => 'Neuspješno učitavanje recenzija.';
 
   @override
   String get previewReviewsEmpty => 'Još nema recenzija.';
@@ -527,6 +536,9 @@ class AppLocalizationsBs extends AppLocalizations {
   String get previewSelect => 'Odaberi';
 
   @override
+  String get previewRoomUnavailable => 'Nije dostupno';
+
+  @override
   String get paymentTitle => 'Plaćanje';
 
   @override
@@ -543,8 +555,7 @@ class AppLocalizationsBs extends AppLocalizations {
       'Kartica neće biti naplaćena dok ne potvrdiš u sljedećem koraku.';
 
   @override
-  String get paymentCardNameOptional =>
-      'Ime na kartici (opcionalno)';
+  String get paymentCardNameOptional => 'Ime na kartici (opcionalno)';
 
   @override
   String get paymentCardInfo =>
@@ -588,8 +599,7 @@ class AppLocalizationsBs extends AppLocalizations {
   String get confirmPaymentActionRequired => 'Potrebna radnja';
 
   @override
-  String confirmPaymentStatusGeneric(String status) =>
-      'Plaćanje: $status';
+  String confirmPaymentStatusGeneric(String status) => 'Plaćanje: $status';
 
   @override
   String get confirmTotalPaid => 'Plaćeno';
@@ -675,8 +685,7 @@ class AppLocalizationsBs extends AppLocalizations {
       'Konačna cijena može blago varirati zavisno od valute i naknada.';
 
   @override
-  String reservationPhotosCount(int count) =>
-      '$count fotografija';
+  String reservationPhotosCount(int count) => '$count fotografija';
 
   @override
   String get filtersTitle => 'Filteri';
@@ -726,8 +735,7 @@ class AppLocalizationsBs extends AppLocalizations {
   String get filtersTripTitle => 'Detalji putovanja';
 
   @override
-  String get filtersTripSubtitle =>
-      'Odaberi datume i broj gostiju';
+  String get filtersTripSubtitle => 'Odaberi datume i broj gostiju';
 
   @override
   String get filtersAddOnsSubtitle => 'Unaprijedi boravak dodatnim uslugama';
@@ -752,16 +760,13 @@ class AppLocalizationsBs extends AppLocalizations {
   String searchEmptyTitle(String city) => 'Nema pronađenih smještaja u $city.';
 
   @override
-  String get searchEmptySubtitle =>
-      'Probaj promijeniti datume ili filtere.';
+  String get searchEmptySubtitle => 'Probaj promijeniti datume ili filtere.';
 
   @override
-  String searchCount(int count) =>
-      '$count smještaj${count == 1 ? '' : 'a'}';
+  String searchCount(int count) => '$count smještaj${count == 1 ? '' : 'a'}';
 
   @override
-  String get searchPerNightTaxes =>
-      'po noći · uključuje takse (procjena)';
+  String get searchPerNightTaxes => 'po noći · uključuje takse (procjena)';
 
   @override
   String get searchViewDetails => 'Pogledaj detalje';
@@ -771,8 +776,7 @@ class AppLocalizationsBs extends AppLocalizations {
       'Nijedan smještaj ne odgovara pretrazi. Probaj prilagoditi filtere ili datume.';
 
   @override
-  String searchReviewsCount(int count) =>
-      '$count recenzija';
+  String searchReviewsCount(int count) => '$count recenzija';
 
   @override
   String get searchPerNightEstimate => 'po noći · procjena';
@@ -833,8 +837,7 @@ class AppLocalizationsBs extends AppLocalizations {
       'Neuspjelo učitavanje podataka. Pokušaj ponovo.';
 
   @override
-  String get landingRecommendationsFailed =>
-      'Preporuke nije moguće učitati.';
+  String get landingRecommendationsFailed => 'Preporuke nije moguće učitati.';
 
   @override
   String get landingSnackSelectDates => 'Molimo odaberi datume.';
@@ -942,7 +945,8 @@ class AppLocalizationsBs extends AppLocalizations {
   String get reviewRatingRequired => 'Molimo odaberite ocjenu.';
 
   @override
-  String get reviewMissingHotel => 'Nedostaju informacije o hotelu za ovu rezervaciju.';
+  String get reviewMissingHotel =>
+      'Nedostaju informacije o hotelu za ovu rezervaciju.';
 
   @override
   String get reviewSubmitted => 'Recenzija poslata. Hvala!';
@@ -952,8 +956,7 @@ class AppLocalizationsBs extends AppLocalizations {
       'Slanje recenzije nije uspjelo. Pokušajte ponovo.';
 
   @override
-  String reviewTitle(String hotelName) =>
-      'Ocijeni boravak u $hotelName';
+  String reviewTitle(String hotelName) => 'Ocijeni boravak u $hotelName';
 
   @override
   String get reviewSubtitle =>

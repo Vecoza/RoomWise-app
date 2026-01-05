@@ -1,6 +1,6 @@
 {
-    "name": "roomwise",
-    "short_name": "roomwise",
+    "name": "RoomWise",
+    "short_name": "RoomWise",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

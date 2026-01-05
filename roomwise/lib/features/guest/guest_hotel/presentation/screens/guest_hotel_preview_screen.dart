@@ -35,7 +35,6 @@ class GuestHotelPreviewScreen extends StatefulWidget {
 }
 
 class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
-  // Design tokens
   static const _primaryGreen = Color(0xFF05A87A);
   static const _accentOrange = Color(0xFFFF7A3C);
   static const _bgColor = Color(0xFFF3F4F6);
@@ -49,6 +48,8 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
   bool _wishlistChanged = false;
   bool? _isWishlisted;
   int _currentImageIndex = 0;
+  DateTimeRange? _activeRange;
+  int? _activeGuests;
 
   final List<ReviewResponseDto> _reviews = [];
   bool _reviewsLoading = false;
@@ -66,6 +67,13 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
   void initState() {
     super.initState();
     _lastAuthToken = context.read<AuthState>().token;
+    final search = context.read<SearchState>();
+    _activeRange =
+        widget.dateRange ??
+        (search.checkIn != null && search.checkOut != null
+            ? DateTimeRange(start: search.checkIn!, end: search.checkOut!)
+            : null);
+    _activeGuests = widget.guests ?? search.guests;
     _loadDetails();
   }
 
@@ -93,9 +101,9 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
 
       final details = await api.getHotelDetails(
         hotelId: widget.hotelId,
-        checkIn: widget.dateRange?.start,
-        checkOut: widget.dateRange?.end,
-        guests: widget.guests,
+        checkIn: _activeRange?.start,
+        checkOut: _activeRange?.end,
+        guests: _activeGuests,
       );
 
       if (!mounted) return;
@@ -172,15 +180,45 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
     final hotel = _hotel;
     if (hotel == null) return;
 
-    _prepareSelection().then((selection) {
+    _prepareSelection().then((selection) async {
       if (selection == null) return;
+      if (!mounted) return;
+      setState(() {
+        _activeRange = selection.range;
+        _activeGuests = selection.guests;
+      });
 
+      final api = context.read<RoomWiseApiClient>();
+      HotelDetailsDto? pricedHotel;
+      AvailableRoomTypeDto pricedRoom = roomType;
+
+      try {
+        pricedHotel = await api.getHotelDetails(
+          hotelId: widget.hotelId,
+          checkIn: selection.range.start,
+          checkOut: selection.range.end,
+          guests: selection.guests,
+        );
+        final match = pricedHotel.availableRoomTypes.firstWhere(
+          (rt) => rt.id == roomType.id,
+          orElse: () => roomType,
+        );
+        pricedRoom = match;
+        if (!mounted) return;
+        setState(() {
+          _hotel = pricedHotel;
+        });
+      } catch (e) {
+        debugPrint('Hotel details price refresh failed: $e');
+      }
+
+      if (!mounted) return;
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => GuestReservationDetailsScreen(
-            hotel: hotel,
-            roomType: roomType,
+            hotel: pricedHotel ?? hotel,
+            roomType: pricedRoom,
             dateRange: selection.range,
             guests: selection.guests,
           ),
@@ -189,9 +227,11 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
     });
   }
 
-  Future<_BookingSelection?> _prepareSelection() async {
+  Future<_BookingSelection?> _prepareSelection({
+    bool requireLogin = true,
+  }) async {
     final auth = context.read<AuthState>();
-    if (!auth.isLoggedIn) {
+    if (requireLogin && !auth.isLoggedIn) {
       await Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const GuestLoginScreen()),
@@ -203,11 +243,11 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
 
     final search = context.read<SearchState>();
     DateTimeRange? dateRange =
-        widget.dateRange ??
-        (search.hasSelection
+        _activeRange ??
+        (search.checkIn != null && search.checkOut != null
             ? DateTimeRange(start: search.checkIn!, end: search.checkOut!)
             : null);
-    int? guests = widget.guests ?? search.guests;
+    int? guests = _activeGuests ?? search.guests;
 
     if (dateRange != null && guests != null) {
       return _BookingSelection(dateRange, guests);
@@ -334,7 +374,6 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
     );
 
     if (result != null) {
-      // Update shared search state so future screens have it
       context.read<SearchState>().update(
         checkIn: result.range.start,
         checkOut: result.range.end,
@@ -343,6 +382,16 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
     }
 
     return result;
+  }
+
+  Future<void> _promptStaySelection() async {
+    final selection = await _prepareSelection(requireLogin: false);
+    if (selection == null || !mounted) return;
+    setState(() {
+      _activeRange = selection.range;
+      _activeGuests = selection.guests;
+    });
+    await _loadDetails();
   }
 
   Future<void> _toggleWishlist() async {
@@ -373,6 +422,10 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
 
     final api = context.read<RoomWiseApiClient>();
     final currentlyWishlisted = _isWishlisted ?? false;
+    Future<bool> syncAndCheck() async {
+      await _syncWishlistStatus();
+      return (_isWishlisted ?? false) != currentlyWishlisted;
+    }
 
     try {
       if (currentlyWishlisted) {
@@ -413,20 +466,50 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
           ),
         );
       } else {
+        final synced = await syncAndCheck();
+        if (synced && mounted) {
+          _wishlistChanged = true;
+          context.read<WishlistSync>().notifyChanged();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                currentlyWishlisted
+                    ? AppLocalizations.of(context)!.wishlistRemoved
+                    : AppLocalizations.of(context)!.previewWishlistAdded,
+              ),
+            ),
+          );
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.wishlistUpdateFailed),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Wishlist update failed (non-Dio): $e');
+      final synced = await syncAndCheck();
+      if (!mounted) return;
+      if (synced) {
+        _wishlistChanged = true;
+        context.read<WishlistSync>().notifyChanged();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              currentlyWishlisted
+                  ? AppLocalizations.of(context)!.wishlistRemoved
+                  : AppLocalizations.of(context)!.previewWishlistAdded,
+            ),
+          ),
+        );
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(AppLocalizations.of(context)!.wishlistUpdateFailed),
           ),
         );
       }
-    } catch (e) {
-      debugPrint('Wishlist update failed (non-Dio): $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(context)!.wishlistUpdateFailed),
-        ),
-      );
     } finally {
       if (mounted) {
         setState(() => _wishlistUpdating = false);
@@ -514,7 +597,7 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
     try {
       final api = context.read<RoomWiseApiClient>();
       var items = await api.getRecommendations(top: 5);
-      // Remove the hotel currently being viewed to avoid showing it again.
+
       items = items.where((h) => h.id != widget.hotelId).toList();
       debugPrint('[Preview] recommendations loaded: ${items.length}');
 
@@ -540,8 +623,6 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
       });
     }
   }
-
-  // ---------- UI HELPERS ----------
 
   Widget _buildWishlistButton() {
     final saved = _isWishlisted ?? false;
@@ -607,8 +688,7 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
     }
 
     final screenWidth = MediaQuery.of(context).size.width;
-    final galleryHeight =
-        (screenWidth * 0.6).clamp(180.0, 260.0) as double; // responsive
+    final galleryHeight = (screenWidth * 0.6).clamp(180.0, 260.0) as double;
 
     return Column(
       children: [
@@ -731,8 +811,6 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
     );
   }
 
-  // ---------- MAIN CONTENT ----------
-
   Widget _buildContent(HotelDetailsDto hotel) {
     final rooms = hotel.availableRoomTypes;
     final currency = hotel.currency.isNotEmpty ? hotel.currency : '€';
@@ -746,7 +824,6 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // HEADER: gallery + wishlist
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -870,23 +947,22 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
                           ),
                         ],
                       ),
-                      if (widget.dateRange != null ||
-                          widget.guests != null) ...[
+                      if (_activeRange != null || _activeGuests != null) ...[
                         const SizedBox(height: 10),
                         Wrap(
                           spacing: 8,
                           runSpacing: 4,
                           children: [
-                            if (widget.dateRange != null)
+                            if (_activeRange != null)
                               _InfoPill(
                                 icon: Icons.calendar_month_outlined,
                                 label:
-                                    '${_shortDate(widget.dateRange!.start)} – ${_shortDate(widget.dateRange!.end)}',
+                                    '${_shortDate(_activeRange!.start)} – ${_shortDate(_activeRange!.end)}',
                               ),
-                            if (widget.guests != null)
+                            if (_activeGuests != null)
                               _InfoPill(
                                 icon: Icons.person_outline,
-                                label: t.previewGuestsCount(widget.guests!),
+                                label: t.previewGuestsCount(_activeGuests!),
                               ),
                           ],
                         ),
@@ -898,7 +974,6 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
 
               const SizedBox(height: 18),
 
-              // CARD 1: About / Facilities / Add-ons
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Container(
@@ -1023,7 +1098,28 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
                     children: [
                       _SectionTitle(t.previewRoomsTitle),
                       const SizedBox(height: 8),
-                      if (rooms.isEmpty)
+                      if (_activeRange == null)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              t.landingSelectDatesLabel,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: _textMuted,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: _promptStaySelection,
+                                child: Text(t.landingSelectDatesLabel),
+                              ),
+                            ),
+                          ],
+                        )
+                      else if (rooms.isEmpty)
                         Text(
                           t.previewNoRooms,
                           style: const TextStyle(
@@ -1265,8 +1361,8 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
                     MaterialPageRoute(
                       builder: (_) => GuestHotelPreviewScreen(
                         hotelId: h.id,
-                        dateRange: widget.dateRange,
-                        guests: widget.guests,
+                        dateRange: _activeRange,
+                        guests: _activeGuests,
                       ),
                     ),
                   );
@@ -1456,8 +1552,6 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
     return '$d.$m';
   }
 
-  // ---------- BUILD ----------
-
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
@@ -1479,7 +1573,6 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
     } else if (_hotel == null) {
       body = Center(child: Text(t.previewHotelNotFound));
     } else {
-      // Only wrap with RefreshIndicator when we have scrollable content
       body = RefreshIndicator(
         onRefresh: _loadDetails,
         child: _buildContent(_hotel!),
@@ -1511,8 +1604,6 @@ class _GuestHotelPreviewScreenState extends State<GuestHotelPreviewScreen> {
     );
   }
 }
-
-// ---------- SMALL REUSABLE WIDGETS ----------
 
 Widget _smartImage(
   String url, {
@@ -1559,8 +1650,9 @@ ImageProvider? _resolveImageProvider(String url) {
   if (trimmed.isEmpty) return null;
   if (trimmed.startsWith('http')) return NetworkImage(trimmed);
 
-  final pureBase64 =
-      trimmed.contains(',') ? trimmed.split(',').last.trim() : trimmed;
+  final pureBase64 = trimmed.contains(',')
+      ? trimmed.split(',').last.trim()
+      : trimmed;
   try {
     return MemoryImage(base64Decode(pureBase64));
   } catch (_) {
@@ -1817,26 +1909,45 @@ class _RoomTypeCard extends StatelessWidget {
                           Flexible(
                             child: Align(
                               alignment: Alignment.centerRight,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: _primaryGreen,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 10,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                ),
-                                onPressed: room.roomsLeft == 0
-                                    ? null
-                                    : onSelect,
-                                child: Text(
-                                  t.previewSelect,
-                                  style: const TextStyle(fontSize: 13),
-                                ),
-                              ),
+                              child: room.roomsLeft == 0
+                                  ? Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade200,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        t.previewRoomUnavailable,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: _textMuted,
+                                        ),
+                                      ),
+                                    )
+                                  : ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: _primaryGreen,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 10,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
+                                        ),
+                                      ),
+                                      onPressed: onSelect,
+                                      child: Text(
+                                        t.previewSelect,
+                                        style: const TextStyle(fontSize: 13),
+                                      ),
+                                    ),
                             ),
                           ),
                         ],

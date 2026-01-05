@@ -36,14 +36,14 @@ class NotificationController extends ChangeNotifier {
     if (!loggedIn) {
       _isAuthenticated = false;
       _resetState();
-      // Defer notify to avoid setState during ancestor build
+
       scheduleMicrotask(notifyListeners);
       return;
     }
 
     if (!_isAuthenticated) {
       _isAuthenticated = true;
-      // Defer loading to next microtask so provider updates finish first
+
       scheduleMicrotask(() => loadFirstPage());
     }
   }
