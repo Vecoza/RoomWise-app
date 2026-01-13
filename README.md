@@ -40,7 +40,21 @@ The guest app loads the Stripe key in `lib/main_guest.dart`:
 1. First tries assets: `.env` or `stripe.env` (both are listed in `pubspec.yaml`)
 2. Fallback: `--dart-define=STRIPE_PUBLISHABLE_KEY=...`
 
-## Run
+## Run in 2 ways
+
+1.  The project contains an **encrypted file**:
+    fit-build-2026-01-13.zip
+
+🔐 **Archive code:** `fit`
+
+Inside the archive are:
+
+- **Release/** – `.exe` file to launch the **desktop application**
+- **flutter-apk/** – `.apk` file for testing the **mobile application**
+
+This is the **fastest way** to test the application without additional configuration.
+
+2.
 
 Install dependencies:
 
@@ -73,3 +87,8 @@ Localization files live under `lib/l10n` and are generated via Flutter l10n:
 
 - The admin app uses `AdminRootShell`, which gates access to the admin UI.
 - A signed-in user must have the **Administrator** role to enter.
+
+## Demo credentials
+
+- Guest (seeded): vecaTest@gmail.com / VecaTest123! also vecolini1@gmail.com / Vecolini123!
+- Admin: (seeded) admin1@roomwise.com / HotelAdmin123! admin[1-14]@roomwise.com / HotelAdmin123! The hotel with id 1 is assigned admin1 and so on until the hotel with id 14. For each created hotel with its id, admin[hotel id]@gmail.com is assigned.
