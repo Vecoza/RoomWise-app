@@ -14,6 +14,10 @@ Future<void> main() async {
   final stripeKey = envKey?.isNotEmpty == true ? envKey! : definedKey;
   if (stripeKey.isNotEmpty) {
     Stripe.publishableKey = stripeKey;
+
+    Stripe.merchantIdentifier = "merchant.com.roomwise";
+
+    await Stripe.instance.applySettings();
     debugPrint(
       'Stripe key loaded from ${envKey?.isNotEmpty == true ? 'asset' : 'dart-define'}.',
     );

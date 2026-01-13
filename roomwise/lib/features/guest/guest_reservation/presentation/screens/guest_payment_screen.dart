@@ -410,12 +410,20 @@ class _GuestPaymentScreenState extends State<GuestPaymentScreen> {
                                       color: _bgColor,
                                       borderRadius: BorderRadius.circular(12),
                                     ),
-                                    child: CardField(
-                                      onCardChanged: (details) {
-                                        setState(() => _cardDetails = details);
-                                      },
+                                    child: SizedBox(
+                                      height: 52,
+                                      child: CardField(
+                                        autofocus: true,
+                                        enablePostalCode: false,
+                                        onCardChanged: (details) {
+                                          setState(
+                                            () => _cardDetails = details,
+                                          );
+                                        },
+                                      ),
                                     ),
                                   ),
+
                                   const SizedBox(height: 8),
                                   Row(
                                     children: [
