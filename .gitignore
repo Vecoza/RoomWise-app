@@ -6,10 +6,7 @@
 *.swp
 .buildlog/
 .history
-.env
-**/.env
-stripe.env
-**/stripe.env
+
 
 
 
@@ -121,3 +118,10 @@ app.*.symbols
 !**/ios/**/default.perspectivev3
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
 !/dev/ci/**/Gemfile.lock
+
+
+
+!**/build/**/*.zip
+!**/build/**/*.z01
+!**/build/**/*.z02
+!**/build/**/*.z03
