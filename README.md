@@ -92,3 +92,5 @@ Localization files live under `lib/l10n` and are generated via Flutter l10n:
 
 - Guest (seeded): vecaTest@gmail.com / VecaTest123! also vecolini1@gmail.com / Vecolini123!
 - Admin: (seeded) admin1@roomwise.com / HotelAdmin123! admin[1-14]@roomwise.com / HotelAdmin123! The hotel with id 1 is assigned admin1 and so on until the hotel with id 14. For each created hotel with its id, admin[hotel id]@gmail.com is assigned.
+
+- Gmail: vecolini1@gmail.com / Vecolini123!
