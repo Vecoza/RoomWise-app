@@ -7,6 +7,10 @@
 .buildlog/
 .history
 
+# Env files
+.env
+stripe.env
+
 
 
 
